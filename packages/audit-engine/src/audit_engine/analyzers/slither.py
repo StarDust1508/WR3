@@ -36,7 +36,7 @@ class SlitherAnalyzer(StaticAnalyzer):
             contract_path.write_text(source, encoding="utf-8")
             report_path = workspace / "slither.json"
 
-            code, stdout, stderr = await self._run_cli(
+            code, _stdout, stderr = await self._run_cli(
                 args=[
                     str(contract_path),
                     "--json",

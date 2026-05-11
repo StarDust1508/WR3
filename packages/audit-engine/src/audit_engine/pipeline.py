@@ -19,6 +19,7 @@ from typing import Any
 import structlog
 
 from audit_engine.analyzers import StaticAnalyzerRegistry
+from audit_engine.ingestion import SourceBundle, fetch_source
 from audit_engine.scoring import compute_score
 from audit_engine.types import AuditReport, Finding, Network
 
@@ -57,14 +58,31 @@ class AuditPipeline:
         # Stage 1 — Ingestion
         yield PipelineEvent(stage="queued", progress=2, message="Preparing")
 
-        source_code = source or await self._fetch_verified_source(address)
-        if not source_code:
+        bundle: SourceBundle | None = None
+        if source:
+            source_code = source
+        else:
             yield PipelineEvent(
-                stage="error",
-                progress=0,
-                message="Could not fetch verified source. Paste source manually or contact support.",
+                stage="queued", progress=5, message="Pulling verified source from explorer"
             )
-            return
+            bundle = await fetch_source(address=address, network=self.network)
+            if bundle is None or not bundle.primary_source:
+                yield PipelineEvent(
+                    stage="error",
+                    progress=0,
+                    message=(
+                        "Could not fetch verified source. Contract may be unverified, "
+                        "or the network is not yet supported. Paste source manually."
+                    ),
+                )
+                return
+            source_code = bundle.primary_source
+            if bundle.proxy and bundle.implementation:
+                logger.info(
+                    "pipeline.proxy_detected",
+                    proxy=address,
+                    implementation=bundle.implementation,
+                )
 
         # Stage 2 — Static analysis (parallel)
         yield PipelineEvent(stage="static", progress=15, message="Running static analyzers")
@@ -104,12 +122,4 @@ class AuditPipeline:
     def result(self) -> dict[str, Any]:
         if self._report is None:
             return {"status": "incomplete"}
-        return self._report.model_dump()
-
-    async def _fetch_verified_source(self, address: str) -> str | None:
-        """Pull verified source from explorer.
-
-        Stub: returns None. Real impl in audit_engine.ingestion (TODO).
-        """
-        logger.warning("ingestion.fetch.stub", address=address)
-        return None
+        return self._report.model_dump(mode="json")

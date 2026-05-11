@@ -5,7 +5,7 @@ from audit_engine.types import AuditReport
 
 def render_markdown(report: AuditReport) -> str:
     lines: list[str] = [
-        f"# wr3 Audit Report",
+        "# wr3 Audit Report",
         "",
         f"- **Contract:** `{report.address}`",
         f"- **Network:** {report.network}",

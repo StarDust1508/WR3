@@ -13,7 +13,9 @@ class Settings(BaseSettings):
     )
 
     wr3_env: str = Field(default="local")
-    database_url: str = Field(default="postgresql+asyncpg://wr3:wr3@localhost:5432/wr3")
+    # Native Homebrew Postgres on macOS uses peer/trust auth without password.
+    # Override via env for Docker or remote DB.
+    database_url: str = Field(default="postgresql+asyncpg://localhost:5432/wr3")
     redis_url: str = Field(default="redis://localhost:6379/0")
 
     openrouter_api_key: str = Field(default="")

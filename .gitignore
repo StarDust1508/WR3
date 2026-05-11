@@ -86,7 +86,8 @@ poc-output/
 postgres-data/
 redis-data/
 
-# AI models (large)
-models/
+# AI model weight files (large, never commit)
+# Root-only `/models/` so it doesn't shadow `apps/api/src/wr3_api/models/`
+/models/
 *.gguf
 *.safetensors

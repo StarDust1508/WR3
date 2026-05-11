@@ -7,6 +7,6 @@ Per TZ.md §5.5:
     - Gemini embeddings for RAG
 """
 
-from audit_engine.llm.router import LLMRouter, LLMRequest, Sensitivity
+from audit_engine.llm.router import LLMRequest, LLMRouter, Sensitivity
 
-__all__ = ["LLMRouter", "LLMRequest", "Sensitivity"]
+__all__ = ["LLMRequest", "LLMRouter", "Sensitivity"]

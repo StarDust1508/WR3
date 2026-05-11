@@ -9,21 +9,51 @@
 
 ## 1. Локальное окружение разработчика
 
+### Базовые инструменты
+
 | Tool | Версия | Установка |
 |---|---|---|
 | Bun | ≥ 1.2 | `curl -fsSL https://bun.sh/install \| bash` |
-| uv | ≥ 0.5 | `curl -LsSf https://astral.sh/uv/install.sh \| sh` |
-| Docker Desktop | актуальная | https://docker.com |
+| uv | ≥ 0.10 | `curl -LsSf https://astral.sh/uv/install.sh \| sh` |
+| Postgres 16 (native) | Homebrew | `brew install postgresql@16 && brew services start postgresql@16` |
+| Redis (native) | Homebrew | `brew install redis && brew services start redis` |
 | Foundry (forge/anvil/cast) | актуальная | `curl -L https://foundry.paradigm.xyz \| bash && foundryup` |
 | Aderyn | актуальная | `cargo install aderyn` либо binary с https://github.com/Cyfrin/aderyn/releases |
 | Wake | актуальная | `uv tool install eth-wake` |
 | Slither | актуальная | `uv tool install slither-analyzer` |
 | Medusa | актуальная | binary с https://github.com/crytic/medusa/releases |
-| Trident (Solana) | актуальная | `cargo install trident-cli` (после установки Rust + Solana CLI) |
+| Trident (Solana) | актуальная | `cargo install trident-cli` |
+| Docker Desktop | опционально | https://docker.com — только для Anvil sandbox / vLLM |
 
-Проверка:
+**Native Postgres + Redis обязательны.** Docker используется только для опциональных профилей (`--profile sandbox`, `--profile gpu`, `--profile fallback`).
+
+### Bootstrap одной командой
+
 ```bash
-bun --version && uv --version && docker --version && forge --version
+bash scripts/native-setup.sh
+```
+
+Идемпотентно: создаёт базу `wr3`, ставит `vector` / `uuid-ossp` / `pg_trgm` расширения, гарантирует что сервисы запущены, копирует `.env.example` → `.env.local`.
+
+Если у тебя в Redis настроен `requirepass`, вставь пароль в `REDIS_URL` в `.env.local` (формат: `redis://:PASSWORD@localhost:6379/0`).
+
+### Применить миграции
+
+```bash
+cd apps/api
+DATABASE_URL=postgresql+psycopg://localhost:5432/wr3 uv run alembic upgrade head
+```
+
+После — должны появиться таблицы `scans`, `findings`, `alembic_version`:
+```bash
+psql -d wr3 -c "\dt"
+```
+
+### Проверка установки
+
+```bash
+bun --version && uv --version && forge --version
+psql -V && redis-cli -a "$REDIS_PASSWORD" ping 2>/dev/null || redis-cli ping
 aderyn --version && wake --version && slither --version
 medusa --version
 ```
@@ -75,9 +105,8 @@ medusa --version
 После заполнения `.env.local`:
 
 ```bash
-# 1. Postgres + Redis
-docker compose up -d postgres redis
-docker compose ps                              # должны быть healthy
+# 1. Postgres + Redis уже запущены через brew services (см. шаг 1).
+brew services list | grep -E "postgresql|redis"
 
 # 2. Bun workspace
 bun install
@@ -85,14 +114,20 @@ bun install
 # 3. Audit engine tests
 cd packages/audit-engine
 uv sync
-uv run pytest -q                               # все должны быть зелёные
+uv run pytest -q                               # 9 passed
 
-# 4. API smoke
+# 4. API + migrations + smoke
 cd ../../apps/api
 uv sync
+DATABASE_URL=postgresql+psycopg://localhost:5432/wr3 uv run alembic upgrade head
+uv run pytest -q                               # 2 passed
 uv run uvicorn wr3_api.main:app --reload --port 8001 &
 sleep 2
 curl -s http://localhost:8001/v1/health        # {"status":"ok"}
+curl -s -X POST http://localhost:8001/v1/scan \
+  -H 'Content-Type: application/json' \
+  -d '{"address":"0x1111111111111111111111111111111111111111","network":"base","source_code":"contract A {}"}'
+psql -d wr3 -c "SELECT address, network, stage FROM scans ORDER BY created_at DESC LIMIT 1;"
 kill %1
 
 # 5. Web smoke

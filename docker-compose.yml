@@ -1,38 +1,13 @@
+# wr3 — optional Docker services.
+#
+# Postgres and Redis run NATIVELY on macOS (Homebrew). See scripts/native-setup.sh.
+# This compose file is kept only for opt-in extras: Anvil (EVM fork) and vLLM (local LLM).
+#
+# To use:
+#   docker compose --profile sandbox up -d anvil
+#   docker compose --profile gpu up -d vllm
+
 services:
-  postgres:
-    image: pgvector/pgvector:pg17
-    container_name: wr3-postgres
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: wr3
-      POSTGRES_USER: wr3
-      POSTGRES_PASSWORD: wr3
-    ports:
-      - "5432:5432"
-    volumes:
-      - ./postgres-data:/var/lib/postgresql/data
-      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init.sql:ro
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U wr3 -d wr3"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
-  redis:
-    image: redis:7-alpine
-    container_name: wr3-redis
-    restart: unless-stopped
-    ports:
-      - "6379:6379"
-    volumes:
-      - ./redis-data:/data
-    command: redis-server --save 60 1 --loglevel warning
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 5
-
   # Foundry/Anvil — local EVM fork for PoC sandbox
   anvil:
     image: ghcr.io/foundry-rs/foundry:latest
@@ -44,27 +19,57 @@ services:
     profiles:
       - sandbox
 
-  # Local LLM via vLLM (requires NVIDIA GPU, optional)
-  # vllm:
-  #   image: vllm/vllm-openai:latest
-  #   container_name: wr3-vllm
-  #   ports:
-  #     - "8000:8000"
-  #   environment:
-  #     - HUGGING_FACE_HUB_TOKEN=${HF_TOKEN}
-  #   command:
-  #     - --model
-  #     - Qwen/Qwen3-Coder-30B-A3B-Instruct
-  #     - --quantization
-  #     - awq
-  #     - --max-model-len
-  #     - "32768"
-  #   deploy:
-  #     resources:
-  #       reservations:
-  #         devices:
-  #           - driver: nvidia
-  #             count: 1
-  #             capabilities: [gpu]
-  #   profiles:
-  #     - gpu
+  # Local LLM via vLLM (requires NVIDIA GPU)
+  vllm:
+    image: vllm/vllm-openai:latest
+    container_name: wr3-vllm
+    ports:
+      - "8000:8000"
+    environment:
+      HUGGING_FACE_HUB_TOKEN: ${HF_TOKEN:-}
+    command:
+      - --model
+      - Qwen/Qwen3-Coder-30B-A3B-Instruct
+      - --quantization
+      - awq
+      - --max-model-len
+      - "32768"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    profiles:
+      - gpu
+
+  # Fallback: containerized Postgres if you don't want native install.
+  # Off by default — `docker compose --profile fallback up -d postgres redis`.
+  postgres:
+    image: pgvector/pgvector:pg17
+    container_name: wr3-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: wr3
+      POSTGRES_USER: wr3
+      POSTGRES_PASSWORD: wr3
+    ports:
+      - "5433:5432"  # 5433 to avoid clashing with native 5432
+    volumes:
+      - ./postgres-data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    profiles:
+      - fallback
+
+  redis:
+    image: redis:7-alpine
+    container_name: wr3-redis
+    restart: unless-stopped
+    ports:
+      - "6380:6379"  # 6380 to avoid clashing with native 6379
+    volumes:
+      - ./redis-data:/data
+    command: redis-server --save 60 1 --loglevel warning
+    profiles:
+      - fallback

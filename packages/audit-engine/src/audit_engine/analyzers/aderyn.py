@@ -44,7 +44,7 @@ class AderynAnalyzer(StaticAnalyzer):
 
             report_path = workspace / "report.json"
 
-            code, stdout, stderr = await self._run_cli(
+            code, _stdout, stderr = await self._run_cli(
                 args=["--output", str(report_path), "--no-snippets"],
                 cwd=workspace,
                 timeout=180.0,

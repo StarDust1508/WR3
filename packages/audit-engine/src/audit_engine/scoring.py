@@ -1,6 +1,6 @@
-"""Scoring system — 5 axes, transparent weights, 0–100 with traffic light.
+"""Scoring system: 5 axes, transparent weights, 0-100 with traffic light.
 
-Per TZ.md §8: weights publish in README + UI methodology page.
+Per TZ.md section 8: weights are published in README and UI methodology page.
 """
 
 from __future__ import annotations
@@ -75,11 +75,27 @@ def compute_score(*, address: str, network: Network, findings: list[Finding]) ->
     weighted = sum(a.score * a.weight for a in axes)
     score = round(weighted, 1)
 
+    # Severity overrides: a single CRITICAL finding always means red, regardless
+    # of how the weighted average comes out. HIGH caps tier at yellow at best.
+    # This matches industry norm — a critical bug is automatically a red flag,
+    # not something that can be "averaged out" by good tokenomics or KYC.
+    has_critical = any(f.severity == Severity.CRITICAL for f in active)
+    has_high = any(f.severity == Severity.HIGH for f in active)
+
+    if has_critical:
+        tier: Literal["red", "yellow", "green", "blue"] = "red"
+        score = min(score, 39.9)
+    elif has_high:
+        tier = _tier(min(score, 69.9))
+        score = min(score, 69.9)
+    else:
+        tier = _tier(score)
+
     return AuditReport(
         address=address,
         network=network,
         score=score,
-        tier=_tier(score),
+        tier=tier,
         axes=axes,
         findings=active,
     )
@@ -101,5 +117,8 @@ def _describe_code_findings(findings: list[Finding]) -> str:
         by_sev[f.severity] = by_sev.get(f.severity, 0) + 1
     if not by_sev:
         return "No findings from static analysis."
-    parts = [f"{n}× {sev.value}" for sev, n in sorted(by_sev.items(), key=lambda kv: -SEVERITY_PENALTY.get(kv[0], 0))]
+    parts = [
+        f"{n}x {sev.value}"
+        for sev, n in sorted(by_sev.items(), key=lambda kv: -SEVERITY_PENALTY.get(kv[0], 0))
+    ]
     return "Findings: " + ", ".join(parts)
