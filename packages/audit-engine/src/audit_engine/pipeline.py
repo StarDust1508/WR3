@@ -20,6 +20,7 @@ import structlog
 
 from audit_engine.agents import MultiAgentTriage, TriageOrchestrator
 from audit_engine.analyzers import StaticAnalyzerRegistry
+from audit_engine.fuzzing import FuzzingOrchestrator
 from audit_engine.ingestion import SourceBundle, fetch_source
 from audit_engine.poc import PoCGenerator
 from audit_engine.scoring import compute_score
@@ -46,9 +47,11 @@ class AuditPipeline:
     triage_enabled: bool = True
     multi_agent_triage: bool = True
     poc_enabled: bool = True
+    fuzzing_enabled: bool = True
     _report: AuditReport | None = None
     _triage: TriageOrchestrator | MultiAgentTriage | None = None
     _poc: PoCGenerator | None = None
+    _fuzzing: FuzzingOrchestrator | None = None
 
     def __post_init__(self) -> None:
         if self.triage_enabled and self._triage is None:
@@ -57,6 +60,8 @@ class AuditPipeline:
             )
         if self.poc_enabled and self._poc is None:
             self._poc = PoCGenerator()
+        if self.fuzzing_enabled and self._fuzzing is None:
+            self._fuzzing = FuzzingOrchestrator()
 
     async def run(
         self,
@@ -152,8 +157,32 @@ class AuditPipeline:
                     message=f"PoC {idx + 1}/{len(targets)}: {finding.title[:60]}",
                 )
 
-        # Stage 5 — AI-fuzzing (TODO)
+        # Stage 5 — AI-fuzzing with LLM-generated invariants.
         yield PipelineEvent(stage="fuzzing", progress=80, message="AI-fuzzing invariants")
+        if self._fuzzing is not None:
+            outcome = await self._fuzzing.run(
+                scan_id=self.scan_id or "ad-hoc",
+                source=source_code,
+            )
+            if outcome.new_findings:
+                self.findings.extend(outcome.new_findings)
+                log.info(
+                    "pipeline.fuzzing.added",
+                    count=len(outcome.new_findings),
+                    invariants=len(outcome.invariants),
+                    engine=outcome.fuzz_result.engine,
+                )
+            else:
+                log.info(
+                    "pipeline.fuzzing.no_findings",
+                    diagnostic=outcome.diagnostic,
+                    invariants=len(outcome.invariants),
+                )
+            yield PipelineEvent(
+                stage="fuzzing",
+                progress=88,
+                message=outcome.diagnostic,
+            )
 
         # Stage 6 — Formal verification — premium only, skip in MVP
 
