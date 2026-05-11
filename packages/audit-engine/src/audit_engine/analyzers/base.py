@@ -32,13 +32,18 @@ class StaticAnalyzer(ABC):
         ...
 
     async def _run_cli(self, args: list[str], cwd: Path, timeout: float = 120.0) -> tuple[int, str, str]:
-        proc = await asyncio.create_subprocess_exec(
-            self.cli,
-            *args,
-            cwd=str(cwd),
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                self.cli,
+                *args,
+                cwd=str(cwd),
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+        except FileNotFoundError:
+            logger.info("analyzer.skipped.not_installed", engine=self.name, cli=self.cli)
+            return -127, "", "not installed"
+
         try:
             stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
         except TimeoutError:

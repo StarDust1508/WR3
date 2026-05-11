@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 type Stage = "queued" | "static" | "triage" | "poc" | "fuzzing" | "scoring" | "done" | "error";
 
@@ -9,10 +10,12 @@ interface ScanState {
   progress: number;
   score?: number;
   message?: string;
+  scan_id?: string;
 }
 
 export function ScanRunner({ address, network }: { address: string; network: string }) {
   const [state, setState] = useState<ScanState>({ stage: "queued", progress: 0 });
+  const router = useRouter();
 
   useEffect(() => {
     const controller = new AbortController();
@@ -30,13 +33,18 @@ export function ScanRunner({ address, network }: { address: string; network: str
           throw new Error(`API returned ${res.status}`);
         }
 
-        const { jobId } = (await res.json()) as { jobId: string };
+        const { job_id: jobId } = (await res.json()) as { job_id: string };
 
         const es = new EventSource(`/api/v1/scan/${jobId}/events`);
         es.onmessage = (e) => {
           const update = JSON.parse(e.data) as ScanState;
           setState(update);
-          if (update.stage === "done" || update.stage === "error") {
+          if (update.stage === "done") {
+            es.close();
+            if (update.scan_id) {
+              router.push(`/scan/${update.scan_id}`);
+            }
+          } else if (update.stage === "error") {
             es.close();
           }
         };
@@ -53,7 +61,7 @@ export function ScanRunner({ address, network }: { address: string; network: str
 
     run();
     return () => controller.abort();
-  }, [address, network]);
+  }, [address, network, router]);
 
   return (
     <div className="space-y-6">

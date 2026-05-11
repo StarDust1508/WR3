@@ -16,6 +16,7 @@ import structlog
 
 from audit_engine.analyzers.aderyn import AderynAnalyzer
 from audit_engine.analyzers.base import StaticAnalyzer
+from audit_engine.analyzers.baseline import BaselineAnalyzer
 from audit_engine.analyzers.slither import SlitherAnalyzer
 from audit_engine.analyzers.wake import WakeAnalyzer
 from audit_engine.types import Finding, Network
@@ -31,7 +32,10 @@ class StaticAnalyzerRegistry:
         if network == "solana":
             # TODO: SolanaAnalyzer (custom AST on anchor-syn + Sealevel-attacks rules)
             return []
+        # Baseline first: in-process, no deps, fast.
+        # Aderyn/Wake/Slither will silently skip if their binaries aren't installed.
         return [
+            BaselineAnalyzer(),
             AderynAnalyzer(),
             WakeAnalyzer(),
             SlitherAnalyzer(),

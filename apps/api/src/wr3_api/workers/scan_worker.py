@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import asyncio
 import json
+import threading
 import time
 import uuid
+from collections.abc import Coroutine
 from typing import Any
 
 import redis.asyncio as aioredis
@@ -15,6 +17,36 @@ from audit_engine.pipeline import AuditPipeline, PipelineEvent
 from wr3_api.config import get_settings
 from wr3_api.services import scan_repository as repo
 from wr3_api.workers.celery_app import celery_app
+
+
+def _run_async[T](coro: Coroutine[Any, Any, T]) -> T:
+    """Run an async coroutine to completion regardless of caller context.
+
+    In normal Celery workers we just use asyncio.run(). In eager mode (used for
+    dev/test, see celery_app.py) the task is invoked from an existing event
+    loop (FastAPI handler), so asyncio.run() would error — we spin a dedicated
+    loop in a background thread instead.
+    """
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(coro)
+
+    result: dict[str, T] = {}
+    error: dict[str, BaseException] = {}
+
+    def runner() -> None:
+        try:
+            result["v"] = asyncio.run(coro)
+        except BaseException as exc:
+            error["v"] = exc
+
+    t = threading.Thread(target=runner, daemon=True)
+    t.start()
+    t.join()
+    if "v" in error:
+        raise error["v"]
+    return result["v"]
 
 logger = structlog.get_logger()
 settings = get_settings()
@@ -29,8 +61,11 @@ async def _redis() -> aioredis.Redis:
 
 async def enqueue_scan(
     *, job_id: str, address: str, network: str, source: str | None
-) -> None:
-    """Persist Scan row + initial Redis progress, then dispatch to Celery."""
+) -> str:
+    """Persist Scan row + initial Redis progress, then dispatch to Celery.
+
+    Returns the scan_id (UUID) — the API may want to expose it directly.
+    """
     scan_id = await repo.create_scan(address=address, network=network)
 
     r = await _redis()
@@ -51,6 +86,7 @@ async def enqueue_scan(
         network=network,
         source=source,
     )
+    return str(scan_id)
 
 
 async def get_scan_progress(job_id: str) -> dict[str, Any] | None:
@@ -68,10 +104,11 @@ async def _publish(job_id: str, payload: dict[str, Any]) -> None:
     await r.aclose()
 
 
-def _event_payload(event: PipelineEvent) -> dict[str, Any]:
+def _event_payload(event: PipelineEvent, *, scan_id: str) -> dict[str, Any]:
     payload: dict[str, Any] = {
         "stage": event.stage,
         "progress": event.progress,
+        "scan_id": scan_id,
     }
     if event.message:
         payload["message"] = event.message
@@ -97,7 +134,7 @@ def run_audit_pipeline(
         started = time.monotonic()
 
         async for event in pipeline.run(address=address, source=source):
-            payload = _event_payload(event)
+            payload = _event_payload(event, scan_id=scan_id)
             await _publish(job_id, payload)
             await repo.update_progress(
                 scan_id=scan_uuid,
@@ -125,4 +162,4 @@ def run_audit_pipeline(
         )
         return result
 
-    return asyncio.run(_run())
+    return _run_async(_run())

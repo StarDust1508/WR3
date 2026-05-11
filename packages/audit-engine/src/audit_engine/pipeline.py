@@ -18,6 +18,7 @@ from typing import Any
 
 import structlog
 
+from audit_engine.agents import TriageOrchestrator
 from audit_engine.analyzers import StaticAnalyzerRegistry
 from audit_engine.ingestion import SourceBundle, fetch_source
 from audit_engine.scoring import compute_score
@@ -40,7 +41,13 @@ class AuditPipeline:
 
     network: Network
     findings: list[Finding] = field(default_factory=list)
+    triage_enabled: bool = True
     _report: AuditReport | None = None
+    _triage: TriageOrchestrator | None = None
+
+    def __post_init__(self) -> None:
+        if self.triage_enabled and self._triage is None:
+            self._triage = TriageOrchestrator()
 
     async def run(
         self,
@@ -92,9 +99,15 @@ class AuditPipeline:
         self.findings.extend(static_findings)
         log.info("pipeline.static.done", count=len(static_findings))
 
-        # Stage 3 — LLM triage (TODO: wire to audit_engine.agents)
+        # Stage 3 — LLM triage (multi-agent, single-call for cost)
         yield PipelineEvent(stage="triage", progress=40, message="LLM triage filtering FP")
-        # await TriageOrchestrator().run(self.findings, source=source_code)
+        if self._triage is not None and self.findings:
+            self.findings = await self._triage.run(self.findings, source=source_code)
+            log.info(
+                "pipeline.triage.done",
+                count=len(self.findings),
+                dismissed=sum(1 for f in self.findings if f.dismissed),
+            )
 
         # Stage 4 — Foundry PoC retry loop (TODO: wire to audit_engine.poc)
         yield PipelineEvent(stage="poc", progress=60, message="Generating PoCs for high-severity")
