@@ -18,7 +18,7 @@ from typing import Any
 
 import structlog
 
-from audit_engine.agents import TriageOrchestrator
+from audit_engine.agents import MultiAgentTriage, TriageOrchestrator
 from audit_engine.analyzers import StaticAnalyzerRegistry
 from audit_engine.ingestion import SourceBundle, fetch_source
 from audit_engine.poc import PoCGenerator
@@ -44,14 +44,17 @@ class AuditPipeline:
     scan_id: str | None = None
     findings: list[Finding] = field(default_factory=list)
     triage_enabled: bool = True
+    multi_agent_triage: bool = True
     poc_enabled: bool = True
     _report: AuditReport | None = None
-    _triage: TriageOrchestrator | None = None
+    _triage: TriageOrchestrator | MultiAgentTriage | None = None
     _poc: PoCGenerator | None = None
 
     def __post_init__(self) -> None:
         if self.triage_enabled and self._triage is None:
-            self._triage = TriageOrchestrator()
+            self._triage = (
+                MultiAgentTriage() if self.multi_agent_triage else TriageOrchestrator()
+            )
         if self.poc_enabled and self._poc is None:
             self._poc = PoCGenerator()
 
