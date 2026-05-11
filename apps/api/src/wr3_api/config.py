@@ -1,0 +1,53 @@
+from functools import lru_cache
+
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=(".env", ".env.local"),
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+    )
+
+    wr3_env: str = Field(default="local")
+    database_url: str = Field(default="postgresql+asyncpg://wr3:wr3@localhost:5432/wr3")
+    redis_url: str = Field(default="redis://localhost:6379/0")
+
+    openrouter_api_key: str = Field(default="")
+    openrouter_base_url: str = Field(default="https://openrouter.ai/api/v1")
+    navyai_api_key: str = Field(default="")
+    navyai_base_url: str = Field(default="https://api.navy/v1")
+    local_llm_url: str = Field(default="http://localhost:8000/v1")
+    local_llm_model: str = Field(default="Qwen/Qwen3-Coder-30B-A3B-Instruct")
+    gemini_api_key: str = Field(default="")
+
+    solodit_api_key: str = Field(default="")
+    etherscan_api_key: str = Field(default="")
+    bscscan_api_key: str = Field(default="")
+    basescan_api_key: str = Field(default="")
+    arbiscan_api_key: str = Field(default="")
+    alchemy_api_key: str = Field(default="")
+
+    nextauth_secret: str = Field(default="dev-secret-do-not-use-in-prod")
+
+    telegram_bot_token: str = Field(default="")
+    telegram_webhook_secret: str = Field(default="")
+
+    r2_account_id: str = Field(default="")
+    r2_access_key_id: str = Field(default="")
+    r2_secret_access_key: str = Field(default="")
+    r2_bucket_reports: str = Field(default="wr3-reports")
+
+    sentry_dsn: str = Field(default="")
+
+    @property
+    def is_local(self) -> bool:
+        return self.wr3_env == "local"
+
+
+@lru_cache
+def get_settings() -> Settings:
+    return Settings()

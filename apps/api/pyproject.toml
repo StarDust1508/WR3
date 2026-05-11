@@ -1,0 +1,56 @@
+[project]
+name = "wr3-api"
+version = "0.1.0"
+description = "wr3 API gateway and Celery workers"
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "pydantic>=2.10.0",
+    "pydantic-settings>=2.7.0",
+    "sqlalchemy>=2.0.36",
+    "asyncpg>=0.30.0",
+    "alembic>=1.14.0",
+    "redis>=5.2.0",
+    "celery[redis]>=5.4.0",
+    "httpx>=0.28.0",
+    "sse-starlette>=2.2.0",
+    "python-jose[cryptography]>=3.3.0",
+    "structlog>=24.4.0",
+    "wr3-audit-engine",
+]
+
+[tool.uv.sources]
+wr3-audit-engine = { workspace = true }
+
+[tool.uv.workspace]
+members = ["../../packages/audit-engine"]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.25.0",
+    "pytest-cov>=6.0.0",
+    "httpx>=0.28.0",
+    "ruff>=0.8.0",
+    "mypy>=1.13.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/wr3_api"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP", "B", "SIM", "RUF"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

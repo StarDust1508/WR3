@@ -1,0 +1,21 @@
+@import "tailwindcss";
+
+@theme {
+  --color-traffic-red: oklch(0.55 0.22 25);
+  --color-traffic-yellow: oklch(0.78 0.17 85);
+  --color-traffic-green: oklch(0.70 0.18 145);
+  --color-traffic-blue: oklch(0.65 0.18 245);
+}
+
+:root {
+  color-scheme: light dark;
+}
+
+html, body {
+  height: 100%;
+}
+
+body {
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}

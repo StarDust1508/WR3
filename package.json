@@ -1,0 +1,31 @@
+{
+  "name": "wr3",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI-platform for smart contract auditing — vibe-coders niche on BSC/Base/Arbitrum/Ethereum/Solana",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/StarDust1508/WR3"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/shared"
+  ],
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "clean": "turbo run clean && rm -rf node_modules"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.0",
+    "typescript": "^5.7.0",
+    "prettier": "^3.4.0"
+  },
+  "packageManager": "bun@1.2.0",
+  "engines": {
+    "node": ">=20"
+  }
+}

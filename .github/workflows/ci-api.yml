@@ -1,0 +1,77 @@
+name: CI · api
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/api/**"
+      - "packages/audit-engine/**"
+      - ".github/workflows/ci-api.yml"
+  pull_request:
+    paths:
+      - "apps/api/**"
+      - "packages/audit-engine/**"
+      - ".github/workflows/ci-api.yml"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: wr3
+          POSTGRES_PASSWORD: wr3
+          POSTGRES_DB: wr3
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U wr3"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      - name: Sync audit-engine
+        working-directory: packages/audit-engine
+        run: uv sync --all-extras --dev
+
+      - name: Lint audit-engine
+        working-directory: packages/audit-engine
+        run: uv run ruff check src tests
+
+      - name: Test audit-engine
+        working-directory: packages/audit-engine
+        run: uv run pytest -q
+
+      - name: Sync api
+        working-directory: apps/api
+        run: uv sync --all-extras --dev
+
+      - name: Lint api
+        working-directory: apps/api
+        run: uv run ruff check src tests
+
+      - name: Test api
+        working-directory: apps/api
+        env:
+          DATABASE_URL: postgresql+asyncpg://wr3:wr3@localhost:5432/wr3
+          REDIS_URL: redis://localhost:6379/0
+        run: uv run pytest -q
