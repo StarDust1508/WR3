@@ -93,6 +93,8 @@ async def get_scan_report(scan_id: UUID) -> dict[str, Any]:
                 "line": f.line,
                 "confidence": f.confidence,
                 "dismissed": f.dismissed,
+                "poc_validated": f.poc_validated,
+                "poc_path": f.poc_path,
             }
             for f in findings
         ],

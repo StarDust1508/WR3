@@ -13,6 +13,8 @@ interface FindingRowProps {
     line: number | null;
     confidence: number;
     dismissed: boolean;
+    poc_validated?: boolean;
+    poc_path?: string | null;
   };
 }
 
@@ -39,6 +41,14 @@ export function FindingRow({ finding }: FindingRowProps) {
         <span className={`rounded px-2 py-0.5 text-xs font-semibold ${sev.bg} ${sev.text}`}>
           {sev.label}
         </span>
+        {finding.poc_validated && (
+          <span
+            className="rounded bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+            title="Foundry PoC validated this exploit"
+          >
+            PoC ✓
+          </span>
+        )}
         <span className="flex-1 truncate font-medium">{finding.title}</span>
         <span className="font-mono text-xs text-zinc-500">
           {finding.source_engine}

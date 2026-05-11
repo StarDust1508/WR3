@@ -21,6 +21,7 @@ import structlog
 from audit_engine.agents import TriageOrchestrator
 from audit_engine.analyzers import StaticAnalyzerRegistry
 from audit_engine.ingestion import SourceBundle, fetch_source
+from audit_engine.poc import PoCGenerator
 from audit_engine.scoring import compute_score
 from audit_engine.types import AuditReport, Finding, Network
 
@@ -40,14 +41,19 @@ class AuditPipeline:
     """Orchestrates the audit pipeline for a single contract."""
 
     network: Network
+    scan_id: str | None = None
     findings: list[Finding] = field(default_factory=list)
     triage_enabled: bool = True
+    poc_enabled: bool = True
     _report: AuditReport | None = None
     _triage: TriageOrchestrator | None = None
+    _poc: PoCGenerator | None = None
 
     def __post_init__(self) -> None:
         if self.triage_enabled and self._triage is None:
             self._triage = TriageOrchestrator()
+        if self.poc_enabled and self._poc is None:
+            self._poc = PoCGenerator()
 
     async def run(
         self,
@@ -109,9 +115,39 @@ class AuditPipeline:
                 dismissed=sum(1 for f in self.findings if f.dismissed),
             )
 
-        # Stage 4 — Foundry PoC retry loop (TODO: wire to audit_engine.poc)
+        # Stage 4 — Foundry PoC generation for HIGH/CRITICAL findings.
         yield PipelineEvent(stage="poc", progress=60, message="Generating PoCs for high-severity")
-        # await PocGenerator().run(self.findings, source=source_code)
+        if self._poc is not None:
+            targets = [f for f in self.findings if self._poc.should_attempt(f)]
+            log.info("pipeline.poc.targets", count=len(targets))
+            for idx, finding in enumerate(targets):
+                outcome = await self._poc.generate(
+                    scan_id=self.scan_id or "ad-hoc",
+                    finding=finding,
+                    target_source=source_code,
+                )
+                self.findings = [
+                    f.model_copy(
+                        update={
+                            "poc_path": outcome.artifact_path,
+                            "poc_validated": outcome.validated,
+                            "metadata": {
+                                **f.metadata,
+                                "poc_attempts": outcome.attempts,
+                                "poc_diagnostic": outcome.diagnostic,
+                            },
+                        }
+                    )
+                    if f.id == finding.id
+                    else f
+                    for f in self.findings
+                ]
+                # Mid-stage progress nudges so UI doesn't sit still on long PoCs.
+                yield PipelineEvent(
+                    stage="poc",
+                    progress=60 + int(20 * (idx + 1) / max(len(targets), 1)),
+                    message=f"PoC {idx + 1}/{len(targets)}: {finding.title[:60]}",
+                )
 
         # Stage 5 — AI-fuzzing (TODO)
         yield PipelineEvent(stage="fuzzing", progress=80, message="AI-fuzzing invariants")

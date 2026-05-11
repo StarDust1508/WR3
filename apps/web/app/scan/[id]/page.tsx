@@ -30,6 +30,8 @@ interface ScanDetail {
     line: number | null;
     confidence: number;
     dismissed: boolean;
+    poc_validated?: boolean;
+    poc_path?: string | null;
   }>;
 }
 

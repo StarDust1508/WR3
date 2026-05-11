@@ -130,7 +130,7 @@ def run_audit_pipeline(
 
     async def _run() -> dict[str, Any]:
         scan_uuid = uuid.UUID(scan_id)
-        pipeline = AuditPipeline(network=network)  # type: ignore[arg-type]
+        pipeline = AuditPipeline(network=network, scan_id=scan_id)  # type: ignore[arg-type]
         started = time.monotonic()
 
         async for event in pipeline.run(address=address, source=source):

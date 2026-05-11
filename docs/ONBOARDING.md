@@ -17,7 +17,7 @@
 | uv | ≥ 0.10 | `curl -LsSf https://astral.sh/uv/install.sh \| sh` |
 | Postgres 16 (native) | Homebrew | `brew install postgresql@16 && brew services start postgresql@16` |
 | Redis (native) | Homebrew | `brew install redis && brew services start redis` |
-| Foundry (forge/anvil/cast) | актуальная | `curl -L https://foundry.paradigm.xyz \| bash && foundryup` |
+| Foundry (forge/anvil/cast) | **обязательно для PoC stage** | `curl -L https://foundry.paradigm.xyz \| bash && foundryup` |
 | Aderyn | актуальная | `cargo install aderyn` либо binary с https://github.com/Cyfrin/aderyn/releases |
 | Wake | актуальная | `uv tool install eth-wake` |
 | Slither | актуальная | `uv tool install slither-analyzer` |
@@ -57,6 +57,27 @@ psql -V && redis-cli -a "$REDIS_PASSWORD" ping 2>/dev/null || redis-cli ping
 aderyn --version && wake --version && slither --version
 medusa --version
 ```
+
+### PoC stage (W4)
+
+PoC generation запускает `forge test` per HIGH/CRITICAL finding. Без forge на хосте этот этап
+gracefully skip'нется — pipeline всё равно дойдёт до `done`, findings будут без `poc_validated=true`.
+
+Установка Foundry:
+```bash
+curl -L https://foundry.paradigm.xyz | bash
+foundryup  # установит последние forge / anvil / cast
+forge --version
+```
+
+Артефакты PoC попадают в `./poc-output/<scan_id>/<finding_id>/`:
+- `PoC.attempt1.t.sol` — текущая попытка
+- `PoC.attempt2.t.sol`, `attempt3` — последующие, если первая упала
+- `forge.attempt{N}.log` — stdout/stderr forge для каждой попытки
+
+Папка `poc-output/` уже в `.gitignore` — не коммитить.
+
+Опционально: `WR3_POC_ROOT=/абсолютный/путь` переопределяет корень артефактов.
 
 ---
 
