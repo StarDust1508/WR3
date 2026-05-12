@@ -1,15 +1,5 @@
 "use client";
 
-import {
-  AlertTriangle,
-  ArrowLeft,
-  CheckCircle2,
-  Info,
-  Loader2,
-  ShieldAlert,
-  ShieldCheck,
-  ShieldOff,
-} from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { getStoredToken } from "@/lib/tg-session";
@@ -44,7 +34,6 @@ export function ScanDetailMini({ scanId }: { scanId: string }) {
   useEffect(() => {
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
-
     async function load() {
       try {
         const token = getStoredToken();
@@ -55,8 +44,6 @@ export function ScanDetailMini({ scanId }: { scanId: string }) {
         const data = (await res.json()) as ScanDetail;
         if (cancelled) return;
         setScan(data);
-
-        // Poll while pipeline is running.
         if (data.stage !== "done" && data.stage !== "error") {
           timer = setTimeout(load, 1500);
         }
@@ -64,24 +51,17 @@ export function ScanDetailMini({ scanId }: { scanId: string }) {
         if (!cancelled) setError((e as Error).message);
       }
     }
-
     load();
-    return () => {
-      cancelled = true;
-      if (timer) clearTimeout(timer);
-    };
+    return () => { cancelled = true; if (timer) clearTimeout(timer); };
   }, [scanId]);
 
   if (error) {
     return (
       <main className="mx-auto max-w-xl px-4 pb-12 pt-4">
         <BackLink />
-        <div className="mt-8 flex flex-col items-center gap-2 text-center">
-          <ShieldOff size={28} color="var(--tg-destructive)" />
-          <p className="text-sm" style={{ color: "var(--tg-destructive)" }}>
-            {error}
-          </p>
-        </div>
+        <p className="mt-6 text-sm" style={{ color: "var(--hb-error)" }}>
+          <span>ERR </span>{error}
+        </p>
       </main>
     );
   }
@@ -89,13 +69,9 @@ export function ScanDetailMini({ scanId }: { scanId: string }) {
     return (
       <main className="mx-auto max-w-xl px-4 pb-12 pt-4">
         <BackLink />
-        <div
-          className="flex items-center justify-center gap-2 py-16"
-          style={{ color: "var(--tg-hint)" }}
-        >
-          <Loader2 className="animate-spin" size={16} />
-          <span className="text-sm">Loading…</span>
-        </div>
+        <p className="mt-12 text-center text-xs hb-prompt">
+          loading<span className="hb-cursor" />
+        </p>
       </main>
     );
   }
@@ -107,40 +83,33 @@ export function ScanDetailMini({ scanId }: { scanId: string }) {
     <main className="mx-auto max-w-xl px-4 pb-32 pt-4">
       <BackLink />
 
-      <header className="mb-4 mt-2">
-        <p className="tg-hint mb-1">{scan.network.toUpperCase()}</p>
-        <p className="break-all font-mono text-sm" style={{ color: "var(--tg-text)" }}>
+      <header className="mb-4 mt-3">
+        <p className="text-[10px]" style={{ color: "var(--hb-text-muted)" }}>
+          // {scan.network} target
+        </p>
+        <p
+          className="break-all text-xs"
+          style={{ color: "var(--hb-text-hi)" }}
+        >
           {scan.address}
         </p>
       </header>
 
-      {scan.stage !== "done" ? (
-        <ProgressCard stage={scan.stage} progress={scan.progress} />
-      ) : (
-        <ScoreCard
-          score={scan.score ?? 0}
-          tier={scan.tier ?? "yellow"}
-          counts={counts}
-          duration={scan.duration_seconds}
-        />
-      )}
+      {scan.stage !== "done"
+        ? <ProgressCard stage={scan.stage} progress={scan.progress} />
+        : <ScoreCard score={scan.score ?? 0} tier={scan.tier ?? "yellow"} counts={counts} duration={scan.duration_seconds} />}
 
       {active.length > 0 && (
-        <section className="mt-6">
-          <h2 className="tg-hint mb-2">Findings · {active.length}</h2>
-          <ul className="flex flex-col gap-2">
-            {active.map((f) => (
-              <FindingRow key={f.id} finding={f} />
-            ))}
+        <section className="mt-5">
+          <h2 className="tg-hint mb-2">findings · {active.length}</h2>
+          <ul className="flex flex-col gap-1.5">
+            {active.map((f) => <FindingRow key={f.id} finding={f} />)}
           </ul>
         </section>
       )}
 
-      <p
-        className="mt-10 text-center text-[11px] leading-relaxed"
-        style={{ color: "var(--tg-hint)" }}
-      >
-        AI-assisted audit. Best-effort, no warranty.
+      <p className="mt-10 text-center text-[10px]" style={{ color: "var(--hb-text-muted)" }}>
+        ai-assisted audit · best-effort, no warranty
       </p>
     </main>
   );
@@ -148,13 +117,8 @@ export function ScanDetailMini({ scanId }: { scanId: string }) {
 
 function BackLink() {
   return (
-    <Link
-      href="/tg"
-      className="inline-flex items-center gap-1 text-sm"
-      style={{ color: "var(--tg-hint)" }}
-    >
-      <ArrowLeft size={14} />
-      Back
+    <Link href="/tg" className="text-xs" style={{ color: "var(--hb-text-dim)" }}>
+      ← back
     </Link>
   );
 }
@@ -162,24 +126,17 @@ function BackLink() {
 function ProgressCard({ stage, progress }: { stage: string; progress: number }) {
   return (
     <div className="tg-card">
-      <p className="tg-hint mb-2">In progress</p>
-      <div
-        className="mb-2 flex items-center gap-2 text-sm"
-        style={{ color: "var(--tg-text)" }}
-      >
-        <Loader2 className="animate-spin" size={14} />
-        {stageLabel(stage)}{" "}
-        <span style={{ color: "var(--tg-hint)" }}>· {progress}%</span>
-      </div>
-      <div
-        className="h-1.5 w-full overflow-hidden rounded-full"
-        style={{ background: "color-mix(in srgb, var(--tg-text) 10%, transparent)" }}
-      >
+      <p className="tg-hint mb-2">in progress</p>
+      <p className="mb-2 text-xs" style={{ color: "var(--hb-text-hi)" }}>
+        <span className="hb-cursor">{stageLabel(stage)}</span>
+        <span className="ml-2" style={{ color: "var(--hb-text-muted)" }}>{progress}%</span>
+      </p>
+      <div className="h-1 w-full overflow-hidden" style={{ background: "var(--hb-bg)", border: "1px solid var(--hb-border)" }}>
         <div
           style={{
             width: `${Math.min(100, Math.max(0, progress))}%`,
             height: "100%",
-            background: "var(--tg-button)",
+            background: "var(--hb-primary)",
             transition: "width 400ms ease",
           }}
         />
@@ -188,76 +145,46 @@ function ProgressCard({ stage, progress }: { stage: string; progress: number }) 
   );
 }
 
-function ScoreCard({
-  score,
-  tier,
-  counts,
-  duration,
-}: {
-  score: number;
-  tier: string;
-  counts: SeverityCounts;
-  duration: number | null;
-}) {
+function ScoreCard({ score, tier, counts, duration }: { score: number; tier: string; counts: SeverityCounts; duration: number | null }) {
   const tierClass = `tier-${tier}`;
   const verdict = verdictFor(tier);
   return (
-    <div className="tg-card flex flex-col gap-4">
-      <div className="flex items-center gap-4">
-        <div className={tierClass} style={{ minWidth: 88, textAlign: "center" }}>
-          <p style={{ fontSize: 44, lineHeight: 1, fontWeight: 800 }}>
-            {Math.round(score)}
-          </p>
-          <p
-            style={{
-              fontSize: 11,
-              letterSpacing: "0.06em",
-              textTransform: "uppercase",
-              fontWeight: 700,
-            }}
-          >
-            /100
-          </p>
-        </div>
-        <div className="min-w-0 flex-1">
-          <p style={{ fontWeight: 700, color: "var(--tg-text)" }}>
-            {verdict.label}
-          </p>
-          <p className="text-sm" style={{ color: "var(--tg-hint)" }}>
-            {verdict.body}
-            {duration != null && ` · ${duration.toFixed(1)}s`}
-          </p>
-        </div>
+    <div className="tg-card flex flex-col gap-3">
+      <div className="flex items-baseline gap-3">
+        <span className={`${tierClass}`} style={{ fontSize: 36, fontWeight: 800, lineHeight: 1 }}>
+          {Math.round(score)}
+        </span>
+        <span style={{ color: "var(--hb-text-muted)", fontSize: 11 }}>/100</span>
+        <span className="ml-auto text-[10px]" style={{ color: "var(--hb-text-muted)" }}>
+          {duration != null && `${duration.toFixed(1)}s`}
+        </span>
       </div>
+      <p className="text-xs" style={{ color: "var(--hb-text-hi)" }}>
+        <span className={tierClass}>[{tier}]</span> {verdict.label}
+      </p>
+      <p className="text-[11px]" style={{ color: "var(--hb-text-dim)" }}>{verdict.body}</p>
       <SeveritySummary counts={counts} />
     </div>
   );
 }
 
 function SeveritySummary({ counts }: { counts: SeverityCounts }) {
-  const order: Array<{ key: keyof SeverityCounts; cls: string; label: string }> = [
-    { key: "critical", cls: "sev-chip-critical", label: "Critical" },
-    { key: "high", cls: "sev-chip-high", label: "High" },
-    { key: "medium", cls: "sev-chip-medium", label: "Med" },
-    { key: "low", cls: "sev-chip-low", label: "Low" },
-    { key: "info", cls: "sev-chip-info", label: "Info" },
+  const order: Array<{ k: keyof SeverityCounts; cls: string; label: string }> = [
+    { k: "critical", cls: "sev-chip-critical", label: "crit" },
+    { k: "high",     cls: "sev-chip-high",     label: "high" },
+    { k: "medium",   cls: "sev-chip-medium",   label: "med" },
+    { k: "low",      cls: "sev-chip-low",      label: "low" },
+    { k: "info",     cls: "sev-chip-info",     label: "info" },
   ];
-  const visible = order.filter((o) => counts[o.key] > 0);
+  const visible = order.filter((o) => counts[o.k] > 0);
   if (visible.length === 0) {
-    return (
-      <p
-        className="flex items-center gap-1 text-sm"
-        style={{ color: "var(--sev-good)" }}
-      >
-        <CheckCircle2 size={14} /> No active findings.
-      </p>
-    );
+    return <p className="text-xs" style={{ color: "var(--sev-good)" }}>✓ clean</p>;
   }
   return (
     <div className="flex flex-wrap gap-1.5">
       {visible.map((o) => (
-        <span key={o.key} className={`tg-chip ${o.cls}`}>
-          {counts[o.key]} {o.label}
+        <span key={o.k} className={`tg-chip ${o.cls}`}>
+          {counts[o.k]} {o.label}
         </span>
       ))}
     </div>
@@ -267,110 +194,62 @@ function SeveritySummary({ counts }: { counts: SeverityCounts }) {
 function FindingRow({ finding }: { finding: Finding }) {
   const sev = finding.severity.toLowerCase();
   const sevClass =
-    sev === "critical"
-      ? "sev-chip-critical"
-      : sev === "high"
-        ? "sev-chip-high"
-        : sev === "medium"
-          ? "sev-chip-medium"
-          : sev === "low"
-            ? "sev-chip-low"
-            : "sev-chip-info";
-
-  const Icon =
-    sev === "critical" || sev === "high"
-      ? ShieldAlert
-      : sev === "medium"
-        ? AlertTriangle
-        : sev === "low"
-          ? ShieldCheck
-          : Info;
-
-  const iconColor =
-    sev === "critical"
-      ? "var(--sev-critical)"
-      : sev === "high"
-        ? "var(--sev-high)"
-        : sev === "medium"
-          ? "var(--sev-medium)"
-          : sev === "low"
-            ? "var(--sev-low)"
-            : "var(--sev-info)";
+    sev === "critical" ? "sev-chip-critical"
+    : sev === "high"   ? "sev-chip-high"
+    : sev === "medium" ? "sev-chip-medium"
+    : sev === "low"    ? "sev-chip-low"
+                       : "sev-chip-info";
 
   return (
-    <li className="tg-card">
-      <div className="flex items-start gap-3">
-        <Icon
-          size={18}
-          color={iconColor}
-          style={{ flexShrink: 0, marginTop: 2 }}
-        />
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className={`tg-chip ${sevClass}`}>{sev.toUpperCase()}</span>
-            {finding.poc_validated && (
-              <span className="tg-chip sev-chip-good">PoC ✓</span>
-            )}
-            {finding.line != null && (
-              <span className="font-mono text-xs" style={{ color: "var(--tg-hint)" }}>
-                L{finding.line}
-              </span>
-            )}
-          </div>
-          <p
-            className="mt-1 text-sm font-medium leading-snug"
-            style={{ color: "var(--tg-text)" }}
-          >
-            {finding.title}
-          </p>
-          {finding.description && (
-            <p className="mt-1 text-xs leading-relaxed" style={{ color: "var(--tg-hint)" }}>
-              {finding.description}
-            </p>
-          )}
-        </div>
+    <li className="tg-card" style={{ padding: 12 }}>
+      <div className="flex flex-wrap items-center gap-2">
+        <span className={`tg-chip ${sevClass}`}>{sev}</span>
+        {finding.poc_validated && (
+          <span className="tg-chip sev-chip-good">poc ok</span>
+        )}
+        <span className="text-[10px]" style={{ color: "var(--hb-text-muted)" }}>
+          {finding.source_engine}{finding.line != null && `:${finding.line}`}
+        </span>
       </div>
+      <p className="mt-2 text-xs font-medium leading-snug" style={{ color: "var(--hb-text-hi)" }}>
+        {finding.title}
+      </p>
+      {finding.description && (
+        <p className="mt-1 text-[11px] leading-relaxed" style={{ color: "var(--hb-text-dim)" }}>
+          {finding.description}
+        </p>
+      )}
     </li>
   );
 }
 
-type SeverityCounts = {
-  critical: number;
-  high: number;
-  medium: number;
-  low: number;
-  info: number;
-};
+type SeverityCounts = { critical: number; high: number; medium: number; low: number; info: number };
 
 function countBySeverity(findings: Finding[]): SeverityCounts {
   const c: SeverityCounts = { critical: 0, high: 0, medium: 0, low: 0, info: 0 };
   for (const f of findings) {
-    const sev = f.severity.toLowerCase() as keyof SeverityCounts;
-    if (sev in c) c[sev] += 1;
+    const k = f.severity.toLowerCase() as keyof SeverityCounts;
+    if (k in c) c[k] += 1;
   }
   return c;
 }
 
 function stageLabel(stage: string): string {
-  return (
-    {
-      queued: "Preparing",
-      static: "Static analysis",
-      triage: "AI triage",
-      poc: "Generating PoCs",
-      fuzzing: "AI fuzzing",
-      scoring: "Scoring",
-    }[stage] ?? stage
-  );
+  return ({
+    queued: "preparing",
+    static: "static-analysis",
+    triage: "ai-triage",
+    poc: "poc-generation",
+    fuzzing: "ai-fuzzing",
+    scoring: "scoring",
+  } as Record<string, string>)[stage] ?? stage;
 }
 
 function verdictFor(tier: string): { label: string; body: string } {
-  return (
-    {
-      red: { label: "High risk", body: "Critical or high-severity finding present." },
-      yellow: { label: "Caution", body: "Medium-severity findings — review recommended." },
-      green: { label: "Acceptable", body: "Only minor issues detected." },
-      blue: { label: "Excellent", body: "No security findings of note." },
-    }[tier] ?? { label: tier, body: "" }
-  );
+  return ({
+    red:    { label: "high risk",     body: "critical or high-severity finding present" },
+    yellow: { label: "caution",       body: "medium-severity findings — review recommended" },
+    green:  { label: "acceptable",    body: "only minor issues detected" },
+    blue:   { label: "excellent",     body: "no security findings of note" },
+  } as Record<string, { label: string; body: string }>)[tier] ?? { label: tier, body: "" };
 }

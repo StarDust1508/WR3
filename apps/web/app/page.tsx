@@ -1,82 +1,185 @@
 import Link from "next/link";
 import { ScanInput } from "@/components/scan-input";
 
+const BG = "#0a0e0a";
+const FG = "#a8e6a8";
+const PRIMARY = "#4ade80";
+const MUTED = "#5a8a5a";
+const DIM = "#3a5e3a";
+
 export default function HomePage() {
   return (
-    <main className="mx-auto flex min-h-screen max-w-5xl flex-col px-6 py-16">
-      <header className="mb-16 flex items-center justify-between">
-        <Link href="/" className="text-2xl font-bold tracking-tight">
-          wr3
-        </Link>
-        <nav className="flex gap-6 text-sm text-zinc-600 dark:text-zinc-400">
-          <Link href="/leaderboard" className="hover:text-zinc-900 dark:hover:text-zinc-50">
-            Leaderboard
-          </Link>
-          <Link href="/pricing" className="hover:text-zinc-900 dark:hover:text-zinc-50">
-            Pricing
-          </Link>
-          <Link href="/docs" className="hover:text-zinc-900 dark:hover:text-zinc-50">
-            Docs
-          </Link>
+    <main
+      style={{
+        minHeight: "100vh",
+        background: BG,
+        color: FG,
+        fontFamily:
+          'ui-monospace, "SF Mono", Menlo, "JetBrains Mono", Consolas, monospace',
+        padding: "32px 24px 64px",
+      }}
+    >
+      <div style={{ margin: "0 auto", maxWidth: 880 }}>
+        <header
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginBottom: 56,
+            flexWrap: "wrap",
+            gap: 12,
+          }}
+        >
           <Link
-            href="/auth/signin"
-            className="rounded-md bg-zinc-900 px-3 py-1 text-white dark:bg-zinc-50 dark:text-zinc-900"
+            href="/"
+            style={{
+              color: PRIMARY,
+              fontWeight: 700,
+              fontSize: 16,
+              border: `1px solid ${PRIMARY}`,
+              padding: "5px 10px",
+              borderRadius: 4,
+              textDecoration: "none",
+            }}
           >
-            Sign in
+            wr3
           </Link>
-        </nav>
-      </header>
+          <nav style={{ display: "flex", gap: 18, fontSize: 12, alignItems: "center" }}>
+            <Link href="/leaderboard" style={{ color: MUTED, textDecoration: "none" }}>leaderboard</Link>
+            <Link href="/pricing" style={{ color: MUTED, textDecoration: "none" }}>pricing</Link>
+            <Link href="/docs" style={{ color: MUTED, textDecoration: "none" }}>docs</Link>
+            <a
+              href="https://t.me/KitronBot"
+              style={{
+                color: PRIMARY,
+                border: `1px solid ${PRIMARY}`,
+                padding: "4px 10px",
+                borderRadius: 4,
+                textDecoration: "none",
+                letterSpacing: "0.04em",
+                textTransform: "uppercase",
+                fontSize: 10,
+                fontWeight: 700,
+              }}
+            >
+              open bot
+            </a>
+          </nav>
+        </header>
 
-      <section className="flex flex-col gap-6">
-        <h1 className="text-balance text-5xl font-bold leading-tight tracking-tight md:text-6xl">
-          Audit your smart contract in 90 seconds.
-        </h1>
-        <p className="max-w-2xl text-pretty text-lg text-zinc-600 dark:text-zinc-400">
-          AI-powered security analysis for EVM (Ethereum, Base, Arbitrum, BSC) and Solana. Built
-          for vibe-coders and teams of 1–5 who can't afford a $25k CertiK audit.
-        </p>
+        <section style={{ maxWidth: 720 }}>
+          <p style={{ color: MUTED, fontSize: 12, marginBottom: 8 }}>
+            // ai-powered smart-contract audit for vibe-coders
+          </p>
+          <h1
+            style={{
+              fontSize: "clamp(28px, 5vw, 44px)",
+              fontWeight: 700,
+              lineHeight: 1.1,
+              margin: 0,
+              color: FG,
+              letterSpacing: "-0.02em",
+            }}
+          >
+            <span style={{ color: PRIMARY }}>$ </span>wr3 audit &lt;contract&gt;
+          </h1>
+          <p style={{ color: MUTED, fontSize: 14, lineHeight: 1.6, marginTop: 16, maxWidth: 580 }}>
+            Score 0-100 across 5 axes. Baseline static + multi-agent LLM triage +
+            Foundry PoC retry-loop + AI-fuzzing. EVM (eth / base / arbitrum / bsc)
+            and Solana via Sealevel-attacks.
+          </p>
 
-        <ScanInput />
-
-        <p className="text-sm text-zinc-500">
-          Free tier: 1 contract / 24h, preliminary score. Paid tier from $29/mo for unlimited and
-          full Foundry PoCs.{" "}
-          <Link href="/pricing" className="underline">
-            See pricing →
-          </Link>
-        </p>
-      </section>
-
-      <section className="mt-24 grid gap-8 md:grid-cols-3">
-        <Feature title="Multi-engine consensus" body="Aderyn + Wake + Slither + Medusa + ItyFuzz + Trident (Solana) + Certora (premium). One pipeline, cross-checked findings." />
-        <Feature title="Transparent scoring" body="0–100 score on 5 axes with published weights. No black-box, no pay-to-play. The opposite of CertiK Skynet." />
-        <Feature title="Solana, first-class" body="Most AI auditors are EVM-only. We treat Solana as P0 — Trident fuzzer, Sealevel-attacks RAG, Certora Solana support." />
-      </section>
-
-      <footer className="mt-32 border-t border-zinc-200 pt-8 text-sm text-zinc-500 dark:border-zinc-800">
-        <div className="flex justify-between">
-          <span>© 2026 wr3</span>
-          <div className="flex gap-4">
-            <Link href="/legal/tos">Terms</Link>
-            <Link href="/legal/privacy">Privacy</Link>
-            <Link href="https://github.com/StarDust1508/WR3">GitHub</Link>
+          <div style={{ marginTop: 32 }}>
+            <ScanInput />
           </div>
-        </div>
-        <p className="mt-4 max-w-3xl text-pretty text-xs text-zinc-400">
-          AI-assisted audit results are best-effort and not a replacement for human review. wr3
-          provides no warranty. Liability is capped at the cost of the audit. See full disclaimer
-          in Terms.
-        </p>
-      </footer>
+
+          <p style={{ color: DIM, fontSize: 11, marginTop: 12 }}>
+            // free tier: 1 contract / 24h. Paid from $29/mo for unlimited scans + full Foundry PoCs.
+            <Link href="/pricing" style={{ color: MUTED, textDecoration: "underline", marginLeft: 6 }}>
+              pricing →
+            </Link>
+          </p>
+        </section>
+
+        <section
+          style={{
+            marginTop: 80,
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+            gap: 16,
+          }}
+        >
+          <Feature
+            title="multi-engine consensus"
+            body="Aderyn + Wake + Slither + Medusa + ItyFuzz + Trident. One pipeline, cross-checked findings."
+          />
+          <Feature
+            title="transparent scoring"
+            body="0-100 across 5 axes with published weights. No black-box, no pay-to-play."
+          />
+          <Feature
+            title="solana, first-class"
+            body="Sealevel-attacks taxonomy, Trident fuzzer. Most AI auditors skip Solana — we don't."
+          />
+        </section>
+
+        <footer
+          style={{
+            marginTop: 120,
+            paddingTop: 24,
+            borderTop: `1px solid ${DIM}`,
+            fontSize: 11,
+            color: DIM,
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              flexWrap: "wrap",
+              gap: 8,
+            }}
+          >
+            <span>© 2026 wr3</span>
+            <div style={{ display: "flex", gap: 16 }}>
+              <Link href="/legal/tos" style={{ color: DIM, textDecoration: "none" }}>terms</Link>
+              <Link href="/legal/privacy" style={{ color: DIM, textDecoration: "none" }}>privacy</Link>
+              <a href="https://github.com/StarDust1508/WR3" style={{ color: DIM, textDecoration: "none" }}>github</a>
+            </div>
+          </div>
+          <p style={{ marginTop: 16, maxWidth: 720, fontSize: 10 }}>
+            AI-assisted audit results are best-effort and not a replacement for human review.
+            wr3 provides no warranty. Liability is capped at the cost of the audit.
+          </p>
+        </footer>
+      </div>
     </main>
   );
 }
 
 function Feature({ title, body }: { title: string; body: string }) {
   return (
-    <div className="rounded-lg border border-zinc-200 p-6 dark:border-zinc-800">
-      <h3 className="mb-2 font-semibold">{title}</h3>
-      <p className="text-sm text-zinc-600 dark:text-zinc-400">{body}</p>
+    <div
+      style={{
+        background: "#0f1a0f",
+        border: `1px solid ${DIM}`,
+        borderRadius: 6,
+        padding: 16,
+      }}
+    >
+      <h3
+        style={{
+          color: PRIMARY,
+          fontSize: 11,
+          fontWeight: 700,
+          letterSpacing: "0.06em",
+          textTransform: "uppercase",
+          margin: 0,
+        }}
+      >
+        // {title}
+      </h3>
+      <p style={{ color: MUTED, fontSize: 12, marginTop: 8, lineHeight: 1.6 }}>{body}</p>
     </div>
   );
 }

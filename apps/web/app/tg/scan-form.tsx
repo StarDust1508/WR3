@@ -1,55 +1,50 @@
 "use client";
 
-import { Search } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { getStoredToken } from "@/lib/tg-session";
 
 const NETWORKS = [
-  { id: "base", label: "Base" },
-  { id: "ethereum", label: "Ethereum" },
-  { id: "arbitrum", label: "Arbitrum" },
-  { id: "bsc", label: "BSC" },
-  { id: "solana", label: "Solana" },
+  { id: "ethereum", label: "eth" },
+  { id: "base", label: "base" },
+  { id: "arbitrum", label: "arb" },
+  { id: "bsc", label: "bsc" },
+  { id: "solana", label: "sol" },
 ] as const;
 
 type NetworkId = (typeof NETWORKS)[number]["id"];
 
 function isLikelyAddress(s: string): boolean {
   const t = s.trim();
-  if (/^0x[a-fA-F0-9]{40}$/.test(t)) return true; // EVM
-  if (/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(t)) return true; // Solana base58
+  if (/^0x[a-fA-F0-9]{40}$/.test(t)) return true;
+  if (/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(t)) return true;
   return false;
 }
 
 export function MiniAppScanForm() {
   const [address, setAddress] = useState("");
-  const [network, setNetwork] = useState<NetworkId>("base");
+  const [network, setNetwork] = useState<NetworkId>("ethereum");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
-
-  const canSubmit = isLikelyAddress(address) && !pending;
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     const trimmed = address.trim();
     if (!trimmed) {
-      setError("Paste a contract address.");
+      setError("paste a contract address");
       return;
     }
     if (!isLikelyAddress(trimmed)) {
-      setError("That doesn't look like an EVM (0x...) or Solana address.");
+      setError("invalid address format");
       return;
     }
-
     startTransition(async () => {
       try {
         const token = getStoredToken();
         const headers: Record<string, string> = { "Content-Type": "application/json" };
         if (token) headers.Authorization = `Bearer ${token}`;
-
         const res = await fetch("/api/v1/scan", {
           method: "POST",
           headers,
@@ -60,9 +55,7 @@ export function MiniAppScanForm() {
           try {
             const body = (await res.json()) as { detail?: string };
             if (body?.detail) detail = body.detail;
-          } catch {
-            /* ignore */
-          }
+          } catch { /* ignore */ }
           throw new Error(detail);
         }
         const data = (await res.json()) as { job_id: string };
@@ -75,39 +68,28 @@ export function MiniAppScanForm() {
 
   return (
     <form onSubmit={submit} className="tg-card flex flex-col gap-3">
-      <h2 className="tg-hint">Quick scan</h2>
+      <h2 className="tg-hint">audit -i</h2>
 
-      <div className="relative">
-        <Search
-          size={16}
-          color="var(--tg-hint)"
-          aria-hidden
-          style={{
-            position: "absolute",
-            left: 14,
-            top: "50%",
-            transform: "translateY(-50%)",
-            pointerEvents: "none",
-          }}
-        />
+      <div className="flex items-center gap-2">
+        <span style={{ color: "var(--hb-primary)", fontSize: 14 }}>$</span>
         <input
           type="text"
           value={address}
           onChange={(e) => setAddress(e.target.value)}
-          placeholder="0x... or Solana address"
+          placeholder="0x... | base58"
           className="tg-input"
-          style={{ paddingLeft: 38 }}
           autoComplete="off"
           autoCapitalize="off"
           autoCorrect="off"
           spellCheck={false}
           inputMode="text"
+          style={{ flex: 1 }}
         />
       </div>
 
       <div
-        className="flex gap-2 overflow-x-auto"
-        style={{ scrollbarWidth: "none" }}
+        className="flex gap-1.5 overflow-x-auto"
+        style={{ scrollbarWidth: "none", paddingLeft: 18 }}
       >
         {NETWORKS.map((n) => {
           const active = network === n.id;
@@ -118,20 +100,17 @@ export function MiniAppScanForm() {
               onClick={() => setNetwork(n.id)}
               className="tg-chip"
               style={{
-                background: active
-                  ? "var(--tg-button)"
-                  : "color-mix(in srgb, var(--tg-text) 8%, transparent)",
-                color: active ? "var(--tg-button-text)" : "var(--tg-text)",
-                padding: "8px 14px",
-                fontSize: 13,
-                textTransform: "none",
-                letterSpacing: 0,
-                fontWeight: 500,
-                minHeight: 36,
+                background: active ? "var(--hb-primary)" : "transparent",
+                color: active ? "var(--hb-bg)" : "var(--hb-text-dim)",
+                border: active ? "1px solid var(--hb-primary)" : "1px solid var(--hb-border)",
+                padding: "6px 12px",
+                fontSize: 11,
+                minHeight: 30,
                 whiteSpace: "nowrap",
+                cursor: "pointer",
               }}
             >
-              {n.label}
+              --{n.label}
             </button>
           );
         })}
@@ -139,19 +118,16 @@ export function MiniAppScanForm() {
 
       <button
         type="submit"
-        disabled={!canSubmit}
-        className="tg-button"
+        disabled={pending || !address.trim()}
+        className="tg-button tg-button-primary"
+        style={{ marginTop: 4 }}
       >
-        {pending ? "Scanning…" : "Scan"}
+        {pending ? "scanning..." : "run"}
       </button>
 
       {error && (
-        <p
-          role="alert"
-          className="text-sm"
-          style={{ color: "var(--tg-destructive)" }}
-        >
-          {error}
+        <p role="alert" className="text-xs" style={{ color: "var(--hb-error)" }}>
+          <span style={{ color: "var(--hb-error)" }}>ERR </span>{error}
         </p>
       )}
     </form>

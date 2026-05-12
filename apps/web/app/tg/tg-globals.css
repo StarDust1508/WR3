@@ -1,53 +1,60 @@
-/* Mini App–scoped CSS. Imported only by the /tg layout. */
+/* Homebrew/terminal aesthetic — green-on-dark monospace. */
 
 :root {
-  /* TG colors get filled in at runtime by TelegramThemeBridge.
-     These are dark-mode defaults that match Telegram's "Default Dark". */
-  --tg-bg: #0f1115;
-  --tg-secondary-bg: #17191f;
-  --tg-section-bg: #1c1f26;
-  --tg-text: #fafafa;
-  --tg-hint: #8a8f99;
-  --tg-subtitle: #a1a1aa;
-  --tg-link: #3b82f6;
-  --tg-accent: #3b82f6;
-  --tg-button: #3b82f6;
-  --tg-button-text: #ffffff;
-  --tg-section-header: #8a8f99;
-  --tg-destructive: #ef4444;
+  --hb-bg: #0a0e0a;          /* very dark green-black */
+  --hb-surface: #0f1a0f;     /* slightly lighter for cards */
+  --hb-surface-hi: #142214;  /* hover state */
+  --hb-border: #1f3d1f;
+  --hb-border-hi: #2d5d2d;
 
-  /* Semantic colors for severity badges that should not bend to TG theme. */
-  --sev-critical: #dc2626;
-  --sev-high: #ea580c;
-  --sev-medium: #ca8a04;
-  --sev-low: #2563eb;
-  --sev-info: #64748b;
-  --sev-good: #16a34a;
+  --hb-text: #a8e6a8;        /* main green */
+  --hb-text-dim: #5a8a5a;    /* hint */
+  --hb-text-muted: #3a5e3a;  /* very faded */
+  --hb-text-hi: #d4ffd4;     /* highlighted */
+
+  --hb-primary: #4ade80;     /* primary green for accents */
+  --hb-primary-hi: #86efac;  /* hover */
+  --hb-warn: #fbbf24;
+  --hb-error: #f87171;
+  --hb-info: #60a5fa;
+
+  /* Telegram theme bridge — when present, override with TG colors.
+     Otherwise our defaults stand. Bridge writes --tg-* on <html>. */
+  --tg-bg: var(--hb-bg);
+  --tg-secondary-bg: var(--hb-surface);
+  --tg-section-bg: var(--hb-surface);
+  --tg-text: var(--hb-text);
+  --tg-hint: var(--hb-text-dim);
+  --tg-subtitle: var(--hb-text-dim);
+  --tg-link: var(--hb-primary);
+  --tg-accent: var(--hb-primary);
+  --tg-button: var(--hb-primary);
+  --tg-button-text: var(--hb-bg);
+  --tg-section-header: var(--hb-text-muted);
+  --tg-destructive: var(--hb-error);
+
+  --sev-critical: var(--hb-error);
+  --sev-high: #fb923c;
+  --sev-medium: var(--hb-warn);
+  --sev-low: var(--hb-info);
+  --sev-info: var(--hb-text-muted);
+  --sev-good: var(--hb-primary);
 }
 
-html[data-tg-scheme="dark"] {
-  color-scheme: dark;
-}
-
-html[data-tg-scheme="light"] {
-  color-scheme: light;
-}
+html[data-tg-scheme="dark"] { color-scheme: dark; }
+html[data-tg-scheme="light"] { color-scheme: dark; /* keep terminal aesthetic */ }
 
 html, body {
-  background: var(--tg-bg);
-  color: var(--tg-text);
-  /* TG-native font stack: SF on Apple, Roboto on Android, Segoe on Win. */
+  background: var(--hb-bg);
+  color: var(--hb-text);
   font-family:
-    -apple-system, BlinkMacSystemFont,
-    "SF Pro Text", "SF Pro Display",
-    "Helvetica Neue", "Segoe UI",
-    Roboto, "Apple Color Emoji", "Segoe UI Emoji",
-    system-ui, sans-serif;
-  font-feature-settings: "cv11", "ss01", "ss03";
+    ui-monospace, "SF Mono", "JetBrains Mono", "Menlo",
+    "Cascadia Code", "Consolas", "Courier New", monospace;
+  font-feature-settings: "calt", "ss01";
   -webkit-tap-highlight-color: transparent;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* Safe-area aware viewport — Telegram exposes --tg-viewport-stable-height */
 .tg-scroll {
   min-height: 100vh;
   min-height: 100dvh;
@@ -55,85 +62,174 @@ html, body {
   padding-bottom: max(env(safe-area-inset-bottom), 16px);
 }
 
+/* === Cards === */
 .tg-card {
-  background: var(--tg-section-bg);
-  border-radius: 14px;
-  padding: 16px;
+  background: var(--hb-surface);
+  border: 1px solid var(--hb-border);
+  border-radius: 6px;
+  padding: 14px;
 }
 
+.tg-card-interactive {
+  background: var(--hb-surface);
+  border: 1px solid var(--hb-border);
+  border-radius: 6px;
+  padding: 14px;
+  transition: border-color 80ms, background 80ms;
+}
+.tg-card-interactive:hover { border-color: var(--hb-border-hi); }
+.tg-card-interactive:active { background: var(--hb-surface-hi); }
+
+/* === Section headers === */
 .tg-hint {
-  color: var(--tg-hint);
-  font-size: 12px;
-  letter-spacing: 0.02em;
+  color: var(--hb-text-muted);
+  font-size: 11px;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
+.tg-hint::before { content: "// "; }
 
+/* === Inputs === */
 .tg-input {
   width: 100%;
-  background: var(--tg-secondary-bg);
-  border: 1px solid color-mix(in srgb, var(--tg-text) 10%, transparent);
-  color: var(--tg-text);
-  border-radius: 10px;
-  padding: 14px 14px;
-  font-size: 16px;
-  /* iOS focus zoom kill */
+  background: var(--hb-bg);
+  border: 1px solid var(--hb-border);
+  color: var(--hb-text-hi);
+  border-radius: 4px;
+  padding: 12px 14px;
+  font-size: 14px;
+  font-family: inherit;
   -webkit-text-size-adjust: 100%;
-  min-height: 48px;
+  min-height: 44px;
   outline: none;
+  caret-color: var(--hb-primary);
 }
 .tg-input::placeholder {
-  color: var(--tg-hint);
+  color: var(--hb-text-muted);
+  font-family: inherit;
 }
 .tg-input:focus {
-  border-color: var(--tg-button);
+  border-color: var(--hb-primary);
+  box-shadow: 0 0 0 1px var(--hb-primary);
 }
 
+/* === Buttons === */
 .tg-button {
-  background: var(--tg-button);
-  color: var(--tg-button-text);
-  border-radius: 10px;
-  padding: 14px 16px;
-  font-weight: 600;
-  font-size: 15px;
-  min-height: 48px;
-  border: none;
+  background: transparent;
+  color: var(--hb-primary);
+  border: 1px solid var(--hb-primary);
+  border-radius: 4px;
+  padding: 10px 16px;
+  font-weight: 700;
+  font-size: 13px;
+  font-family: inherit;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  min-height: 44px;
   cursor: pointer;
-  transition: transform 60ms ease;
+  transition: all 80ms ease;
 }
-.tg-button:active {
-  transform: scale(0.98);
-}
-.tg-button:disabled {
-  opacity: 0.6;
-}
+.tg-button:hover { background: rgba(74, 222, 128, 0.1); }
+.tg-button:active { transform: scale(0.98); background: rgba(74, 222, 128, 0.2); }
+.tg-button:disabled { opacity: 0.4; cursor: not-allowed; }
+.tg-button::before { content: "$ "; opacity: 0.6; }
 
-.tg-button-secondary {
-  background: var(--tg-secondary-bg);
-  color: var(--tg-text);
-  border: 1px solid color-mix(in srgb, var(--tg-text) 10%, transparent);
+.tg-button-primary {
+  background: var(--hb-primary);
+  color: var(--hb-bg);
 }
+.tg-button-primary:hover { background: var(--hb-primary-hi); }
 
+.tg-button-ghost {
+  background: transparent;
+  color: var(--hb-text-dim);
+  border: 1px solid var(--hb-border);
+}
+.tg-button-ghost::before { content: ""; }
+
+/* === Chips === */
 .tg-chip {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 4px 8px;
-  border-radius: 999px;
-  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 3px;
+  font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
+  font-family: inherit;
 }
 
-.sev-chip-critical { background: var(--sev-critical); color: white; }
-.sev-chip-high     { background: color-mix(in srgb, var(--sev-high) 18%, transparent); color: var(--sev-high); }
-.sev-chip-medium   { background: color-mix(in srgb, var(--sev-medium) 18%, transparent); color: var(--sev-medium); }
-.sev-chip-low      { background: color-mix(in srgb, var(--sev-low) 18%, transparent); color: var(--sev-low); }
-.sev-chip-info     { background: color-mix(in srgb, var(--sev-info) 18%, transparent); color: var(--sev-info); }
-.sev-chip-good     { background: color-mix(in srgb, var(--sev-good) 18%, transparent); color: var(--sev-good); }
+.sev-chip-critical { background: var(--sev-critical); color: var(--hb-bg); }
+.sev-chip-high     { background: transparent; border: 1px solid var(--sev-high); color: var(--sev-high); }
+.sev-chip-medium   { background: transparent; border: 1px solid var(--sev-medium); color: var(--sev-medium); }
+.sev-chip-low      { background: transparent; border: 1px solid var(--sev-low); color: var(--sev-low); }
+.sev-chip-info     { background: transparent; border: 1px solid var(--sev-info); color: var(--sev-info); }
+.sev-chip-good     { background: var(--sev-good); color: var(--hb-bg); }
 
-/* Score badge background by tier */
+/* Score tier colors */
 .tier-red    { color: var(--sev-critical); }
 .tier-yellow { color: var(--sev-medium); }
 .tier-green  { color: var(--sev-good); }
 .tier-blue   { color: var(--sev-low); }
+
+/* === Toggle (owner panel) === */
+.hb-toggle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 44px;
+  height: 24px;
+  cursor: pointer;
+}
+.hb-toggle input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.hb-toggle-track {
+  position: absolute;
+  inset: 0;
+  background: var(--hb-bg);
+  border: 1px solid var(--hb-border);
+  border-radius: 12px;
+  transition: all 120ms ease;
+}
+.hb-toggle-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  background: var(--hb-text-muted);
+  border-radius: 50%;
+  transition: all 120ms ease;
+}
+.hb-toggle input:checked + .hb-toggle-track {
+  background: rgba(74, 222, 128, 0.2);
+  border-color: var(--hb-primary);
+}
+.hb-toggle input:checked + .hb-toggle-track .hb-toggle-thumb {
+  left: 22px;
+  background: var(--hb-primary);
+}
+
+/* === Prompt-style header === */
+.hb-prompt {
+  font-family: inherit;
+  color: var(--hb-text-dim);
+}
+.hb-prompt::before { content: "$ "; color: var(--hb-primary); }
+
+/* === Cursor blink (decorative) === */
+.hb-cursor::after {
+  content: "▮";
+  color: var(--hb-primary);
+  animation: hb-blink 1s steps(1) infinite;
+  margin-left: 2px;
+}
+@keyframes hb-blink {
+  50% { opacity: 0; }
+}

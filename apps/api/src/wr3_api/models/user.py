@@ -1,12 +1,23 @@
 from __future__ import annotations
 
 import uuid
+from typing import Any
 
 from sqlalchemy import BigInteger, String, text
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from wr3_api.models.base import Base, TimestampMixin
+
+# Single source of truth for what a fresh user's preferences look like.
+# Keep aligned with apps/api/alembic/versions/0003_user_preferences.py.
+DEFAULT_PREFERENCES: dict[str, Any] = {
+    "auto_poc": True,
+    "auto_fuzzing": True,
+    "multi_agent_triage": True,
+    "continuous_monitoring": False,
+    "anonymous_in_public": False,
+}
 
 
 class User(Base, TimestampMixin):
@@ -32,3 +43,13 @@ class User(Base, TimestampMixin):
     avatar_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
 
     tier: Mapped[str] = mapped_column(String(32), nullable=False, default="free")
+
+    # Owner-controlled feature toggles. Plain dict in Python; JSONB in PG so
+    # we can add new toggles without a migration each time. The pipeline
+    # reads these to decide which stages to skip.
+    preferences: Mapped[dict[str, Any]] = mapped_column(
+        JSONB,
+        nullable=False,
+        default=lambda: dict(DEFAULT_PREFERENCES),
+        server_default=text("'{}'::jsonb"),
+    )

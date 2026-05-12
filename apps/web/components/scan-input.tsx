@@ -1,21 +1,28 @@
 "use client";
 
-import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
 
 const NETWORKS = [
-  { id: "ethereum", label: "Ethereum" },
-  { id: "base", label: "Base" },
-  { id: "arbitrum", label: "Arbitrum" },
-  { id: "bsc", label: "BSC" },
-  { id: "solana", label: "Solana" },
+  { id: "ethereum", label: "eth" },
+  { id: "base", label: "base" },
+  { id: "arbitrum", label: "arb" },
+  { id: "bsc", label: "bsc" },
+  { id: "solana", label: "sol" },
 ] as const;
 
 type NetworkId = (typeof NETWORKS)[number]["id"];
 
+const PRIMARY = "#4ade80";
+const BG = "#0a0e0a";
+const MUTED = "#5a8a5a";
+const DIM = "#3a5e3a";
+const FG = "#a8e6a8";
+const ERR = "#f87171";
+
 export function ScanInput() {
   const [address, setAddress] = useState("");
-  const [network, setNetwork] = useState<NetworkId>("base");
+  const [network, setNetwork] = useState<NetworkId>("ethereum");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
@@ -23,55 +30,109 @@ export function ScanInput() {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-
     const trimmed = address.trim();
     if (!trimmed) {
-      setError("Paste a contract address or verified source.");
+      setError("paste a contract address");
       return;
     }
-
     startTransition(() => {
       router.push(`/scan?address=${encodeURIComponent(trimmed)}&network=${network}`);
     });
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex w-full flex-col gap-3 md:flex-row">
-      <select
-        value={network}
-        onChange={(e) => setNetwork(e.target.value as NetworkId)}
-        className="rounded-md border border-zinc-300 bg-white px-3 py-3 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-        aria-label="Network"
-      >
-        {NETWORKS.map((n) => (
-          <option key={n.id} value={n.id}>
-            {n.label}
-          </option>
-        ))}
-      </select>
+    <form
+      onSubmit={handleSubmit}
+      style={{
+        background: "#0f1a0f",
+        border: `1px solid ${DIM}`,
+        borderRadius: 6,
+        padding: 16,
+        display: "flex",
+        flexDirection: "column",
+        gap: 12,
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <span style={{ color: PRIMARY, fontSize: 14, fontWeight: 700 }}>$</span>
+        <input
+          type="text"
+          value={address}
+          onChange={(e) => setAddress(e.target.value)}
+          placeholder="0x... | base58"
+          aria-label="Contract address"
+          autoComplete="off"
+          spellCheck={false}
+          style={{
+            flex: 1,
+            background: BG,
+            border: `1px solid ${DIM}`,
+            borderRadius: 4,
+            padding: "10px 12px",
+            fontSize: 13,
+            color: FG,
+            fontFamily: "inherit",
+            outline: "none",
+            minHeight: 44,
+            caretColor: PRIMARY,
+          }}
+        />
+      </div>
 
-      <input
-        type="text"
-        value={address}
-        onChange={(e) => setAddress(e.target.value)}
-        placeholder="0x... or paste source code"
-        className="flex-1 rounded-md border border-zinc-300 bg-white px-4 py-3 text-base dark:border-zinc-700 dark:bg-zinc-900"
-        aria-label="Contract address"
-        autoComplete="off"
-        spellCheck={false}
-      />
+      <div style={{ display: "flex", gap: 6, paddingLeft: 22, flexWrap: "wrap" }}>
+        {NETWORKS.map((n) => {
+          const active = network === n.id;
+          return (
+            <button
+              key={n.id}
+              type="button"
+              onClick={() => setNetwork(n.id)}
+              style={{
+                background: active ? PRIMARY : "transparent",
+                color: active ? BG : MUTED,
+                border: `1px solid ${active ? PRIMARY : DIM}`,
+                borderRadius: 3,
+                padding: "5px 10px",
+                fontSize: 10,
+                fontWeight: 700,
+                letterSpacing: "0.06em",
+                textTransform: "uppercase",
+                fontFamily: "inherit",
+                cursor: "pointer",
+                minHeight: 28,
+              }}
+            >
+              --{n.label}
+            </button>
+          );
+        })}
+      </div>
 
       <button
         type="submit"
         disabled={isPending}
-        className="rounded-md bg-zinc-900 px-6 py-3 font-medium text-white transition hover:bg-zinc-700 disabled:opacity-50 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
+        style={{
+          background: PRIMARY,
+          color: BG,
+          border: `1px solid ${PRIMARY}`,
+          borderRadius: 4,
+          padding: "10px 16px",
+          fontSize: 12,
+          fontWeight: 700,
+          letterSpacing: "0.04em",
+          textTransform: "uppercase",
+          fontFamily: "inherit",
+          cursor: isPending ? "not-allowed" : "pointer",
+          opacity: isPending ? 0.5 : 1,
+          minHeight: 44,
+        }}
       >
-        {isPending ? "Loading…" : "Scan"}
+        $ {isPending ? "scanning..." : "run audit"}
       </button>
 
       {error && (
-        <p role="alert" className="text-sm text-red-600">
-          {error}
+        <p role="alert" style={{ color: ERR, fontSize: 11, margin: 0 }}>
+          <span>ERR </span>{error}
         </p>
       )}
     </form>

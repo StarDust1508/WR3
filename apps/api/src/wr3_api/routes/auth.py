@@ -64,3 +64,35 @@ async def telegram_login(req: TelegramLoginRequest) -> LoginResponse:
 @router.get("/me")
 async def me(user: User = Depends(current_user_required)) -> dict[str, Any]:
     return user_repo.user_to_dict(user)
+
+
+class PreferencesPatch(BaseModel):
+    """Partial update of user feature toggles. Unknown keys are silently
+    dropped server-side (no errors, no surprises)."""
+
+    auto_poc: bool | None = None
+    auto_fuzzing: bool | None = None
+    multi_agent_triage: bool | None = None
+    continuous_monitoring: bool | None = None
+    anonymous_in_public: bool | None = None
+
+
+@router.get("/preferences")
+async def get_preferences(user: User = Depends(current_user_required)) -> dict[str, Any]:
+    return user.preferences or {}
+
+
+@router.patch("/preferences")
+async def patch_preferences(
+    patch: PreferencesPatch,
+    user: User = Depends(current_user_required),
+) -> dict[str, Any]:
+    """Merge non-null fields of patch into user.preferences."""
+    incoming = {k: v for k, v in patch.model_dump().items() if v is not None}
+    if not incoming:
+        return user.preferences or {}
+    updated = await user_repo.update_preferences(user.id, incoming)
+    if updated is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="user not found")
+    logger.info("auth.preferences.updated", user_id=str(user.id), patch=incoming)
+    return updated.preferences or {}

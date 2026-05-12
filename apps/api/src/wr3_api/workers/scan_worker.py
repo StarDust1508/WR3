@@ -59,6 +59,21 @@ async def _redis() -> aioredis.Redis:
     return await aioredis.from_url(settings.redis_url, decode_responses=True)
 
 
+async def _user_prefs(user_id: uuid.UUID | None) -> dict[str, Any]:
+    """Read the owner's feature toggles. Falls back to project defaults when
+    the scan is anonymous (no user_id) so the pipeline still runs end-to-end.
+    """
+    from wr3_api.models.user import DEFAULT_PREFERENCES
+    from wr3_api.services import user_repository as ur
+
+    if user_id is None:
+        return dict(DEFAULT_PREFERENCES)
+    user = await ur.get_user(user_id)
+    if user is None or not user.preferences:
+        return dict(DEFAULT_PREFERENCES)
+    return {**DEFAULT_PREFERENCES, **user.preferences}
+
+
 async def enqueue_scan(
     *,
     job_id: str,
@@ -84,12 +99,15 @@ async def enqueue_scan(
     await r.setex(_PROGRESS_KEY.format(job_id=job_id), _PROGRESS_TTL, json.dumps(initial))
     await r.aclose()
 
+    prefs = await _user_prefs(user_id)
+
     run_audit_pipeline.delay(
         job_id=job_id,
         scan_id=str(scan_id),
         address=address,
         network=network,
         source=source,
+        prefs=prefs,
     )
     return str(scan_id)
 
@@ -130,12 +148,25 @@ def run_audit_pipeline(
     address: str,
     network: str,
     source: str | None,
+    prefs: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Run the full audit pipeline; publish events to Redis + persist final to PG."""
+    """Run the full audit pipeline; publish events to Redis + persist final to PG.
+
+    `prefs` carries the owner's feature toggles. The pipeline reads them to
+    decide whether to run optional stages (PoC, fuzzing, multi-agent).
+    """
 
     async def _run() -> dict[str, Any]:
         scan_uuid = uuid.UUID(scan_id)
-        pipeline = AuditPipeline(network=network, scan_id=scan_id)  # type: ignore[arg-type]
+        from wr3_api.models.user import DEFAULT_PREFERENCES
+        p = {**DEFAULT_PREFERENCES, **(prefs or {})}
+        pipeline = AuditPipeline(  # type: ignore[arg-type]
+            network=network,
+            scan_id=scan_id,
+            multi_agent_triage=bool(p.get("multi_agent_triage", True)),
+            poc_enabled=bool(p.get("auto_poc", True)),
+            fuzzing_enabled=bool(p.get("auto_fuzzing", True)),
+        )
         started = time.monotonic()
 
         async for event in pipeline.run(address=address, source=source):

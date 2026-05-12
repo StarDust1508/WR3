@@ -3,13 +3,6 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
-  AlertTriangle,
-  ArrowRight,
-  Loader2,
-  ShieldCheck,
-  ShieldOff,
-} from "lucide-react";
-import {
   type Wr3User,
   clearToken,
   fetchMe,
@@ -43,20 +36,16 @@ export function MiniAppRoot() {
 
   useEffect(() => {
     let cancelled = false;
-
-    async function boot() {
+    (async () => {
       const tg = getWebApp();
       tg?.ready?.();
       tg?.expand?.();
-
       const initData = tg?.initData ?? "";
       let token = getStoredToken();
-
       if (!token && !initData) {
         if (!cancelled) setPhase("no-tg");
         return;
       }
-
       try {
         if (!token && initData) {
           const result = await loginWithInitData(initData);
@@ -64,32 +53,24 @@ export function MiniAppRoot() {
           storeToken(token);
         }
         if (!token) throw new Error("no session token");
-
         const me = await fetchMe(token);
         if (cancelled) return;
         setUser(me);
-
         const myScans = await fetchMyScans(token);
         if (cancelled) return;
         setScans(myScans);
         setPhase("ready");
       } catch (e) {
         if (cancelled) return;
-        // Token may be stale (server restarted with a new JWT secret).
-        // Drop it and let the user re-open the Mini App to retrigger initData.
         clearToken();
         setError((e as Error).message);
         setPhase("error");
       }
-    }
-
-    boot();
-    return () => {
-      cancelled = true;
-    };
+    })();
+    return () => { cancelled = true; };
   }, []);
 
-  if (phase === "loading") return <CenteredLoading />;
+  if (phase === "loading") return <BootScreen />;
   if (phase === "no-tg") return <NotInTelegram />;
   if (phase === "error") return <AuthError message={error} />;
 
@@ -98,16 +79,18 @@ export function MiniAppRoot() {
       <Header user={user} />
       <MiniAppScanForm />
       <RecentScans scans={scans} />
-      <Disclaimer />
+      <Footer />
     </main>
   );
 }
 
-function CenteredLoading() {
+function BootScreen() {
   return (
-    <div className="flex min-h-[80vh] flex-col items-center justify-center gap-3">
+    <div className="flex min-h-[80vh] flex-col items-center justify-center gap-3 px-6">
       <Logo size={56} />
-      <Loader2 className="animate-spin" size={20} color="var(--tg-hint)" aria-hidden />
+      <p className="hb-prompt text-xs">
+        <span>booting</span><span className="hb-cursor" />
+      </p>
     </div>
   );
 }
@@ -115,19 +98,13 @@ function CenteredLoading() {
 function NotInTelegram() {
   return (
     <div className="mx-auto max-w-md px-6 pt-16 text-center">
-      <div className="mx-auto mb-4 w-fit"><Logo size={56} /></div>
-      <h1 className="mb-2 text-lg font-semibold" style={{ color: "var(--tg-text)" }}>
-        Open this from Telegram
-      </h1>
-      <p className="text-sm" style={{ color: "var(--tg-hint)" }}>
-        wr3 is a Telegram Mini App. Open it via the wr3 bot to sign in.
+      <div className="mb-4 inline-block"><Logo size={56} /></div>
+      <p className="hb-prompt text-sm">open from telegram</p>
+      <p className="mt-2 text-xs" style={{ color: "var(--hb-text-muted)" }}>
+        wr3 is a Telegram Mini App. Open via @KitronBot to sign in.
       </p>
-      <Link
-        href="/"
-        className="mt-6 inline-flex items-center gap-1 text-sm"
-        style={{ color: "var(--tg-link)" }}
-      >
-        Use the web version <ArrowRight size={14} />
+      <Link href="/" className="mt-6 inline-block text-xs underline" style={{ color: "var(--hb-text-dim)" }}>
+        → use the web version
       </Link>
     </div>
   );
@@ -136,42 +113,48 @@ function NotInTelegram() {
 function AuthError({ message }: { message: string | null }) {
   return (
     <div className="mx-auto max-w-md px-6 pt-16 text-center">
-      <div
-        className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full"
-        style={{ background: "color-mix(in srgb, var(--tg-destructive) 18%, transparent)" }}
-      >
-        <ShieldOff size={22} color="var(--tg-destructive)" />
-      </div>
-      <h1 className="mb-2 text-lg font-semibold" style={{ color: "var(--tg-text)" }}>
-        Sign-in failed
-      </h1>
-      <p className="text-sm" style={{ color: "var(--tg-hint)" }}>
+      <p className="hb-prompt text-sm">
+        <span style={{ color: "var(--hb-error)" }}>ERR</span> sign-in
+      </p>
+      <p className="mt-2 text-xs" style={{ color: "var(--hb-text-muted)" }}>
         {message ?? "Unknown error"}
       </p>
       <button
         type="button"
         onClick={() => window.location.reload()}
         className="tg-button mt-6"
-        style={{ minWidth: 160 }}
       >
-        Try again
+        retry
       </button>
     </div>
   );
 }
 
 function Header({ user }: { user: Wr3User | null }) {
-  const tierLabel = (user?.tier ?? "free").toUpperCase();
+  const tierLabel = (user?.tier ?? "free").toLowerCase();
+  const handle =
+    user?.telegram_username
+      ? `@${user.telegram_username}`
+      : user?.display_name ?? "anon";
   return (
-    <header className="mb-6 flex items-center gap-3">
-      <Logo size={40} />
-      <div className="min-w-0">
-        <p className="tg-hint" style={{ fontSize: 10 }}>{tierLabel} TIER</p>
-        <h1 className="truncate text-xl font-semibold" style={{ color: "var(--tg-text)" }}>
-          {user?.display_name ??
-            (user?.telegram_username ? `@${user.telegram_username}` : "wr3")}
-        </h1>
+    <header className="mb-5 flex items-center gap-3">
+      <Logo size={36} />
+      <div className="min-w-0 flex-1">
+        <p className="text-[10px]" style={{ color: "var(--hb-text-muted)" }}>
+          [{tierLabel}]
+        </p>
+        <p className="truncate text-sm font-bold" style={{ color: "var(--hb-text-hi)" }}>
+          {handle}
+        </p>
       </div>
+      <Link
+        href="/tg/owner"
+        className="tg-button tg-button-ghost"
+        style={{ padding: "8px 12px", fontSize: 10 }}
+        title="Owner panel — feature toggles"
+      >
+        cfg
+      </Link>
     </header>
   );
 }
@@ -179,40 +162,37 @@ function Header({ user }: { user: Wr3User | null }) {
 function RecentScans({ scans }: { scans: ScanRow[] }) {
   if (scans.length === 0) {
     return (
-      <section className="mt-6">
-        <h2 className="tg-hint mb-2">Your recent scans</h2>
-        <div className="tg-card flex flex-col items-center gap-2 py-8 text-center">
-          <ShieldCheck size={32} color="var(--tg-hint)" aria-hidden />
-          <p className="text-sm" style={{ color: "var(--tg-hint)" }}>
-            No scans yet. Paste a contract above to start your first audit.
+      <section className="mt-5">
+        <h2 className="tg-hint mb-2">recent scans</h2>
+        <div className="tg-card text-center" style={{ padding: "24px 12px" }}>
+          <p className="text-xs" style={{ color: "var(--hb-text-muted)" }}>
+            no scans yet
+          </p>
+          <p className="mt-1 text-[11px]" style={{ color: "var(--hb-text-muted)" }}>
+            paste a contract above to start the first audit
           </p>
         </div>
       </section>
     );
   }
-
   return (
-    <section className="mt-6">
-      <h2 className="tg-hint mb-2">Your recent scans</h2>
+    <section className="mt-5">
+      <h2 className="tg-hint mb-2">recent scans · {scans.length}</h2>
       <ul className="flex flex-col gap-2">
         {scans.map((s) => (
           <li key={s.id}>
-            <Link
-              href={`/tg/scan/${s.id}`}
-              className="tg-card flex items-center gap-3 active:scale-[0.99]"
-              style={{ transition: "transform 80ms" }}
-            >
+            <Link href={`/tg/scan/${s.id}`} className="tg-card-interactive flex items-center gap-3">
+              <span style={{ color: "var(--hb-text-muted)", fontSize: 11 }}>$</span>
               <div className="min-w-0 flex-1">
-                <p className="truncate font-mono text-sm" style={{ color: "var(--tg-text)" }}>
-                  {shortenAddress(s.address)}
+                <p className="truncate text-xs" style={{ color: "var(--hb-text-hi)" }}>
+                  {shortAddr(s.address)}
                 </p>
-                <p className="text-xs" style={{ color: "var(--tg-hint)" }}>
-                  {s.network} · {scanStageLabel(s.stage, s.progress)} ·{" "}
-                  {relativeTime(s.created_at)}
+                <p className="text-[10px]" style={{ color: "var(--hb-text-muted)" }}>
+                  {s.network} · {stageLabel(s.stage, s.progress)} · {relTime(s.created_at)}
                 </p>
               </div>
               <ScoreBadge score={s.score} tier={s.tier} stage={s.stage} />
-              <ArrowRight size={16} color="var(--tg-hint)" aria-hidden />
+              <span style={{ color: "var(--hb-text-muted)", fontSize: 11 }}>→</span>
             </Link>
           </li>
         ))}
@@ -221,64 +201,48 @@ function RecentScans({ scans }: { scans: ScanRow[] }) {
   );
 }
 
-function ScoreBadge({
-  score,
-  tier,
-  stage,
-}: {
-  score: number | null;
-  tier: string | null;
-  stage: string;
-}) {
+function ScoreBadge({ score, tier, stage }: { score: number | null; tier: string | null; stage: string }) {
   if (score == null || stage !== "done") {
     return (
-      <span className="flex items-center gap-1 text-xs" style={{ color: "var(--tg-hint)" }}>
-        <Loader2 size={12} className="animate-spin" />
-        running
+      <span className="text-[10px]" style={{ color: "var(--hb-text-muted)" }}>
+        ...
       </span>
     );
   }
   const tierClass = `tier-${tier ?? "yellow"}`;
-  const Icon = tier === "red" ? AlertTriangle : ShieldCheck;
   return (
-    <span className={`flex shrink-0 items-center gap-1 ${tierClass}`}>
-      <Icon size={14} />
-      <span className="text-base font-bold">{score.toFixed(0)}</span>
-    </span>
+    <span className={`${tierClass} text-sm font-bold`}>{score.toFixed(0)}</span>
   );
 }
 
-function Disclaimer() {
+function Footer() {
   return (
     <p
-      className="mt-10 text-center text-[11px] leading-relaxed"
-      style={{ color: "var(--tg-hint)" }}
+      className="mt-12 text-center text-[10px] leading-relaxed"
+      style={{ color: "var(--hb-text-muted)" }}
     >
-      AI-assisted audit. Best-effort, no warranty. Not a replacement for human review.
+      ai-assisted audit · best-effort, no warranty
     </p>
   );
 }
 
-function shortenAddress(addr: string): string {
-  if (addr.length <= 12) return addr;
-  return `${addr.slice(0, 6)}…${addr.slice(-4)}`;
+function shortAddr(a: string): string {
+  if (a.length <= 12) return a;
+  return `${a.slice(0, 6)}…${a.slice(-4)}`;
 }
-
-function scanStageLabel(stage: string, progress: number): string {
+function stageLabel(stage: string, progress: number): string {
   if (stage === "done") return "done";
-  if (stage === "error") return "failed";
+  if (stage === "error") return "FAIL";
   return `${stage} ${progress}%`;
 }
-
-function relativeTime(iso: string): string {
+function relTime(iso: string): string {
   const t = new Date(iso).getTime();
   if (!t) return "";
   const diff = Date.now() - t;
   const min = Math.floor(diff / 60_000);
-  if (min < 1) return "just now";
-  if (min < 60) return `${min}m ago`;
+  if (min < 1) return "now";
+  if (min < 60) return `${min}m`;
   const hr = Math.floor(min / 60);
-  if (hr < 24) return `${hr}h ago`;
-  const d = Math.floor(hr / 24);
-  return `${d}d ago`;
+  if (hr < 24) return `${hr}h`;
+  return `${Math.floor(hr / 24)}d`;
 }

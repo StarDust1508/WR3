@@ -1,41 +1,39 @@
 /**
- * Inline SVG wr3 mark — no external image fetch, no Telegram CSP gotcha.
- *
- * Design: stacked monospace "wr3" inside a rounded square. Uses --tg-button
- * for the chip background and --tg-button-text for the glyph so it adapts to
- * whichever Telegram theme is active.
+ * Terminal-style wr3 mark. Pure CSS/text — no SVG fetch, no images.
+ * Looks like an ASCII prompt with a blinking cursor.
  */
 export function Logo({ size = 40 }: { size?: number }) {
   return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 64 64"
-      role="img"
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 4,
+        fontFamily:
+          'ui-monospace, "SF Mono", Menlo, "JetBrains Mono", Consolas, monospace',
+        fontWeight: 700,
+        fontSize: size * 0.45,
+        lineHeight: 1,
+        color: "var(--hb-primary)",
+        padding: `${size * 0.18}px ${size * 0.25}px`,
+        border: "1px solid var(--hb-primary)",
+        borderRadius: 4,
+        letterSpacing: "-0.04em",
+        textTransform: "lowercase",
+      }}
       aria-label="wr3"
-      style={{ display: "block" }}
     >
-      <rect
-        x="2"
-        y="2"
-        width="60"
-        height="60"
-        rx="14"
-        fill="var(--tg-button)"
+      wr3
+      <span
+        style={{
+          display: "inline-block",
+          width: size * 0.08,
+          height: size * 0.45,
+          background: "var(--hb-primary)",
+          animation: "hb-blink 1s steps(1) infinite",
+        }}
+        aria-hidden
       />
-      <text
-        x="50%"
-        y="55%"
-        textAnchor="middle"
-        dominantBaseline="middle"
-        fontFamily='ui-monospace, "SF Mono", Menlo, Consolas, monospace'
-        fontWeight="700"
-        fontSize="22"
-        fill="var(--tg-button-text)"
-        letterSpacing="-0.04em"
-      >
-        wr3
-      </text>
-    </svg>
+    </span>
   );
 }
