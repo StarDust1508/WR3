@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from wr3_api.config import get_settings
-from wr3_api.routes import health, scan
+from wr3_api.routes import auth, health, scan, telegram
 
 logger = structlog.get_logger()
 
@@ -35,3 +35,5 @@ app.add_middleware(
 
 app.include_router(health.router, prefix="/v1", tags=["health"])
 app.include_router(scan.router, prefix="/v1/scan", tags=["scan"])
+app.include_router(auth.router, prefix="/v1/auth", tags=["auth"])
+app.include_router(telegram.router, prefix="/v1/tg", tags=["telegram"])

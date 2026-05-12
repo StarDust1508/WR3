@@ -13,10 +13,21 @@ from wr3_api.models import Finding as FindingRow
 from wr3_api.models import Scan as ScanRow
 
 
-async def create_scan(*, address: str, network: str) -> uuid.UUID:
+async def create_scan(
+    *,
+    address: str,
+    network: str,
+    user_id: uuid.UUID | None = None,
+) -> uuid.UUID:
     """Insert a Scan row in `queued` state and return its id."""
     async with SessionFactory() as session:
-        row = ScanRow(address=address, network=network, stage="queued", progress=0)
+        row = ScanRow(
+            address=address,
+            network=network,
+            stage="queued",
+            progress=0,
+            user_id=user_id,
+        )
         session.add(row)
         await session.commit()
         await session.refresh(row)
@@ -102,9 +113,16 @@ async def get_scan_with_findings(scan_id: uuid.UUID) -> tuple[ScanRow, list[Find
         return row, findings
 
 
-async def recent_scans(*, limit: int = 20) -> list[ScanRow]:
+async def recent_scans(
+    *,
+    limit: int = 20,
+    user_id: uuid.UUID | None = None,
+) -> list[ScanRow]:
+    """If user_id is given, scope to that user. Otherwise: all recent scans."""
     async with SessionFactory() as session:
-        result = await session.execute(
-            select(ScanRow).order_by(ScanRow.created_at.desc()).limit(limit)
-        )
+        stmt = select(ScanRow)
+        if user_id is not None:
+            stmt = stmt.where(ScanRow.user_id == user_id)
+        stmt = stmt.order_by(ScanRow.created_at.desc()).limit(limit)
+        result = await session.execute(stmt)
         return list(result.scalars().all())

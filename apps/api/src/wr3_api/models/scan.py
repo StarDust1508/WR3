@@ -35,6 +35,12 @@ class Scan(Base, TimestampMixin):
     address: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
     network: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
     source_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
 
     stage: Mapped[str] = mapped_column(String(32), nullable=False, default="queued")
     progress: Mapped[int] = mapped_column(Integer, nullable=False, default=0)

@@ -4,10 +4,12 @@ from typing import Any, Literal
 from uuid import UUID, uuid4
 
 import structlog
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sse_starlette.sse import EventSourceResponse
 
+from wr3_api.auth import current_user_optional, current_user_required
+from wr3_api.models import User
 from wr3_api.services import scan_repository as repo
 from wr3_api.workers.scan_worker import enqueue_scan, get_scan_progress
 
@@ -29,7 +31,10 @@ class ScanResponse(BaseModel):
 
 
 @router.post("", response_model=ScanResponse)
-async def create_scan(req: ScanRequest) -> ScanResponse:
+async def create_scan(
+    req: ScanRequest,
+    user: User | None = Depends(current_user_optional),
+) -> ScanResponse:
     if not req.address.strip():
         raise HTTPException(status_code=400, detail="address required")
 
@@ -39,8 +44,15 @@ async def create_scan(req: ScanRequest) -> ScanResponse:
         address=req.address.strip(),
         network=req.network,
         source=req.source_code,
+        user_id=user.id if user else None,
     )
-    logger.info("scan.enqueued", job_id=job_id, network=req.network, address=req.address)
+    logger.info(
+        "scan.enqueued",
+        job_id=job_id,
+        network=req.network,
+        address=req.address,
+        user_id=str(user.id) if user else None,
+    )
     return ScanResponse(job_id=job_id, status="queued")
 
 
@@ -61,6 +73,29 @@ async def scan_events(job_id: str) -> EventSourceResponse:
             await asyncio.sleep(1.0)
 
     return EventSourceResponse(event_stream())
+
+
+# IMPORTANT: declare /me before /{scan_id} so it isn't shadowed by UUID parsing.
+@router.get("/me")
+async def list_my_scans(
+    limit: int = 20,
+    user: User = Depends(current_user_required),
+) -> list[dict[str, Any]]:
+    rows = await repo.recent_scans(limit=min(max(limit, 1), 100), user_id=user.id)
+    return [
+        {
+            "id": str(s.id),
+            "address": s.address,
+            "network": s.network,
+            "stage": s.stage,
+            "progress": s.progress,
+            "score": s.score,
+            "tier": s.tier,
+            "created_at": s.created_at.isoformat(),
+            "completed_at": s.completed_at.isoformat() if s.completed_at else None,
+        }
+        for s in rows
+    ]
 
 
 @router.get("/{scan_id}")
@@ -102,8 +137,14 @@ async def get_scan_report(scan_id: UUID) -> dict[str, Any]:
 
 
 @router.get("")
-async def list_recent_scans(limit: int = 20) -> list[dict[str, Any]]:
-    rows = await repo.recent_scans(limit=min(max(limit, 1), 100))
+async def list_recent_scans(
+    limit: int = 20,
+    mine: bool = False,
+    user: User | None = Depends(current_user_optional),
+) -> list[dict[str, Any]]:
+    """When `mine=true` and authed, scope to caller; otherwise: global recent."""
+    user_id = user.id if (mine and user is not None) else None
+    rows = await repo.recent_scans(limit=min(max(limit, 1), 100), user_id=user_id)
     return [
         {
             "id": str(s.id),

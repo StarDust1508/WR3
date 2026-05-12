@@ -60,13 +60,18 @@ async def _redis() -> aioredis.Redis:
 
 
 async def enqueue_scan(
-    *, job_id: str, address: str, network: str, source: str | None
+    *,
+    job_id: str,
+    address: str,
+    network: str,
+    source: str | None,
+    user_id: uuid.UUID | None = None,
 ) -> str:
     """Persist Scan row + initial Redis progress, then dispatch to Celery.
 
     Returns the scan_id (UUID) — the API may want to expose it directly.
     """
-    scan_id = await repo.create_scan(address=address, network=network)
+    scan_id = await repo.create_scan(address=address, network=network, user_id=user_id)
 
     r = await _redis()
     initial = {
