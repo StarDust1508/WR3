@@ -2,6 +2,16 @@
 
 import { useState } from "react";
 
+type SimilarIncident = {
+  incident_id: string;
+  title: string;
+  url: string;
+  source: string;
+  loss_usd: number | null;
+  published_at: string;
+  similarity: number;
+};
+
 interface FindingRowProps {
   finding: {
     id: string;
@@ -15,6 +25,7 @@ interface FindingRowProps {
     dismissed: boolean;
     poc_validated?: boolean;
     poc_path?: string | null;
+    metadata?: { similar_incidents?: SimilarIncident[] } | null;
   };
 }
 
@@ -91,8 +102,47 @@ export function FindingRow({ finding }: FindingRowProps) {
             <dt>Engine</dt>
             <dd>{finding.source_engine}</dd>
           </dl>
+          {(finding.metadata?.similar_incidents?.length ?? 0) > 0 && (
+            <SimilarIncidents incidents={finding.metadata!.similar_incidents!} />
+          )}
         </div>
       )}
     </li>
+  );
+}
+
+function SimilarIncidents({ incidents }: { incidents: SimilarIncident[] }) {
+  return (
+    <div className="mt-3 border-t border-zinc-100 pt-3 dark:border-zinc-800">
+      <p className="text-xs uppercase tracking-wide text-zinc-500">
+        Similar past incidents
+      </p>
+      <ul className="mt-1 space-y-1">
+        {incidents.map((i) => {
+          const lossStr =
+            i.loss_usd == null
+              ? ""
+              : i.loss_usd >= 1_000_000
+                ? ` — $${(i.loss_usd / 1_000_000).toFixed(1)}M`
+                : ` — $${(i.loss_usd / 1_000).toFixed(0)}K`;
+          return (
+            <li key={i.incident_id} className="text-xs">
+              <a
+                href={i.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-zinc-700 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-50"
+              >
+                <span className="mr-2 font-mono text-zinc-500">
+                  {Math.round(i.similarity * 100)}%
+                </span>
+                {i.title}
+                <span className="text-red-600 dark:text-red-400">{lossStr}</span>
+              </a>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
   );
 }

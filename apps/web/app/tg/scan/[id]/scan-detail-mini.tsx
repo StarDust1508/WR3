@@ -4,6 +4,16 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { getStoredToken } from "@/lib/tg-session";
 
+type SimilarIncident = {
+  incident_id: string;
+  title: string;
+  url: string;
+  source: string;
+  loss_usd: number | null;
+  published_at: string;
+  similarity: number;
+};
+
 type Finding = {
   id: string;
   title: string;
@@ -13,6 +23,7 @@ type Finding = {
   line: number | null;
   dismissed: boolean;
   poc_validated?: boolean;
+  metadata?: { similar_incidents?: SimilarIncident[] } | null;
 };
 
 type ScanDetail = {
@@ -199,6 +210,7 @@ function FindingRow({ finding }: { finding: Finding }) {
     : sev === "medium" ? "sev-chip-medium"
     : sev === "low"    ? "sev-chip-low"
                        : "sev-chip-info";
+  const similar = finding.metadata?.similar_incidents ?? [];
 
   return (
     <li className="tg-card" style={{ padding: 12 }}>
@@ -219,8 +231,57 @@ function FindingRow({ finding }: { finding: Finding }) {
           {finding.description}
         </p>
       )}
+      {similar.length > 0 && <SimilarIncidents incidents={similar} />}
     </li>
   );
+}
+
+function SimilarIncidents({ incidents }: { incidents: SimilarIncident[] }) {
+  return (
+    <div
+      className="mt-2 border-t pt-2"
+      style={{ borderColor: "var(--hb-border)" }}
+    >
+      <p className="text-[10px]" style={{ color: "var(--hb-text-muted)" }}>
+        // похожие реальные эксплойты
+      </p>
+      <ul className="mt-1 flex flex-col gap-1">
+        {incidents.map((i) => (
+          <li key={i.incident_id}>
+            <a
+              href={i.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[11px]"
+              style={{
+                color: "var(--hb-primary)",
+                textDecoration: "none",
+                lineHeight: 1.4,
+                display: "block",
+              }}
+            >
+              <span style={{ color: "var(--hb-text-muted)", marginRight: 6 }}>
+                {Math.round(i.similarity * 100)}%
+              </span>
+              {i.title}
+              {i.loss_usd != null && (
+                <span style={{ color: "#f87171", marginLeft: 6 }}>
+                  ${formatLoss(i.loss_usd)}
+                </span>
+              )}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function formatLoss(usd: number): string {
+  if (usd >= 1_000_000_000) return `${(usd / 1_000_000_000).toFixed(1)}B`;
+  if (usd >= 1_000_000) return `${(usd / 1_000_000).toFixed(1)}M`;
+  if (usd >= 1_000) return `${(usd / 1_000).toFixed(0)}K`;
+  return usd.toString();
 }
 
 type SeverityCounts = { critical: number; high: number; medium: number; low: number; info: number };

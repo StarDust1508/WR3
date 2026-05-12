@@ -154,6 +154,9 @@ async def get_scan_report(scan_id: UUID) -> dict[str, Any]:
                 "dismissed": f.dismissed,
                 "poc_validated": f.poc_validated,
                 "poc_path": f.poc_path,
+                # Enrichment metadata (e.g. similar_incidents from W12).
+                # Lives in `extra` JSONB and surfaces through this field.
+                "metadata": f.extra or {},
             }
             for f in findings
         ],

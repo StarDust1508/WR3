@@ -238,16 +238,38 @@ class LLMRouter:
         are non-reversible and we only ever embed public incident text here.
         If you need to embed sensitive data, add a SECRET-routed variant.
         """
+        results = await self.embed_batch([text], model=model)
+        return results[0]
+
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        retry=retry_if_exception_type((httpx.HTTPError, httpx.TimeoutException)),
+        reraise=True,
+    )
+    async def embed_batch(
+        self,
+        texts: list[str],
+        *,
+        model: str = "text-embedding-3-small",
+    ) -> list[list[float]]:
+        """Embed many strings in one API call.
+
+        OpenAI's /embeddings endpoint accepts `input` as either a string or
+        a list of strings — api.navy mirrors this. One round-trip is dramatically
+        cheaper than N when called from a scan worker that has many findings
+        to enrich. Results are returned in the SAME ORDER as `texts`.
+        """
         if not self.navyai_key:
-            raise RuntimeError(
-                "embed() requires NAVYAI_API_KEY to be configured"
-            )
+            raise RuntimeError("embed_batch() requires NAVYAI_API_KEY to be configured")
+        if not texts:
+            return []
         headers = {
             "Authorization": f"Bearer {self.navyai_key}",
             "Content-Type": "application/json",
         }
-        payload = {"model": model, "input": text}
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        payload = {"model": model, "input": texts}
+        async with httpx.AsyncClient(timeout=60.0) as client:
             r = await client.post(
                 f"{self.navyai_base_url}/embeddings",
                 headers=headers,
@@ -255,4 +277,7 @@ class LLMRouter:
             )
             r.raise_for_status()
             data = r.json()
-            return list(data["data"][0]["embedding"])
+        # The response `data` array is ordered by `index`; sort defensively
+        # in case the provider ever returns out-of-order.
+        rows = sorted(data["data"], key=lambda d: d["index"])
+        return [list(row["embedding"]) for row in rows]

@@ -134,7 +134,32 @@ def _render_finding(f: Finding) -> list[str]:
     if f.description:
         out.append("")
         out.append(f.description.strip())
+
+    # Similar historical incidents (W12 enrichment). Stored in `extra` JSONB
+    # column as `metadata.similar_incidents` by incident_search.
+    similar = _extract_similar_incidents(f)
+    if similar:
+        out.append("")
+        out.append("**Similar past incidents:**")
+        for inc in similar:
+            sim_pct = round(float(inc.get("similarity", 0)) * 100)
+            title = (inc.get("title") or "").replace("|", "\\|")
+            url = inc.get("url") or ""
+            loss = inc.get("loss_usd")
+            loss_str = f" — ${loss:,}" if loss else ""
+            out.append(f"- [{title}]({url}){loss_str}  _(similarity {sim_pct}%)_")
     return out
+
+
+def _extract_similar_incidents(f: Finding) -> list[dict]:
+    """Pull similar_incidents from Finding.extra. Tolerant of None / wrong shape."""
+    extra = f.extra or {}
+    if not isinstance(extra, dict):
+        return []
+    sims = extra.get("similar_incidents")
+    if not isinstance(sims, list):
+        return []
+    return [s for s in sims if isinstance(s, dict)]
 
 
 def _fmt(dt: datetime) -> str:

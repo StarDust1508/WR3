@@ -194,6 +194,22 @@ def run_audit_pipeline(
         if result.get("status") == "incomplete":
             return result
 
+        # Enrich HIGH/CRITICAL findings with similar historical incidents.
+        # One round-trip to api.navy for the whole batch; vector search hits
+        # the IVFFlat index on incidents.embedding. Failures here are
+        # non-fatal — the scan still finalizes without the enrichment.
+        try:
+            from audit_engine.llm.router import LLMRouter
+
+            from wr3_api.services import incident_search
+
+            router = LLMRouter()
+            await incident_search.enrich_report_with_similar_incidents(
+                result, embed_batch=router.embed_batch
+            )
+        except Exception as e:
+            logger.warning("scan.incident_enrich_failed", error=str(e))
+
         duration = time.monotonic() - started
         await repo.finalize_scan(
             scan_id=scan_uuid,
