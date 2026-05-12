@@ -120,7 +120,15 @@ async def handle_update(update: dict[str, Any], *, web_base_url: str) -> BotRepl
     text = (message.get("text") or "").strip()
     command, args = parse_command(text)
 
-    if command in ("/start", "/help"):
+    if command == "/start":
+        # /start may carry a deep-link payload set by /pricing CTAs:
+        #   "/start upgrade_hobby" -> we route to a subscription explainer
+        # (Telegram passes it as the first arg.)
+        if args and args[0].startswith("upgrade_"):
+            return _handle_upgrade(chat_id=chat_id, plan=args[0][len("upgrade_"):])
+        return _greet(chat_id=chat_id, web_base_url=web_base_url)
+
+    if command == "/help":
         return _greet(chat_id=chat_id, web_base_url=web_base_url)
 
     if command == "/scan":
@@ -156,6 +164,32 @@ def _greet(*, chat_id: int, web_base_url: str) -> BotReply:
         "  `/scan 0x... base` — quick audit (Ethereum, Base, Arbitrum, BSC, Solana)\n"
         "  Open the Mini App for the full report:\n"
         f"  {web_base_url}/tg"
+    )
+    return BotReply(actions=[_send_message(chat_id, text)])
+
+
+# Plans shown on /pricing. Deep-link from there flows here.
+_PLAN_BLURBS: dict[str, tuple[str, str]] = {
+    "free": ("free tier", "you're already on it — just tap the wr3 audit menu button"),
+    "hobby": ("hobby — $29/mo", "10 contracts/mo, multi-agent triage, PoC retry-loop"),
+    "team": ("team — $99/mo", "unlimited contracts, AI-fuzzing, 24/7 monitoring"),
+    "pro": ("pro — $499/mo", "everything in team + Certora formal verification"),
+    "enterprise": (
+        "enterprise / custom",
+        "per-engagement audit, white-label, volume discounts",
+    ),
+}
+
+
+def _handle_upgrade(*, chat_id: int, plan: str) -> BotReply:
+    """Respond to `/start upgrade_<plan>` deep-link from /pricing."""
+    title, body = _PLAN_BLURBS.get(plan, ("upgrade", "unknown plan"))
+    text = (
+        f"*{title}*\n"
+        f"{body}\n\n"
+        "Payments aren't wired up yet (W10 in the roadmap). When they are, "
+        "you'll subscribe right here. For now, drop a message and we'll set you up manually.\n\n"
+        "Reply with `/scan 0x...` to keep using the free tier."
     )
     return BotReply(actions=[_send_message(chat_id, text)])
 

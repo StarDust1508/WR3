@@ -126,3 +126,59 @@ async def recent_scans(
         stmt = stmt.order_by(ScanRow.created_at.desc()).limit(limit)
         result = await session.execute(stmt)
         return list(result.scalars().all())
+
+
+async def public_scans(*, limit: int = 50, min_score: float | None = None) -> list[dict[str, Any]]:
+    """Anonymized public scans for the leaderboard.
+
+    Filters:
+      - Only completed (stage='done') scans
+      - Users with `anonymous_in_public=True` in preferences are HIDDEN entirely
+        (we respect the opt-out by simply not surfacing their scans publicly).
+      - Anonymous scans (no user_id) are shown — they have no identity to hide.
+
+    Returns plain dicts to keep the API layer simple and the response stable.
+    """
+    from wr3_api.models import User
+
+    async with SessionFactory() as session:
+        stmt = (
+            select(ScanRow, User)
+            .outerjoin(User, ScanRow.user_id == User.id)
+            .where(ScanRow.stage == "done")
+            .order_by(ScanRow.score.desc().nulls_last(), ScanRow.created_at.desc())
+            .limit(min(max(limit, 1), 200))
+        )
+        if min_score is not None:
+            stmt = stmt.where(ScanRow.score >= min_score)
+        rows = (await session.execute(stmt)).all()
+
+    out: list[dict[str, Any]] = []
+    for scan, user in rows:
+        prefs = (user.preferences or {}) if user is not None else {}
+        if prefs.get("anonymous_in_public", False):
+            continue
+        # Compute number of findings; report needs to be fast so we keep a cached
+        # count in scan.report["findings"] (populated by finalize_scan).
+        report = scan.report or {}
+        findings_total = len(report.get("findings") or [])
+        out.append(
+            {
+                "id": str(scan.id),
+                "address": scan.address,
+                "network": scan.network,
+                "score": scan.score,
+                "tier": scan.tier,
+                "findings_total": findings_total,
+                "duration_seconds": scan.duration_seconds,
+                "completed_at": scan.completed_at.isoformat() if scan.completed_at else None,
+                # User attribution — strict: only public-safe handle, never the
+                # TG id or wallet. anon = no user; opted-out users are filtered above.
+                "author": (
+                    user.telegram_username or user.display_name or "user"
+                )
+                if user is not None
+                else None,
+            }
+        )
+    return out
