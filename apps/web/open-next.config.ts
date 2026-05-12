@@ -1,5 +1,3 @@
-// @ts-expect-error — `@opennextjs/cloudflare` ships its types lazily; the
-// helper is only used here, no runtime impact.
 import { defineCloudflareConfig } from "@opennextjs/cloudflare";
 
 /**
