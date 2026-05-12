@@ -18,6 +18,7 @@ from audit_engine.analyzers.aderyn import AderynAnalyzer
 from audit_engine.analyzers.base import StaticAnalyzer
 from audit_engine.analyzers.baseline import BaselineAnalyzer
 from audit_engine.analyzers.slither import SlitherAnalyzer
+from audit_engine.analyzers.solana import SolanaSealevelAnalyzer
 from audit_engine.analyzers.wake import WakeAnalyzer
 from audit_engine.types import Finding, Network
 
@@ -30,8 +31,10 @@ class StaticAnalyzerRegistry:
     @staticmethod
     def for_network(network: Network) -> list[StaticAnalyzer]:
         if network == "solana":
-            # TODO: SolanaAnalyzer (custom AST on anchor-syn + Sealevel-attacks rules)
-            return []
+            # Solana track: regex-based Sealevel-attacks analyzer is the only
+            # in-house engine for now. Trident fuzz (W6 wrapper) handles
+            # invariants; symbolic exec / Certora-Solana wiring is W12+.
+            return [SolanaSealevelAnalyzer()]
         # Baseline first: in-process, no deps, fast.
         # Aderyn/Wake/Slither will silently skip if their binaries aren't installed.
         return [
