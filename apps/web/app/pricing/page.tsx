@@ -18,8 +18,9 @@ export default function PricingPage() {
   return (
     <TerminalPageShell title="тарифы">
       <p style={{ color: MUTED, fontSize: 12 }}>
-        // free навсегда. Платные тарифы стартуют с публичной беты.
-        Нажми <code>$ подписаться</code> — бот @KitronBot ответит детально.
+        // free навсегда. Платные тарифы — оплата через{" "}
+        <span style={{ color: HI }}>Telegram Stars</span> прямо в боте,
+        в один тап. Без карт, без KYC. Нажми <code>$ подписаться</code> ↓
       </p>
 
       <div
@@ -98,17 +99,19 @@ export default function PricingPage() {
         </h2>
         <ul style={{ color: MUTED, fontSize: 12, lineHeight: 1.8, marginTop: 8 }}>
           <li>
-            <span style={{ color: HI }}>крипта.</span> USDC на base / arbitrum
-            или TON. Оплата через @KitronBot из твоего кошелька.{" "}
-            <i style={{ color: MUTED }}>(подключение в дорожной карте)</i>
+            <span style={{ color: HI }}>telegram stars.</span> Активно.
+            Оплата в один тап прямо в боте. Hobby — 2200 ⭐, team — 7500 ⭐,
+            pro — 38000 ⭐. Период 30 дней, продление — новой покупкой.
           </li>
           <li>
-            <span style={{ color: HI }}>фиат.</span> Stripe / Polar.{" "}
-            <i style={{ color: MUTED }}>(после публичной беты)</i>
+            <span style={{ color: HI }}>ton / usdc.</span> TON Connect и USDC
+            (base / arbitrum) — следом за Stars.{" "}
+            <i style={{ color: MUTED }}>(в дорожной карте)</i>
           </li>
           <li>
-            <span style={{ color: HI }}>возврат.</span> Первый месяц любого
-            платного тарифа возвращаем полностью, без вопросов.
+            <span style={{ color: HI }}>возврат.</span> Stars-возврат через
+            `/refund` в боте в течение 14 дней. Дальше — пишите в чат,
+            разберём вручную.
           </li>
         </ul>
       </section>

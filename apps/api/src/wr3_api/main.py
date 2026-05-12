@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from wr3_api.config import get_settings
-from wr3_api.routes import auth, health, public, scan, telegram
+from wr3_api.routes import auth, health, public, scan, subscription, telegram
 
 logger = structlog.get_logger()
 
@@ -45,3 +45,4 @@ app.include_router(scan.router, prefix="/v1/scan", tags=["scan"])
 app.include_router(auth.router, prefix="/v1/auth", tags=["auth"])
 app.include_router(telegram.router, prefix="/v1/tg", tags=["telegram"])
 app.include_router(public.router, prefix="/v1/public", tags=["public"])
+app.include_router(subscription.router, prefix="/v1/subscription", tags=["subscription"])

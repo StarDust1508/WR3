@@ -17,6 +17,8 @@ from typing import Any
 import httpx
 import structlog
 
+from wr3_api.models.subscription import STARS_PRICE
+from wr3_api.services import subscription_repository as sub_repo
 from wr3_api.services import user_repository as user_repo
 from wr3_api.workers.scan_worker import enqueue_scan
 
@@ -64,6 +66,42 @@ def _send_message(chat_id: int, text: str, *, reply_to: int | None = None, parse
     return BotAction(method="sendMessage", payload=payload)
 
 
+def _send_stars_invoice(*, chat_id: int, plan: str, stars: int) -> BotAction:
+    """Build a `sendInvoice` call for Telegram Stars (currency XTR).
+
+    Stars invoices are special: provider_token must be EMPTY, currency must
+    be "XTR", and prices must be a single-item list. The `payload` field is
+    echoed back in pre_checkout_query + successful_payment — we encode the
+    plan there so the handler knows what was bought.
+    """
+    title, _ = _PLAN_BLURBS.get(plan, ("Подписка", ""))
+    description = {
+        "hobby": "10 аудитов в месяц · multi-agent триаж · Foundry PoC retry-loop",
+        "team":  "Безлимит аудитов · AI-fuzzing · мониторинг 24/7",
+        "pro":   "Всё из Team + Certora formal verification",
+    }.get(plan, "wr3 подписка")
+    payload: dict[str, Any] = {
+        "chat_id": chat_id,
+        "title": title,
+        "description": description,
+        # Bot API echoes this on pre_checkout + successful_payment. Prefix
+        # with "wr3:" so future payload formats (e.g. "wr3-credits:") don't
+        # clash with this subscription flow.
+        "payload": f"wr3:sub:{plan}",
+        "provider_token": "",  # MUST be empty for Stars
+        "currency": "XTR",
+        "prices": [{"label": title, "amount": stars}],
+    }
+    return BotAction(method="sendInvoice", payload=payload)
+
+
+def _answer_pre_checkout(query_id: str, *, ok: bool, error: str | None = None) -> BotAction:
+    payload: dict[str, Any] = {"pre_checkout_query_id": query_id, "ok": ok}
+    if not ok and error:
+        payload["error_message"] = error
+    return BotAction(method="answerPreCheckoutQuery", payload=payload)
+
+
 def parse_command(text: str) -> tuple[str, list[str]]:
     """Strip optional `/cmd@botname` form; return (command_lower, args)."""
     if not text:
@@ -98,9 +136,36 @@ def detect_network_and_address(args: list[str]) -> tuple[str | None, str | None]
 
 async def handle_update(update: dict[str, Any], *, web_base_url: str) -> BotReply:
     """Process one Telegram Update; return outbound actions."""
+    # Stars payment flow: pre_checkout_query MUST be answered within 10s, or
+    # Telegram cancels the payment. We always accept here — validation
+    # happens earlier (when we send the invoice) and at successful_payment
+    # (idempotent recording).
+    pre_checkout = update.get("pre_checkout_query")
+    if pre_checkout:
+        query_id = pre_checkout.get("id")
+        payload = pre_checkout.get("invoice_payload") or ""
+        if not query_id:
+            return BotReply()
+        # Defensive: reject anything we don't recognise.
+        if not payload.startswith("wr3:sub:"):
+            return BotReply(actions=[
+                _answer_pre_checkout(query_id, ok=False, error="неизвестный invoice")
+            ])
+        plan = payload.split(":", 2)[2]
+        if plan not in STARS_PRICE:
+            return BotReply(actions=[
+                _answer_pre_checkout(query_id, ok=False, error="неизвестный тариф")
+            ])
+        return BotReply(actions=[_answer_pre_checkout(query_id, ok=True)])
+
     message = update.get("message") or update.get("edited_message")
     if not message:
         return BotReply()
+
+    # successful_payment arrives as a field on the message, not a separate
+    # top-level update. Handle it before the command parser sees the text.
+    if message.get("successful_payment"):
+        return await _handle_successful_payment(message=message)
 
     chat_id = (message.get("chat") or {}).get("id")
     if chat_id is None:
@@ -194,15 +259,89 @@ _PLAN_BLURBS: dict[str, tuple[str, str]] = {
 
 
 def _handle_upgrade(*, chat_id: int, plan: str) -> BotReply:
-    """Reply to `/start upgrade_<plan>` deep-link from /pricing."""
+    """Reply to `/start upgrade_<plan>` deep-link from /pricing.
+
+    Sends a real Telegram Stars invoice for plans we sell that way.
+    Enterprise falls through to a contact message — it's per-engagement.
+    """
     title, body = _PLAN_BLURBS.get(plan, ("Апгрейд", "неизвестный тариф"))
+    stars = STARS_PRICE.get(plan)
+
+    if stars is None:
+        # free / enterprise / unknown — explain, don't pretend.
+        if plan == "enterprise":
+            text = (
+                f"*{title}*\n{body}\n\n"
+                "Enterprise — per-engagement, не через Stars. "
+                "Напиши в этот чат, обсудим объём и цену."
+            )
+        elif plan == "free":
+            text = f"*{title}*\n{body}"
+        else:
+            text = f"*{title}*\n{body}\n\nЭтот тариф пока не продаётся через бота."
+        return BotReply(actions=[_send_message(chat_id, text)])
+
+    intro = (
+        f"*{title}*\n{body}\n\n"
+        f"Оплата — *{stars}* ⭐ Telegram Stars, период 30 дней.\n"
+        "Подтверди в окне оплаты ниже ↓"
+    )
+    return BotReply(actions=[
+        _send_message(chat_id, intro),
+        _send_stars_invoice(chat_id=chat_id, plan=plan, stars=stars),
+    ])
+
+
+async def _handle_successful_payment(*, message: dict[str, Any]) -> BotReply:
+    """Record a Stars payment and ack the user.
+
+    Idempotent: replays of the same `telegram_payment_charge_id` are no-ops.
+    """
+    chat_id = (message.get("chat") or {}).get("id")
+    from_user = message.get("from") or {}
+    tg_user_id = from_user.get("id")
+    sp = message.get("successful_payment") or {}
+
+    if chat_id is None or tg_user_id is None:
+        return BotReply()
+
+    payload = sp.get("invoice_payload") or ""
+    if not payload.startswith("wr3:sub:"):
+        logger.warning("bot.payment.unknown_payload", payload=payload)
+        return BotReply(actions=[
+            _send_message(chat_id, "Платёж получен, но invoice не распознан. Напиши в этот чат — разберёмся.")
+        ])
+
+    plan = payload.split(":", 2)[2]
+    amount = int(sp.get("total_amount") or 0)
+    currency = str(sp.get("currency") or "XTR")
+    charge_id = str(sp.get("telegram_payment_charge_id") or "")
+    if not charge_id:
+        logger.warning("bot.payment.no_charge_id", sp=sp)
+        return BotReply(actions=[
+            _send_message(chat_id, "Платёж без charge_id — не могу записать. Свяжись с поддержкой.")
+        ])
+
+    user = await user_repo.upsert_telegram_user(telegram_user_id=int(tg_user_id))
+    sub = await sub_repo.activate_from_payment(
+        user_id=user.id,
+        plan=plan,
+        provider="telegram_stars",
+        provider_payment_id=charge_id,
+        amount=amount,
+        currency=currency,
+        raw=sp,
+    )
+
+    if sub is None:
+        # Duplicate webhook — we already credited this charge. Don't double-notify.
+        logger.info("bot.payment.duplicate", charge_id=charge_id)
+        return BotReply()
+
     text = (
-        f"*{title}*\n"
-        f"{body}\n\n"
-        "Платежи пока не подключены (W10 в дорожной карте). Когда они "
-        "появятся — подписка прямо отсюда. Сейчас напишите в этот чат, "
-        "и мы подключим вручную.\n\n"
-        "Чтобы продолжить на free-тарифе — отправь `/scan 0x...`."
+        f"✓ Подписка *{plan}* активна до "
+        f"`{sub.period_end.strftime('%Y-%m-%d')}` UTC.\n\n"
+        f"Спасибо! Открой Mini App — увидишь новый тариф в шапке."
     )
     return BotReply(actions=[_send_message(chat_id, text)])
 

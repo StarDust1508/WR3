@@ -140,9 +140,14 @@ function Header({ user }: { user: Wr3User | null }) {
     <header className="mb-5 flex items-center gap-3">
       <Logo size={36} />
       <div className="min-w-0 flex-1">
-        <p className="text-[10px]" style={{ color: "var(--hb-text-muted)" }}>
+        <Link
+          href="/tg/billing"
+          className="text-[10px]"
+          style={{ color: "var(--hb-text-muted)", textDecoration: "none" }}
+          title="Управление тарифом"
+        >
           [{tierLabel}]
-        </p>
+        </Link>
         <p className="truncate text-sm font-bold" style={{ color: "var(--hb-text-hi)" }}>
           {handle}
         </p>
