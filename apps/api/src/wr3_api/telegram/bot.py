@@ -102,6 +102,19 @@ def _answer_pre_checkout(query_id: str, *, ok: bool, error: str | None = None) -
     return BotAction(method="answerPreCheckoutQuery", payload=payload)
 
 
+def _refund_stars(*, tg_user_id: int, charge_id: str) -> BotAction:
+    """Bot API: refundStarPayment. Returns Stars to user instantly when
+    within Telegram's refund window (typically 21 days from purchase).
+    """
+    return BotAction(
+        method="refundStarPayment",
+        payload={
+            "user_id": tg_user_id,
+            "telegram_payment_charge_id": charge_id,
+        },
+    )
+
+
 def parse_command(text: str) -> tuple[str, list[str]]:
     """Strip optional `/cmd@botname` form; return (command_lower, args)."""
     if not text:
@@ -204,6 +217,9 @@ async def handle_update(update: dict[str, Any], *, web_base_url: str) -> BotRepl
             web_base_url=web_base_url,
         )
 
+    if command == "/refund":
+        return await _handle_refund(chat_id=chat_id, tg_user_id=int(tg_user_id))
+
     # Unknown / plain text: assume an address paste.
     address, network = detect_network_and_address([text, *args])
     if address:
@@ -227,6 +243,7 @@ def _greet(*, chat_id: int, web_base_url: str) -> BotReply:
         "*wr3* — AI-аудит смарт-контрактов\n\n"
         "Команды:\n"
         "  `/scan 0x... base` — быстрый аудит (Ethereum, Base, Arbitrum, BSC, Solana)\n"
+        "  `/refund` — вернуть Stars за активную подписку\n"
         "  Открой Mini App для полного отчёта:\n"
         f"  {web_base_url}/tg"
     )
@@ -290,6 +307,68 @@ def _handle_upgrade(*, chat_id: int, plan: str) -> BotReply:
         _send_message(chat_id, intro),
         _send_stars_invoice(chat_id=chat_id, plan=plan, stars=stars),
     ])
+
+
+async def _handle_refund(*, chat_id: int, tg_user_id: int) -> BotReply:
+    """Refund the user's most recent active Stars subscription.
+
+    Flow:
+      1. Look up the user; find their active Subscription.
+      2. Issue refundStarPayment to Telegram (Bot API does the actual
+         money movement — Stars return to user's balance instantly).
+      3. Mark the subscription refunded in our DB (period_end=now,
+         tier→free).
+    If there's no active subscription we just tell them.
+    """
+    user = await user_repo.upsert_telegram_user(telegram_user_id=tg_user_id)
+    active = await sub_repo.get_active_for_user(user.id)
+
+    if active is None:
+        return BotReply(actions=[
+            _send_message(
+                chat_id,
+                "У тебя нет активной подписки для возврата. Текущий тариф: *free*.",
+            )
+        ])
+
+    if active.provider != "telegram_stars":
+        return BotReply(actions=[
+            _send_message(
+                chat_id,
+                f"Активная подписка оплачена через `{active.provider}`, не через Stars. "
+                "Возврат через Telegram-бота возможен только для Stars-платежей. "
+                "Напиши в этот чат — разберём вручную.",
+            )
+        ])
+
+    actions: list[BotAction] = [
+        _refund_stars(
+            tg_user_id=tg_user_id,
+            charge_id=active.provider_payment_id,
+        ),
+    ]
+
+    # Update our DB now — if Telegram rejects the refund (e.g. past 21-day
+    # window) the user can still see this in execution logs; the active
+    # subscription rollback is cheap to reverse manually if needed. Doing
+    # it post-API would risk the user getting refunded Stars but keeping
+    # the paid tier in our system on transient errors.
+    refunded = await sub_repo.refund_active_subscription(user.id)
+    if refunded is not None:
+        actions.append(
+            _send_message(
+                chat_id,
+                (
+                    f"✓ Запрос на возврат отправлен в Telegram.\n\n"
+                    f"*{active.amount} ⭐* вернутся на твой Stars-баланс. "
+                    f"Тариф откатан к *free*.\n\n"
+                    "Если Stars не пришли через минуту — возможно, прошёл "
+                    "21-дневный лимит Telegram. Напиши в чат, разберёмся."
+                ),
+            )
+        )
+
+    return BotReply(actions=actions)
 
 
 async def _handle_successful_payment(*, message: dict[str, Any]) -> BotReply:

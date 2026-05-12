@@ -125,6 +125,42 @@ async def get_active_for_user(user_id: uuid.UUID) -> Subscription | None:
         return (await session.execute(q)).scalar_one_or_none()
 
 
+async def refund_active_subscription(user_id: uuid.UUID) -> Subscription | None:
+    """Mark the current active subscription as refunded.
+
+    Side effects:
+      - Sets period_end to now() so `get_active_for_user` returns None.
+      - Resets user.tier to "free".
+    Returns the refunded Subscription (with new period_end) or None if the
+    user has no active subscription.
+
+    The actual Telegram-side refund (`refundStarPayment` API call) must be
+    issued by the caller — typically the bot handler — BEFORE invoking
+    this function. We split the concerns so this module stays purely DB.
+    """
+    now = datetime.now(UTC)
+    async with SessionFactory() as session:
+        active = (
+            await session.execute(
+                select(Subscription)
+                .where(Subscription.user_id == user_id)
+                .where(Subscription.period_end > now)
+                .order_by(desc(Subscription.period_end))
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+        if active is None:
+            return None
+        active.period_end = now
+        await session.execute(
+            update(User).where(User.id == user_id).values(tier="free")
+        )
+        await session.commit()
+        await session.refresh(active)
+        logger.info("sub.refunded", user_id=str(user_id), plan=active.plan)
+        return active
+
+
 def subscription_to_dict(sub: Subscription | None) -> dict[str, Any]:
     """Public-safe serialization. `raw` is owner-only and stripped here."""
     if sub is None:

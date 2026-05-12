@@ -42,7 +42,7 @@ class ScoreAxis(BaseModel):
 
 
 class AuditReport(BaseModel):
-    """Full audit report. Persisted to DB + rendered as Markdown/PDF."""
+    """Full audit report. Persisted to DB + rendered as Markdown."""
 
     address: str
     network: Network
@@ -52,6 +52,11 @@ class AuditReport(BaseModel):
     findings: list[Finding]
     engine_versions: dict[str, str] = Field(default_factory=dict)
     audit_duration_seconds: float | None = None
+    # Optional on-chain metadata enrichment. Populated for Solana programs
+    # via getAccountInfo (upgrade authority, executable, last upgrade slot)
+    # and ignored for everything else. Loose dict — schema evolves with new
+    # signals without forcing a migration of the report column.
+    chain_metadata: dict = Field(default_factory=dict)
     disclaimer: str = (
         "AI-assisted audit results are best-effort and not a replacement for human review. "
         "wr3 provides no warranty. Liability is capped at the cost of the audit."

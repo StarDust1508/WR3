@@ -10,12 +10,14 @@ import {
 } from "@/lib/tg-prefs";
 
 /**
- * Owner panel. Toggles are real — flipping them changes how the pipeline
- * runs the next time the user starts a scan. Backed by user.preferences
- * JSONB on the server.
- *
- * Toggles that are not yet wired (continuous_monitoring) are marked
- * "not active yet" in the UI so we don't lie.
+ * Owner panel. Every toggle here is wired into real backend behaviour:
+ *   auto_poc / auto_fuzzing / multi_agent_triage — read by scan_worker
+ *     each scan; off = pipeline skips that stage and saves tokens.
+ *   continuous_monitoring — read by Celery beat sweeper every 6h; on =
+ *     contract is re-checked via Etherscan for source/owner/impl changes
+ *     and alerts back via the bot.
+ *   anonymous_in_public — read by /v1/public/scans; on = your handle
+ *     and scan rows are filtered out of the leaderboard.
  */
 export function OwnerPanel() {
   const [prefs, setPrefs] = useState<Prefs | null>(null);
@@ -103,11 +105,10 @@ export function OwnerPanel() {
           />
           <Toggle
             label="мониторинг 24/7"
-            help="Автоматический ре-скан отслеживаемых контрактов при апгрейде, смене владельца, аномалиях."
+            help="Каждые 6 часов проверяем твои контракты через Etherscan: alert при смене source code, владельца или upgrade impl. Без LLM-токенов."
             value={prefs.continuous_monitoring}
             saving={savingKey === "continuous_monitoring"}
             onClick={() => toggle("continuous_monitoring")}
-            notActive
           />
           <Toggle
             label="анонимность в публичном"
@@ -115,7 +116,6 @@ export function OwnerPanel() {
             value={prefs.anonymous_in_public}
             saving={savingKey === "anonymous_in_public"}
             onClick={() => toggle("anonymous_in_public")}
-            notActive
           />
         </section>
       )}
@@ -143,14 +143,12 @@ function Toggle({
   value,
   saving,
   onClick,
-  notActive,
 }: {
   label: string;
   help: string;
   value: boolean;
   saving: boolean;
   onClick: () => void;
-  notActive?: boolean;
 }) {
   return (
     <div className="tg-card flex items-start gap-3">
@@ -160,14 +158,6 @@ function Toggle({
           style={{ color: "var(--hb-text-hi)" }}
         >
           {label}
-          {notActive && (
-            <span
-              className="ml-2 tg-chip sev-chip-info"
-              title="Тумблер сохраняется, но сама фича ещё не подключена."
-            >
-              в разработке
-            </span>
-          )}
           {saving && (
             <span className="ml-2 text-[10px]" style={{ color: "var(--hb-text-muted)" }}>
               сохраняю…
@@ -200,8 +190,8 @@ function renderConfigDump(p: Prefs): string {
     `  "auto_poc":              ${p.auto_poc},`,
     `  "auto_fuzzing":          ${p.auto_fuzzing},`,
     `  "multi_agent_triage":    ${p.multi_agent_triage},`,
-    `  "continuous_monitoring": ${p.continuous_monitoring},   // в разработке`,
-    `  "anonymous_in_public":   ${p.anonymous_in_public}    // в разработке`,
+    `  "continuous_monitoring": ${p.continuous_monitoring},`,
+    `  "anonymous_in_public":   ${p.anonymous_in_public}`,
     "}",
   ];
   return lines.join("\n");

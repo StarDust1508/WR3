@@ -108,6 +108,7 @@ async def enqueue_scan(
         network=network,
         source=source,
         prefs=prefs,
+        user_id=str(user_id) if user_id else None,
     )
     return str(scan_id)
 
@@ -149,11 +150,14 @@ def run_audit_pipeline(
     network: str,
     source: str | None,
     prefs: dict[str, Any] | None = None,
+    user_id: str | None = None,
 ) -> dict[str, Any]:
     """Run the full audit pipeline; publish events to Redis + persist final to PG.
 
     `prefs` carries the owner's feature toggles. The pipeline reads them to
     decide whether to run optional stages (PoC, fuzzing, multi-agent).
+    On success, if the user has `continuous_monitoring=True`, we register
+    the contract for the periodic Etherscan-poll watcher.
     """
 
     async def _run() -> dict[str, Any]:
@@ -196,6 +200,21 @@ def run_audit_pipeline(
             report_dict=result,
             duration_seconds=duration,
         )
+
+        # Auto-register for continuous monitoring when the user has it on.
+        # Etherscan can't tell us about Solana, so we skip that network —
+        # the watcher's poller wouldn't have anything to compare against.
+        if user_id and network != "solana" and p.get("continuous_monitoring"):
+            try:
+                from wr3_api.services import watch_repository as watch_repo
+                await watch_repo.ensure_watched(
+                    user_id=uuid.UUID(user_id),
+                    address=address,
+                    network=network,
+                )
+            except Exception as e:
+                logger.warning("scan.watch_register_failed", error=str(e))
+
         return result
 
     return _run_async(_run())

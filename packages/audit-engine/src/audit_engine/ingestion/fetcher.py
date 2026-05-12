@@ -11,7 +11,14 @@ Free tier: 5 calls/sec, 100k calls/day. Sign up at
 https://etherscan.io/apis — the resulting key works for all listed
 chains.
 
-Solana is handled separately (TODO: Solscan / Helius — not yet wired).
+Solana is intentionally NOT served by this fetcher:
+  There is no public API equivalent of Etherscan's verified-source lookup
+  for Solana programs. solana-verified-builds exists on GitHub but isn't
+  exposed as a queryable index. Solana scans therefore require the user
+  to paste source code into the form; on-chain metadata (executable,
+  upgrade authority, last upgrade slot) is enriched separately by
+  `audit_engine.ingestion.solana_metadata.SolanaMetadataFetcher`, which
+  uses the free Solana JSON-RPC.
 """
 
 from __future__ import annotations
@@ -109,7 +116,11 @@ class SourceFetcher:
     )
     async def fetch(self, *, address: str, network: Network) -> SourceBundle | None:
         if network == "solana":
-            logger.info("ingestion.solana.not_supported_by_etherscan")
+            # Source code for Solana programs isn't available via any public
+            # API — verified-source registries exist only on GitHub. The
+            # pipeline handles this by requiring the user to paste source,
+            # and enriches on-chain metadata via SolanaMetadataFetcher.
+            logger.info("ingestion.solana.source_must_be_pasted", address=address)
             return None
 
         if not _ADDRESS_EVM.match(address):

@@ -194,6 +194,20 @@ class AuditPipeline:
             findings=self.findings,
         )
 
+        # Chain-metadata enrichment. For Solana programs we pull
+        # executable / upgrade-authority / last-upgrade-slot via public RPC
+        # — works even when source code was pasted by the user, because
+        # this reads on-chain state, not source. Failure is logged but
+        # never blocks the report.
+        if self.network == "solana":
+            try:
+                from audit_engine.ingestion.solana_metadata import SolanaMetadataFetcher
+                meta = await SolanaMetadataFetcher().fetch(address)
+                if meta is not None:
+                    self._report.chain_metadata = meta.to_dict()
+            except Exception as e:
+                log.warning("pipeline.solana_metadata_failed", error=str(e))
+
         yield PipelineEvent(
             stage="done",
             progress=100,

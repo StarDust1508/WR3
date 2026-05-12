@@ -99,19 +99,15 @@ export default function PricingPage() {
         </h2>
         <ul style={{ color: MUTED, fontSize: 12, lineHeight: 1.8, marginTop: 8 }}>
           <li>
-            <span style={{ color: HI }}>telegram stars.</span> Активно.
-            Оплата в один тап прямо в боте. Hobby — 2200 ⭐, team — 7500 ⭐,
-            pro — 38000 ⭐. Период 30 дней, продление — новой покупкой.
+            <span style={{ color: HI }}>telegram stars.</span> Единственный
+            способ оплаты сейчас. В один тап прямо в боте, без карт и KYC.
+            Hobby — 2200 ⭐, team — 7500 ⭐, pro — 38000 ⭐. Период 30 дней,
+            продление — новой покупкой.
           </li>
           <li>
-            <span style={{ color: HI }}>ton / usdc.</span> TON Connect и USDC
-            (base / arbitrum) — следом за Stars.{" "}
-            <i style={{ color: MUTED }}>(в дорожной карте)</i>
-          </li>
-          <li>
-            <span style={{ color: HI }}>возврат.</span> Stars-возврат через
-            `/refund` в боте в течение 14 дней. Дальше — пишите в чат,
-            разберём вручную.
+            <span style={{ color: HI }}>возврат.</span> Команда{" "}
+            <code>/refund</code> в @KitronBot — Telegram возвращает Stars на
+            твой баланс мгновенно. Тариф откатывается к free.
           </li>
         </ul>
       </section>

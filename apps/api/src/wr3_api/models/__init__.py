@@ -3,5 +3,6 @@ from wr3_api.models.incident import Incident
 from wr3_api.models.scan import Finding, Scan
 from wr3_api.models.subscription import Subscription
 from wr3_api.models.user import User
+from wr3_api.models.watched_contract import WatchedContract
 
-__all__ = ["Base", "Finding", "Incident", "Scan", "Subscription", "User"]
+__all__ = ["Base", "Finding", "Incident", "Scan", "Subscription", "User", "WatchedContract"]

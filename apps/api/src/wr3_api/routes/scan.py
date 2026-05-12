@@ -5,11 +5,13 @@ from uuid import UUID, uuid4
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, Field
 from sse_starlette.sse import EventSourceResponse
 
 from wr3_api.auth import current_user_optional, current_user_required
 from wr3_api.models import User
+from wr3_api.services import report_markdown as md
 from wr3_api.services import scan_repository as repo
 from wr3_api.workers.scan_worker import enqueue_scan, get_scan_progress
 
@@ -96,6 +98,28 @@ async def list_my_scans(
         }
         for s in rows
     ]
+
+
+@router.get("/{scan_id}/report.md", response_class=PlainTextResponse)
+async def get_scan_report_markdown(scan_id: UUID) -> PlainTextResponse:
+    """Markdown export of a scan + findings. Public — same visibility as JSON.
+
+    The file is named `report.md` so browsers offer a download. Useful for
+    pasting into a GitHub issue or sharing with a developer who doesn't want
+    to click through the Mini App.
+    """
+    result = await repo.get_scan_with_findings(scan_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail="scan not found")
+    scan, findings = result
+    text = md.render_scan_markdown(scan, findings)
+    return PlainTextResponse(
+        content=text,
+        headers={
+            "Content-Type": "text/markdown; charset=utf-8",
+            "Content-Disposition": f'inline; filename="wr3-{scan_id}.md"',
+        },
+    )
 
 
 @router.get("/{scan_id}")

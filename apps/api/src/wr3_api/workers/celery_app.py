@@ -10,7 +10,11 @@ celery_app = Celery(
     "wr3",
     broker=settings.redis_url,
     backend=settings.redis_url,
-    include=["wr3_api.workers.scan_worker", "wr3_api.workers.incident_worker"],
+    include=[
+        "wr3_api.workers.scan_worker",
+        "wr3_api.workers.incident_worker",
+        "wr3_api.workers.watcher_worker",
+    ],
 )
 
 # Eager mode for dev/test: runs tasks inline in the calling process, so we
@@ -30,7 +34,20 @@ celery_app.conf.update(
     task_routes={
         "wr3_api.workers.scan_worker.run_audit_pipeline": {"queue": "wr3.audit"},
         "wr3_api.workers.incident_worker.refresh_incidents": {"queue": "wr3.incidents"},
+        "wr3_api.workers.watcher_worker.refresh_watched_contracts": {"queue": "wr3.watch"},
     },
     task_always_eager=_eager,
     task_eager_propagates=_eager,
+    # Beat schedule. Activated only when running `celery -A wr3_api.workers.celery_app
+    # beat` alongside the workers. In dev with eager mode beat is a no-op.
+    beat_schedule={
+        "refresh-incidents-every-6h": {
+            "task": "wr3_api.workers.incident_worker.refresh_incidents",
+            "schedule": 6 * 60 * 60,  # seconds
+        },
+        "refresh-watched-contracts-every-6h": {
+            "task": "wr3_api.workers.watcher_worker.refresh_watched_contracts",
+            "schedule": 6 * 60 * 60,
+        },
+    },
 )

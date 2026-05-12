@@ -184,7 +184,7 @@ info          0`}
             <tr><td style={td}><code>auto_poc</code></td><td style={td}>Стадия 4 (Foundry PoC retry-loop). По умолчанию: вкл.</td></tr>
             <tr><td style={td}><code>auto_fuzzing</code></td><td style={td}>Стадия 5 (medusa / forge invariant). По умолчанию: вкл.</td></tr>
             <tr><td style={td}><code>multi_agent_triage</code></td><td style={td}>4 параллельных Claude-агента. Off = один LLM-вызов. По умолчанию: вкл.</td></tr>
-            <tr><td style={td}><code>continuous_monitoring</code></td><td style={td}>Авто-ре-скан отслеживаемых контрактов 24/7. <i style={{ color: MUTED }}>(в дорожной карте)</i></td></tr>
+            <tr><td style={td}><code>continuous_monitoring</code></td><td style={td}>Каждые 6 ч проверяем твои контракты через Etherscan — алерт при смене source / владельца / impl. Без LLM-расхода.</td></tr>
             <tr><td style={td}><code>anonymous_in_public</code></td><td style={td}>Скрыть себя из /leaderboard. По умолчанию: выкл.</td></tr>
           </tbody>
         </table>
@@ -195,6 +195,8 @@ info          0`}
       <pre style={codeBlock}>
 {`GET  /v1/public/scans?limit=50&min_score=0
 GET  /v1/public/stats
+GET  /v1/public/incidents?limit=30&days=120
+GET  /v1/scan/{scan_id}/report.md          markdown-экспорт отчёта
 GET  /v1/health
 GET  /v1/version`}
       </pre>
@@ -237,9 +239,9 @@ PATCH  /v1/auth/preferences          частичное обновление`}
 
       <h3 style={h3}>как экспортировать находки?</h3>
       <p>
-        Сейчас: копировать со страницы детали скана или дёрнуть{" "}
-        <code>GET /v1/scan/{`{id}`}</code> со своим токеном. Экспорт в JSON /
-        Markdown / PDF — в дорожной карте.
+        JSON: <code>GET /v1/scan/{`{id}`}</code> со своим токеном.
+        Markdown (для GitHub-issue или клиента): <code>GET /v1/scan/{`{id}`}/report.md</code> —
+        публичный, без авторизации, скачивается как файл.
       </p>
 
       <h3 style={h3}>как удалить свои данные?</h3>
