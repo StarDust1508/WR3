@@ -15,7 +15,7 @@ export default async function ScanPage({
   if (!address) {
     return (
       <main className="mx-auto max-w-3xl px-6 py-16">
-        <p className="text-zinc-600">No address provided.</p>
+        <p className="text-zinc-600">Адрес не указан.</p>
       </main>
     );
   }
@@ -23,13 +23,13 @@ export default async function ScanPage({
   return (
     <main className="mx-auto max-w-4xl px-6 py-12">
       <header className="mb-8">
-        <h1 className="text-2xl font-bold">Scanning</h1>
+        <h1 className="text-2xl font-bold">Сканирование</h1>
         <p className="mt-1 font-mono text-sm text-zinc-600 dark:text-zinc-400">
           {network} · {address}
         </p>
       </header>
 
-      <Suspense fallback={<p>Initializing audit pipeline…</p>}>
+      <Suspense fallback={<p>Запускаю пайплайн аудита…</p>}>
         <ScanRunner address={address} network={network} />
       </Suspense>
     </main>

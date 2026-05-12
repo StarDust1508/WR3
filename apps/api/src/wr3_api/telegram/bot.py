@@ -152,44 +152,57 @@ async def handle_update(update: dict[str, Any], *, web_base_url: str) -> BotRepl
     return BotReply(actions=[
         _send_message(
             chat_id,
-            "Send `/scan 0x... base` or paste a contract address. `/help` for more.",
+            "Отправь `/scan 0x... base` или вставь адрес контракта. `/help` — подробности.",
         )
     ])
 
 
 def _greet(*, chat_id: int, web_base_url: str) -> BotReply:
     text = (
-        "*wr3* — AI smart-contract audit\n\n"
-        "Commands:\n"
-        "  `/scan 0x... base` — quick audit (Ethereum, Base, Arbitrum, BSC, Solana)\n"
-        "  Open the Mini App for the full report:\n"
+        "*wr3* — AI-аудит смарт-контрактов\n\n"
+        "Команды:\n"
+        "  `/scan 0x... base` — быстрый аудит (Ethereum, Base, Arbitrum, BSC, Solana)\n"
+        "  Открой Mini App для полного отчёта:\n"
         f"  {web_base_url}/tg"
     )
     return BotReply(actions=[_send_message(chat_id, text)])
 
 
-# Plans shown on /pricing. Deep-link from there flows here.
+# Планы показываются на /pricing. Deep-link оттуда приходит сюда.
 _PLAN_BLURBS: dict[str, tuple[str, str]] = {
-    "free": ("free tier", "you're already on it — just tap the wr3 audit menu button"),
-    "hobby": ("hobby — $29/mo", "10 contracts/mo, multi-agent triage, PoC retry-loop"),
-    "team": ("team — $99/mo", "unlimited contracts, AI-fuzzing, 24/7 monitoring"),
-    "pro": ("pro — $499/mo", "everything in team + Certora formal verification"),
+    "free": (
+        "Бесплатный тариф",
+        "вы уже на нём — просто нажмите кнопку wr3 audit внизу чата",
+    ),
+    "hobby": (
+        "Hobby — $29/мес",
+        "10 контрактов в месяц, multi-agent триаж, Foundry PoC retry-loop",
+    ),
+    "team": (
+        "Team — $99/мес",
+        "безлимит контрактов, AI-fuzzing, мониторинг 24/7",
+    ),
+    "pro": (
+        "Pro — $499/мес",
+        "всё из Team + Certora formal verification",
+    ),
     "enterprise": (
-        "enterprise / custom",
-        "per-engagement audit, white-label, volume discounts",
+        "Enterprise / кастом",
+        "per-engagement аудит, white-label, объёмные скидки",
     ),
 }
 
 
 def _handle_upgrade(*, chat_id: int, plan: str) -> BotReply:
-    """Respond to `/start upgrade_<plan>` deep-link from /pricing."""
-    title, body = _PLAN_BLURBS.get(plan, ("upgrade", "unknown plan"))
+    """Reply to `/start upgrade_<plan>` deep-link from /pricing."""
+    title, body = _PLAN_BLURBS.get(plan, ("Апгрейд", "неизвестный тариф"))
     text = (
         f"*{title}*\n"
         f"{body}\n\n"
-        "Payments aren't wired up yet (W10 in the roadmap). When they are, "
-        "you'll subscribe right here. For now, drop a message and we'll set you up manually.\n\n"
-        "Reply with `/scan 0x...` to keep using the free tier."
+        "Платежи пока не подключены (W10 в дорожной карте). Когда они "
+        "появятся — подписка прямо отсюда. Сейчас напишите в этот чат, "
+        "и мы подключим вручную.\n\n"
+        "Чтобы продолжить на free-тарифе — отправь `/scan 0x...`."
     )
     return BotReply(actions=[_send_message(chat_id, text)])
 
@@ -204,7 +217,7 @@ async def _handle_scan(
     address, network = detect_network_and_address(args)
     if not address:
         return BotReply(actions=[
-            _send_message(chat_id, "Usage: `/scan 0x...address [network]`")
+            _send_message(chat_id, "Использование: `/scan 0x...адрес [сеть]`")
         ])
 
     network = network or _DEFAULT_NETWORK
@@ -219,8 +232,8 @@ async def _handle_scan(
     logger.info("bot.scan_enqueued", scan_id=scan_id, tg=tg_user_id)
 
     text = (
-        f"Scanning `{address}` on {network}.\n"
-        f"Open Mini App for live status & full report:\n"
+        f"Сканирую `{address}` в сети {network}.\n"
+        f"Открой Mini App — live-прогресс и полный отчёт:\n"
         f"{web_base_url}/tg/scan/{scan_id}"
     )
     return BotReply(actions=[_send_message(chat_id, text)])

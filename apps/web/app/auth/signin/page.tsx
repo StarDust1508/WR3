@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { TerminalPageShell } from "@/components/terminal-page-shell";
 
-export const metadata = { title: "wr3 — sign in" };
+export const metadata = { title: "wr3 — вход" };
 
 const PRIMARY = "#4ade80";
 const HI = "#d4ffd4";
@@ -12,9 +12,9 @@ const BG = "#0a0e0a";
 
 export default function SignInPage() {
   return (
-    <TerminalPageShell title="sign in">
+    <TerminalPageShell title="вход">
       <p style={{ color: MUTED, fontSize: 12 }}>
-        // wr3 authenticates via Telegram. SIWE and email are on the roadmap.
+        // wr3 авторизация — через Telegram. SIWE и email в дорожной карте.
       </p>
 
       <section
@@ -27,18 +27,18 @@ export default function SignInPage() {
         }}
       >
         <h2 style={{ color: PRIMARY, fontSize: 13, margin: 0, fontWeight: 700 }}>
-          $ telegram (active)
+          $ telegram (активен)
         </h2>
         <p style={{ color: FG, fontSize: 13, marginTop: 12, lineHeight: 1.7 }}>
-          One-tap. Telegram signs an <code>initData</code> blob with the bot
-          token. Backend verifies HMAC, issues a JWT. No password, no email.
+          В один тап. Telegram подписывает <code>initData</code> токеном бота.
+          Бэкенд проверяет HMAC и выдаёт JWT. Без паролей, без email.
         </p>
 
         <ol style={{ color: FG, fontSize: 12, lineHeight: 1.8, paddingLeft: 20, marginTop: 12 }}>
-          <li>Tap the button below to open @KitronBot.</li>
-          <li>Press <code>Start</code> in Telegram.</li>
-          <li>Tap <code>wr3 audit</code> menu button at the bottom of the chat.</li>
-          <li>You&apos;re signed in.</li>
+          <li>Жми кнопку ниже — откроется @KitronBot.</li>
+          <li>В Telegram нажми <code>Start</code>.</li>
+          <li>Тапни кнопку меню <code>wr3 audit</code> внизу чата.</li>
+          <li>Готово, ты вошёл.</li>
         </ol>
 
         <a
@@ -58,11 +58,11 @@ export default function SignInPage() {
             textTransform: "uppercase",
           }}
         >
-          $ open @KitronBot →
+          $ открыть @KitronBot →
         </a>
 
         <p style={{ color: DIM, fontSize: 10, marginTop: 12 }}>
-          // already in @KitronBot? Just tap <code>wr3 audit</code> — no need to come back here.
+          // уже в @KitronBot? Просто нажми <code>wr3 audit</code> — сюда возвращаться не нужно.
         </p>
       </section>
 
@@ -79,13 +79,13 @@ export default function SignInPage() {
               textTransform: "none",
             }}
           >
-            // roadmap
+            // в дорожной карте
           </span>
         </h2>
         <p style={{ color: MUTED, fontSize: 12, marginTop: 8 }}>
-          For wallet-native devs. Sign a structured message with MetaMask /
-          Rabby / Ledger; backend recovers the EOA address and binds it to a
-          wr3 account. Not wired up yet — coming with the public beta.
+          Для wallet-нативных разработчиков. Подпиши структурированное сообщение в
+          MetaMask / Rabby / Ledger; бэкенд восстанавливает адрес EOA и привязывает
+          к wr3-аккаунту. Пока не подключено — появится с публичной бетой.
         </p>
       </section>
 
@@ -102,17 +102,16 @@ export default function SignInPage() {
               textTransform: "none",
             }}
           >
-            // roadmap
+            // в дорожной карте
           </span>
         </h2>
         <p style={{ color: MUTED, fontSize: 12, marginTop: 8 }}>
-          Magic-link via Resend. For org accounts that can&apos;t hand out wallet
-          seeds. Roadmap.
+          Magic-link через Resend. Для команд, у которых нет кошельков с seed-фразой.
         </p>
       </section>
 
       <p style={{ color: DIM, fontSize: 11, marginTop: 32 }}>
-        // already signed in? Open the Mini App directly:{" "}
+        // уже вошёл? Открой Mini App напрямую:{" "}
         <Link href="/tg" style={{ color: PRIMARY }}>/tg</Link>
       </p>
     </TerminalPageShell>

@@ -55,17 +55,17 @@ export function OwnerPanel() {
   return (
     <main className="mx-auto max-w-xl px-4 pb-32 pt-4">
       <Link href="/tg" className="text-xs" style={{ color: "var(--hb-text-dim)" }}>
-        ← back
+        ← назад
       </Link>
 
       <h1
         className="mt-4 text-sm hb-prompt"
         style={{ color: "var(--hb-text-hi)" }}
       >
-        owner config<span className="hb-cursor" />
+        настройки владельца<span className="hb-cursor" />
       </h1>
       <p className="mt-1 text-[11px]" style={{ color: "var(--hb-text-muted)" }}>
-        // these toggles change what the pipeline actually does on next scan
+        // переключатели меняют поведение пайплайна при следующем скане
       </p>
 
       {error && (
@@ -76,42 +76,42 @@ export function OwnerPanel() {
 
       {prefs === null ? (
         <p className="mt-8 text-center text-xs hb-prompt">
-          loading<span className="hb-cursor" />
+          загрузка<span className="hb-cursor" />
         </p>
       ) : (
         <section className="mt-5 flex flex-col gap-2">
           <Toggle
             label="auto-poc"
-            help="Stage 4: Foundry PoC retry-loop for HIGH/CRITICAL findings. Uses LLM credits + forge."
+            help="Стадия 4: Foundry PoC retry-loop для HIGH/CRITICAL находок. Расходует LLM-токены + forge."
             value={prefs.auto_poc}
             saving={savingKey === "auto_poc"}
             onClick={() => toggle("auto_poc")}
           />
           <Toggle
             label="auto-fuzzing"
-            help="Stage 5: AI-generated invariants run through medusa/forge invariant. Most expensive stage."
+            help="Стадия 5: AI-сгенерированные инварианты через medusa/forge invariant. Самая дорогая стадия."
             value={prefs.auto_fuzzing}
             saving={savingKey === "auto_fuzzing"}
             onClick={() => toggle("auto_fuzzing")}
           />
           <Toggle
             label="multi-agent triage"
-            help="Stage 3: 4 parallel Claude agents (severity / FP / business / cross-contract). Off = single-call triage."
+            help="Стадия 3: 4 параллельных Claude-агента (severity / FP / business / cross-contract). Off = один LLM-вызов."
             value={prefs.multi_agent_triage}
             saving={savingKey === "multi_agent_triage"}
             onClick={() => toggle("multi_agent_triage")}
           />
           <Toggle
-            label="continuous monitoring"
-            help="24/7 re-scan of your watched contracts on upgrades, ownership changes, anomalies."
+            label="мониторинг 24/7"
+            help="Автоматический ре-скан отслеживаемых контрактов при апгрейде, смене владельца, аномалиях."
             value={prefs.continuous_monitoring}
             saving={savingKey === "continuous_monitoring"}
             onClick={() => toggle("continuous_monitoring")}
             notActive
           />
           <Toggle
-            label="anonymous in public"
-            help="Hide your handle from the public leaderboard / scans index."
+            label="анонимность в публичном"
+            help="Скрыть твой handle из публичного лидерборда / индекса сканов."
             value={prefs.anonymous_in_public}
             saving={savingKey === "anonymous_in_public"}
             onClick={() => toggle("anonymous_in_public")}
@@ -121,7 +121,7 @@ export function OwnerPanel() {
       )}
 
       <section className="mt-8">
-        <h2 className="tg-hint mb-2">behaviour summary</h2>
+        <h2 className="tg-hint mb-2">итог конфигурации</h2>
         <pre
           className="tg-card text-[11px]"
           style={{
@@ -163,14 +163,14 @@ function Toggle({
           {notActive && (
             <span
               className="ml-2 tg-chip sev-chip-info"
-              title="Toggle persists, but the underlying feature is not wired up yet."
+              title="Тумблер сохраняется, но сама фича ещё не подключена."
             >
-              not active yet
+              в разработке
             </span>
           )}
           {saving && (
             <span className="ml-2 text-[10px]" style={{ color: "var(--hb-text-muted)" }}>
-              saving…
+              сохраняю…
             </span>
           )}
         </p>
@@ -200,8 +200,8 @@ function renderConfigDump(p: Prefs): string {
     `  "auto_poc":              ${p.auto_poc},`,
     `  "auto_fuzzing":          ${p.auto_fuzzing},`,
     `  "multi_agent_triage":    ${p.multi_agent_triage},`,
-    `  "continuous_monitoring": ${p.continuous_monitoring},   // dormant`,
-    `  "anonymous_in_public":   ${p.anonymous_in_public}    // dormant`,
+    `  "continuous_monitoring": ${p.continuous_monitoring},   // в разработке`,
+    `  "anonymous_in_public":   ${p.anonymous_in_public}    // в разработке`,
     "}",
   ];
   return lines.join("\n");

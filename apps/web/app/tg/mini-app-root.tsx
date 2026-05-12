@@ -89,7 +89,7 @@ function BootScreen() {
     <div className="flex min-h-[80vh] flex-col items-center justify-center gap-3 px-6">
       <Logo size={56} />
       <p className="hb-prompt text-xs">
-        <span>booting</span><span className="hb-cursor" />
+        <span>загрузка</span><span className="hb-cursor" />
       </p>
     </div>
   );
@@ -99,12 +99,12 @@ function NotInTelegram() {
   return (
     <div className="mx-auto max-w-md px-6 pt-16 text-center">
       <div className="mb-4 inline-block"><Logo size={56} /></div>
-      <p className="hb-prompt text-sm">open from telegram</p>
+      <p className="hb-prompt text-sm">открой из telegram</p>
       <p className="mt-2 text-xs" style={{ color: "var(--hb-text-muted)" }}>
-        wr3 is a Telegram Mini App. Open via @KitronBot to sign in.
+        wr3 — это Telegram Mini App. Открой через @KitronBot для входа.
       </p>
       <Link href="/" className="mt-6 inline-block text-xs underline" style={{ color: "var(--hb-text-dim)" }}>
-        → use the web version
+        → веб-версия
       </Link>
     </div>
   );
@@ -114,17 +114,17 @@ function AuthError({ message }: { message: string | null }) {
   return (
     <div className="mx-auto max-w-md px-6 pt-16 text-center">
       <p className="hb-prompt text-sm">
-        <span style={{ color: "var(--hb-error)" }}>ERR</span> sign-in
+        <span style={{ color: "var(--hb-error)" }}>ERR</span> вход
       </p>
       <p className="mt-2 text-xs" style={{ color: "var(--hb-text-muted)" }}>
-        {message ?? "Unknown error"}
+        {message ?? "Неизвестная ошибка"}
       </p>
       <button
         type="button"
         onClick={() => window.location.reload()}
         className="tg-button mt-6"
       >
-        retry
+        повторить
       </button>
     </div>
   );
@@ -151,7 +151,7 @@ function Header({ user }: { user: Wr3User | null }) {
         href="/tg/owner"
         className="tg-button tg-button-ghost"
         style={{ padding: "8px 12px", fontSize: 10 }}
-        title="Owner panel — feature toggles"
+        title="Настройки владельца — тумблеры пайплайна"
       >
         cfg
       </Link>
@@ -163,13 +163,13 @@ function RecentScans({ scans }: { scans: ScanRow[] }) {
   if (scans.length === 0) {
     return (
       <section className="mt-5">
-        <h2 className="tg-hint mb-2">recent scans</h2>
+        <h2 className="tg-hint mb-2">мои сканы</h2>
         <div className="tg-card text-center" style={{ padding: "24px 12px" }}>
           <p className="text-xs" style={{ color: "var(--hb-text-muted)" }}>
-            no scans yet
+            пока пусто
           </p>
           <p className="mt-1 text-[11px]" style={{ color: "var(--hb-text-muted)" }}>
-            paste a contract above to start the first audit
+            вставь адрес контракта выше — запустим первый аудит
           </p>
         </div>
       </section>
@@ -177,7 +177,7 @@ function RecentScans({ scans }: { scans: ScanRow[] }) {
   }
   return (
     <section className="mt-5">
-      <h2 className="tg-hint mb-2">recent scans · {scans.length}</h2>
+      <h2 className="tg-hint mb-2">мои сканы · {scans.length}</h2>
       <ul className="flex flex-col gap-2">
         {scans.map((s) => (
           <li key={s.id}>
@@ -221,7 +221,7 @@ function Footer() {
       className="mt-12 text-center text-[10px] leading-relaxed"
       style={{ color: "var(--hb-text-muted)" }}
     >
-      ai-assisted audit · best-effort, no warranty
+      ai-аудит · без гарантий · не замена ручному ревью
     </p>
   );
 }
@@ -231,18 +231,26 @@ function shortAddr(a: string): string {
   return `${a.slice(0, 6)}…${a.slice(-4)}`;
 }
 function stageLabel(stage: string, progress: number): string {
-  if (stage === "done") return "done";
-  if (stage === "error") return "FAIL";
-  return `${stage} ${progress}%`;
+  if (stage === "done") return "готово";
+  if (stage === "error") return "ОШИБКА";
+  const ru: Record<string, string> = {
+    queued: "подготовка",
+    static: "статика",
+    triage: "ai-триаж",
+    poc: "poc",
+    fuzzing: "fuzzing",
+    scoring: "оценка",
+  };
+  return `${ru[stage] ?? stage} ${progress}%`;
 }
 function relTime(iso: string): string {
   const t = new Date(iso).getTime();
   if (!t) return "";
   const diff = Date.now() - t;
   const min = Math.floor(diff / 60_000);
-  if (min < 1) return "now";
-  if (min < 60) return `${min}m`;
+  if (min < 1) return "сейчас";
+  if (min < 60) return `${min}мин`;
   const hr = Math.floor(min / 60);
-  if (hr < 24) return `${hr}h`;
-  return `${Math.floor(hr / 24)}d`;
+  if (hr < 24) return `${hr}ч`;
+  return `${Math.floor(hr / 24)}д`;
 }

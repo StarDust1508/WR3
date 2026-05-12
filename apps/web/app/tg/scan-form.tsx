@@ -33,11 +33,11 @@ export function MiniAppScanForm() {
     setError(null);
     const trimmed = address.trim();
     if (!trimmed) {
-      setError("paste a contract address");
+      setError("вставь адрес контракта");
       return;
     }
     if (!isLikelyAddress(trimmed)) {
-      setError("invalid address format");
+      setError("неверный формат адреса (нужен 0x... или base58)");
       return;
     }
     startTransition(async () => {
@@ -51,7 +51,7 @@ export function MiniAppScanForm() {
           body: JSON.stringify({ address: trimmed, network }),
         });
         if (!res.ok) {
-          let detail = `scan failed (${res.status})`;
+          let detail = `скан не запустился (${res.status})`;
           try {
             const body = (await res.json()) as { detail?: string };
             if (body?.detail) detail = body.detail;
@@ -68,7 +68,7 @@ export function MiniAppScanForm() {
 
   return (
     <form onSubmit={submit} className="tg-card flex flex-col gap-3">
-      <h2 className="tg-hint">audit -i</h2>
+      <h2 className="tg-hint">аудит -i</h2>
 
       <div className="flex items-center gap-2">
         <span style={{ color: "var(--hb-primary)", fontSize: 14 }}>$</span>
@@ -76,7 +76,7 @@ export function MiniAppScanForm() {
           type="text"
           value={address}
           onChange={(e) => setAddress(e.target.value)}
-          placeholder="0x... | base58"
+          placeholder="0x... либо base58"
           className="tg-input"
           autoComplete="off"
           autoCapitalize="off"
@@ -122,7 +122,7 @@ export function MiniAppScanForm() {
         className="tg-button tg-button-primary"
         style={{ marginTop: 4 }}
       >
-        {pending ? "scanning..." : "run"}
+        {pending ? "сканирую…" : "старт"}
       </button>
 
       {error && (

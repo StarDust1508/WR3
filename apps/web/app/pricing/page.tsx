@@ -1,6 +1,6 @@
 import { TerminalPageShell } from "@/components/terminal-page-shell";
 
-export const metadata = { title: "wr3 — pricing" };
+export const metadata = { title: "wr3 — тарифы" };
 
 const PRIMARY = "#4ade80";
 const HI = "#d4ffd4";
@@ -8,18 +8,18 @@ const MUTED = "#5a8a5a";
 const DIM = "#3a5e3a";
 const BG = "#0a0e0a";
 
-// Deep-link to the Telegram bot with a payload that tells the bot which
-// plan the user wants. The bot handler interprets the start param.
+// Deep-link в Telegram-бот с payload — бот понимает префикс upgrade_<plan>
+// и отвечает блёрбом про конкретный тариф.
 function tgUpgradeLink(plan: string): string {
   return `https://t.me/KitronBot?start=upgrade_${plan}`;
 }
 
 export default function PricingPage() {
   return (
-    <TerminalPageShell title="pricing">
+    <TerminalPageShell title="тарифы">
       <p style={{ color: MUTED, fontSize: 12 }}>
-        // free forever. paid plans start when the public beta opens.
-        click <code>$ subscribe</code> to ping @KitronBot with your plan choice.
+        // free навсегда. Платные тарифы стартуют с публичной беты.
+        Нажми <code>$ подписаться</code> — бот @KitronBot ответит детально.
       </p>
 
       <div
@@ -33,50 +33,54 @@ export default function PricingPage() {
         <Plan
           name="free"
           price="$0"
-          period="forever"
+          period="навсегда"
           plan="free"
+          ctaLabel="старт"
           features={[
-            "1 contract / 24h",
-            "Baseline static analysis (EVM + Solana)",
-            "Single-call LLM triage",
-            "Public score 0-100, traffic light",
+            "1 контракт / 24 ч",
+            "Baseline-статика (EVM + Solana)",
+            "Single-call LLM-триаж",
+            "Публичная оценка 0–100 + светофор",
           ]}
         />
         <Plan
           name="hobby"
           price="$29"
-          period="/ month"
+          period="/ мес"
           plan="hobby"
+          ctaLabel="подписаться"
           features={[
-            "10 contracts / month",
-            "Multi-agent triage (4 parallel Claude)",
+            "10 контрактов / мес",
+            "Multi-agent триаж (4 параллельных Claude)",
             "Foundry PoC retry-loop (HIGH/CRITICAL)",
-            "Telegram alerts on completion",
+            "Telegram-уведомления о завершении",
           ]}
         />
         <Plan
           name="team"
           price="$99"
-          period="/ month"
+          period="/ мес"
           plan="team"
           highlighted
+          ctaLabel="подписаться"
           features={[
-            "Unlimited contracts",
+            "Безлимит контрактов",
             "AI-fuzzing (medusa / forge invariant)",
-            "Continuous monitoring (24/7)",
-            "Slack / Discord webhooks",
+            "Мониторинг 24/7",
+            "Slack / Discord вебхуки",
           ]}
         />
         <Plan
           name="pro"
           price="$499"
-          period="/ month"
+          period="/ мес"
           plan="pro"
+          ctaLabel="подписаться"
           features={[
-            "Everything in team",
+            "Всё из team",
             "Certora Prover (formal verification)",
-            "Custom invariants on request",
-            "Safe Harbor onboarding helper",
+            "Кастомные инварианты по запросу",
+            "Помощь с Safe Harbor onboarding",
           ]}
         />
       </div>
@@ -90,34 +94,37 @@ export default function PricingPage() {
             fontWeight: 700,
           }}
         >
-          $ payment
+          $ оплата
         </h2>
         <ul style={{ color: MUTED, fontSize: 12, lineHeight: 1.8, marginTop: 8 }}>
           <li>
-            <span style={{ color: HI }}>crypto.</span> USDC on base / arbitrum,
-            or TON. Pay via @KitronBot using your wallet. <i style={{ color: MUTED }}>(integration in roadmap)</i>
+            <span style={{ color: HI }}>крипта.</span> USDC на base / arbitrum
+            или TON. Оплата через @KitronBot из твоего кошелька.{" "}
+            <i style={{ color: MUTED }}>(подключение в дорожной карте)</i>
           </li>
           <li>
-            <span style={{ color: HI }}>fiat.</span> Stripe / Polar. <i style={{ color: MUTED }}>(after public beta)</i>
+            <span style={{ color: HI }}>фиат.</span> Stripe / Polar.{" "}
+            <i style={{ color: MUTED }}>(после публичной беты)</i>
           </li>
           <li>
-            <span style={{ color: HI }}>refund.</span> First month of any paid plan refundable in full, no questions.
+            <span style={{ color: HI }}>возврат.</span> Первый месяц любого
+            платного тарифа возвращаем полностью, без вопросов.
           </li>
         </ul>
       </section>
 
       <section style={{ marginTop: 32 }}>
         <h2 style={{ color: PRIMARY, fontSize: 13, margin: 0, fontWeight: 700 }}>
-          $ enterprise / custom
+          $ enterprise / кастом
         </h2>
         <p style={{ color: MUTED, fontSize: 12, marginTop: 8 }}>
-          // need a per-engagement audit, white-label, or volume discounts?
+          // нужен per-engagement аудит, white-label или объёмные скидки?
         </p>
         <a
           href="https://t.me/KitronBot?start=upgrade_enterprise"
           style={cta()}
         >
-          $ contact via @KitronBot
+          $ написать в @KitronBot
         </a>
       </section>
     </TerminalPageShell>
@@ -147,6 +154,7 @@ function Plan({
   plan,
   features,
   highlighted,
+  ctaLabel,
 }: {
   name: string;
   price: string;
@@ -154,6 +162,7 @@ function Plan({
   plan: string;
   features: string[];
   highlighted?: boolean;
+  ctaLabel: string;
 }) {
   return (
     <article
@@ -181,7 +190,7 @@ function Plan({
               letterSpacing: "0.06em",
             }}
           >
-            POPULAR
+            ВЫБОР
           </span>
         )}
       </div>
@@ -218,7 +227,7 @@ function Plan({
           textTransform: "uppercase",
         }}
       >
-        $ {plan === "free" ? "start" : "subscribe"}
+        $ {ctaLabel}
       </a>
     </article>
   );

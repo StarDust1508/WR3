@@ -44,7 +44,7 @@ export function FindingRow({ finding }: FindingRowProps) {
         {finding.poc_validated && (
           <span
             className="rounded bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
-            title="Foundry PoC validated this exploit"
+            title="Foundry PoC подтвердил эксплойт"
           >
             PoC ✓
           </span>

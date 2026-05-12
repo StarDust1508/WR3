@@ -32,7 +32,7 @@ export function ScanInput() {
     setError(null);
     const trimmed = address.trim();
     if (!trimmed) {
-      setError("paste a contract address");
+      setError("вставь адрес контракта");
       return;
     }
     startTransition(() => {
@@ -59,8 +59,8 @@ export function ScanInput() {
           type="text"
           value={address}
           onChange={(e) => setAddress(e.target.value)}
-          placeholder="0x... | base58"
-          aria-label="Contract address"
+          placeholder="0x... либо base58"
+          aria-label="Адрес контракта"
           autoComplete="off"
           spellCheck={false}
           style={{
@@ -127,7 +127,7 @@ export function ScanInput() {
           minHeight: 44,
         }}
       >
-        $ {isPending ? "scanning..." : "run audit"}
+        $ {isPending ? "сканирую…" : "запустить аудит"}
       </button>
 
       {error && (

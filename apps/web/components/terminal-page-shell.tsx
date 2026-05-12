@@ -56,9 +56,9 @@ export function TerminalPageShell({
             wr3
           </Link>
           <nav style={{ display: "flex", gap: 18, fontSize: 12, alignItems: "center" }}>
-            <Link href="/leaderboard" style={{ color: MUTED, textDecoration: "none" }}>leaderboard</Link>
-            <Link href="/pricing" style={{ color: MUTED, textDecoration: "none" }}>pricing</Link>
-            <Link href="/docs" style={{ color: MUTED, textDecoration: "none" }}>docs</Link>
+            <Link href="/leaderboard" style={{ color: MUTED, textDecoration: "none" }}>лидерборд</Link>
+            <Link href="/pricing" style={{ color: MUTED, textDecoration: "none" }}>тарифы</Link>
+            <Link href="/docs" style={{ color: MUTED, textDecoration: "none" }}>доки</Link>
             <a
               href="https://t.me/KitronBot"
               style={{
@@ -73,7 +73,7 @@ export function TerminalPageShell({
                 fontWeight: 700,
               }}
             >
-              open bot
+              открыть бот
             </a>
           </nav>
         </header>
@@ -108,7 +108,7 @@ export function TerminalPageShell({
         </article>
 
         <footer style={{ marginTop: 64, fontSize: 11, color: DIM, textAlign: "center" }}>
-          <Link href="/" style={{ color: DIM, textDecoration: "none" }}>← back to home</Link>
+          <Link href="/" style={{ color: DIM, textDecoration: "none" }}>← на главную</Link>
         </footer>
       </div>
     </main>

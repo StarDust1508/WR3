@@ -50,7 +50,7 @@ export function ScanRunner({ address, network }: { address: string; network: str
         };
         es.onerror = () => {
           es.close();
-          setState((s) => ({ ...s, stage: "error", message: "Stream closed" }));
+          setState((s) => ({ ...s, stage: "error", message: "Соединение закрыто" }));
         };
       } catch (err) {
         if ((err as Error).name !== "AbortError") {
@@ -87,14 +87,14 @@ function ProgressBar({ progress, stage }: { progress: number; stage: Stage }) {
 
 function StageLabel({ stage }: { stage: Stage }) {
   const labels: Record<Stage, string> = {
-    queued: "Queued — preparing pipeline",
-    static: "Running Aderyn + Wake + Slither (static analysis)",
-    triage: "LLM triage — filtering false positives",
-    poc: "Generating Foundry PoC for high-severity findings",
-    fuzzing: "AI-fuzzing with generated invariants",
-    scoring: "Computing 0–100 score across 5 axes",
-    done: "Done",
-    error: "Error",
+    queued: "В очереди — готовлю пайплайн",
+    static: "Запускаю Aderyn + Wake + Slither (статический анализ)",
+    triage: "LLM-триаж — фильтрую ложные срабатывания",
+    poc: "Генерирую Foundry PoC для high-severity находок",
+    fuzzing: "AI-fuzzing со сгенерированными инвариантами",
+    scoring: "Считаю оценку 0–100 по 5 осям",
+    done: "Готово",
+    error: "Ошибка",
   };
   return <p className="text-sm text-zinc-600 dark:text-zinc-400">{labels[stage]}</p>;
 }
@@ -110,10 +110,10 @@ function ScoreCard({ score }: { score: number }) {
   };
   return (
     <div className={`rounded-lg border p-6 ${colorMap[tier]}`}>
-      <p className="text-sm uppercase tracking-wide text-zinc-500">Security score</p>
+      <p className="text-sm uppercase tracking-wide text-zinc-500">Security-оценка</p>
       <p className="mt-2 text-6xl font-bold">{score}</p>
       <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-        Detailed findings, Foundry PoCs, and per-axis breakdown require a paid plan.
+        Детальные находки, Foundry PoC и разбивка по осям — на платных тарифах.
       </p>
     </div>
   );

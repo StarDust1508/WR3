@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { TerminalPageShell } from "@/components/terminal-page-shell";
 
-export const metadata = { title: "wr3 — leaderboard" };
+export const metadata = { title: "wr3 — лидерборд" };
 
 // Disable any caching — leaderboard should always show fresh data.
 export const dynamic = "force-dynamic";
@@ -58,9 +58,9 @@ export default async function LeaderboardPage() {
   const [stats, scans] = await Promise.all([fetchStats(), fetchScans()]);
 
   return (
-    <TerminalPageShell title="leaderboard">
+    <TerminalPageShell title="лидерборд">
       <p style={{ color: MUTED, fontSize: 12 }}>
-        // public scans, sorted by score. opted-out users are excluded.
+        // публичные сканы, сортировка по score. Пользователей с opt-out здесь нет.
       </p>
 
       {stats && (
@@ -72,14 +72,14 @@ export default async function LeaderboardPage() {
             gap: 12,
           }}
         >
-          <Stat label="scans completed" value={stats.total_scans.toString()} />
+          <Stat label="сканов завершено" value={stats.total_scans.toString()} />
           <Stat
-            label="avg score"
+            label="средний score"
             value={stats.avg_score != null ? stats.avg_score.toFixed(1) : "—"}
           />
-          <Stat label="critical found" value={stats.critical_findings.toString()} accent />
-          <Stat label="high found" value={stats.high_findings.toString()} />
-          <Stat label="networks" value={stats.networks_count.toString()} />
+          <Stat label="critical найдено" value={stats.critical_findings.toString()} accent />
+          <Stat label="high найдено" value={stats.high_findings.toString()} />
+          <Stat label="сетей" value={stats.networks_count.toString()} />
         </section>
       )}
 
@@ -93,7 +93,7 @@ export default async function LeaderboardPage() {
               padding: "40px 0",
             }}
           >
-            // no completed scans yet. run the first one via{" "}
+            // ещё нет завершённых сканов. Запусти первый через{" "}
             <a href="https://t.me/KitronBot" style={{ color: PRIMARY }}>
               @KitronBot
             </a>
@@ -104,12 +104,12 @@ export default async function LeaderboardPage() {
             <thead>
               <tr style={{ borderBottom: `1px solid ${DIM}` }}>
                 <Th>#</Th>
-                <Th>contract</Th>
-                <Th>chain</Th>
+                <Th>контракт</Th>
+                <Th>сеть</Th>
                 <Th align="right">score</Th>
-                <Th align="right">findings</Th>
-                <Th>author</Th>
-                <Th align="right">when</Th>
+                <Th align="right">находок</Th>
+                <Th>автор</Th>
+                <Th align="right">когда</Th>
               </tr>
             </thead>
             <tbody>
@@ -122,8 +122,9 @@ export default async function LeaderboardPage() {
       </section>
 
       <p style={{ color: DIM, fontSize: 10, marginTop: 24 }}>
-        // opted-out of public listing? open <Link href="/tg/owner" style={{ color: MUTED }}>cfg</Link> in the
-        Mini App and flip <code>anonymous_in_public</code>.
+        // хочешь скрыться из публичного списка? Открой{" "}
+        <Link href="/tg/owner" style={{ color: MUTED }}>cfg</Link> в Mini App и
+        включи <code>anonymous_in_public</code>.
       </p>
     </TerminalPageShell>
   );
@@ -220,7 +221,7 @@ function Row({ index, scan }: { index: number; scan: PublicScan }) {
       </Td>
       <Td>
         <span style={{ color: scan.author ? MUTED : DIM, fontSize: 11 }}>
-          {scan.author ? `@${scan.author}` : "anon"}
+          {scan.author ? `@${scan.author}` : "аноним"}
         </span>
       </Td>
       <Td align="right">
@@ -255,9 +256,9 @@ function relTime(iso: string | null): string {
   if (!t) return "";
   const diff = Date.now() - t;
   const min = Math.floor(diff / 60_000);
-  if (min < 1) return "now";
-  if (min < 60) return `${min}m ago`;
+  if (min < 1) return "только что";
+  if (min < 60) return `${min} мин назад`;
   const hr = Math.floor(min / 60);
-  if (hr < 24) return `${hr}h ago`;
-  return `${Math.floor(hr / 24)}d ago`;
+  if (hr < 24) return `${hr} ч назад`;
+  return `${Math.floor(hr / 24)} д назад`;
 }

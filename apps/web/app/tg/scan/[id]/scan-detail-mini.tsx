@@ -70,7 +70,7 @@ export function ScanDetailMini({ scanId }: { scanId: string }) {
       <main className="mx-auto max-w-xl px-4 pb-12 pt-4">
         <BackLink />
         <p className="mt-12 text-center text-xs hb-prompt">
-          loading<span className="hb-cursor" />
+          загрузка<span className="hb-cursor" />
         </p>
       </main>
     );
@@ -85,7 +85,7 @@ export function ScanDetailMini({ scanId }: { scanId: string }) {
 
       <header className="mb-4 mt-3">
         <p className="text-[10px]" style={{ color: "var(--hb-text-muted)" }}>
-          // {scan.network} target
+          // цель · {scan.network}
         </p>
         <p
           className="break-all text-xs"
@@ -101,7 +101,7 @@ export function ScanDetailMini({ scanId }: { scanId: string }) {
 
       {active.length > 0 && (
         <section className="mt-5">
-          <h2 className="tg-hint mb-2">findings · {active.length}</h2>
+          <h2 className="tg-hint mb-2">находки · {active.length}</h2>
           <ul className="flex flex-col gap-1.5">
             {active.map((f) => <FindingRow key={f.id} finding={f} />)}
           </ul>
@@ -109,7 +109,7 @@ export function ScanDetailMini({ scanId }: { scanId: string }) {
       )}
 
       <p className="mt-10 text-center text-[10px]" style={{ color: "var(--hb-text-muted)" }}>
-        ai-assisted audit · best-effort, no warranty
+        ai-аудит · без гарантий · не замена ручному ревью
       </p>
     </main>
   );
@@ -118,7 +118,7 @@ export function ScanDetailMini({ scanId }: { scanId: string }) {
 function BackLink() {
   return (
     <Link href="/tg" className="text-xs" style={{ color: "var(--hb-text-dim)" }}>
-      ← back
+      ← назад
     </Link>
   );
 }
@@ -126,7 +126,7 @@ function BackLink() {
 function ProgressCard({ stage, progress }: { stage: string; progress: number }) {
   return (
     <div className="tg-card">
-      <p className="tg-hint mb-2">in progress</p>
+      <p className="tg-hint mb-2">выполняется</p>
       <p className="mb-2 text-xs" style={{ color: "var(--hb-text-hi)" }}>
         <span className="hb-cursor">{stageLabel(stage)}</span>
         <span className="ml-2" style={{ color: "var(--hb-text-muted)" }}>{progress}%</span>
@@ -178,7 +178,7 @@ function SeveritySummary({ counts }: { counts: SeverityCounts }) {
   ];
   const visible = order.filter((o) => counts[o.k] > 0);
   if (visible.length === 0) {
-    return <p className="text-xs" style={{ color: "var(--sev-good)" }}>✓ clean</p>;
+    return <p className="text-xs" style={{ color: "var(--sev-good)" }}>✓ чисто</p>;
   }
   return (
     <div className="flex flex-wrap gap-1.5">
@@ -236,20 +236,20 @@ function countBySeverity(findings: Finding[]): SeverityCounts {
 
 function stageLabel(stage: string): string {
   return ({
-    queued: "preparing",
-    static: "static-analysis",
-    triage: "ai-triage",
-    poc: "poc-generation",
-    fuzzing: "ai-fuzzing",
-    scoring: "scoring",
+    queued: "подготовка",
+    static: "статика",
+    triage: "ai-триаж",
+    poc: "poc",
+    fuzzing: "fuzzing",
+    scoring: "оценка",
   } as Record<string, string>)[stage] ?? stage;
 }
 
 function verdictFor(tier: string): { label: string; body: string } {
   return ({
-    red:    { label: "high risk",     body: "critical or high-severity finding present" },
-    yellow: { label: "caution",       body: "medium-severity findings — review recommended" },
-    green:  { label: "acceptable",    body: "only minor issues detected" },
-    blue:   { label: "excellent",     body: "no security findings of note" },
+    red:    { label: "высокий риск", body: "есть critical или high-severity находки" },
+    yellow: { label: "осторожно",    body: "medium-severity находки — рекомендуем ревью" },
+    green:  { label: "приемлемо",    body: "только минорные замечания" },
+    blue:   { label: "отлично",      body: "значимых security-находок нет" },
   } as Record<string, { label: string; body: string }>)[tier] ?? { label: tier, body: "" };
 }

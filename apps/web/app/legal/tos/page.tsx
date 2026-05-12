@@ -1,33 +1,38 @@
 import { TerminalPageShell } from "@/components/terminal-page-shell";
 
-export const metadata = { title: "wr3 — terms" };
+export const metadata = { title: "wr3 — условия использования" };
 
 export default function TosPage() {
   return (
-    <TerminalPageShell title="terms of service">
+    <TerminalPageShell title="условия использования">
       <p style={{ color: "#a8e6a8", fontSize: 12 }}>
-        // last updated: May 2026 · in plain language. The legal version comes
-        with the public launch.
+        // обновлено: май 2026. Простым языком — формально-юридическая
+        версия появится к публичному запуску.
       </p>
 
-      <h2 style={{ color: "#4ade80", fontSize: 14, marginTop: 24 }}>$ what wr3 is</h2>
-      <p>wr3 runs an automated, AI-assisted audit pipeline on smart-contract
-        source you provide. It produces a score (0-100) and a list of findings.
-        It is not a substitute for human review.</p>
+      <h2 style={{ color: "#4ade80", fontSize: 14, marginTop: 24 }}>$ что такое wr3</h2>
+      <p>
+        wr3 — это автоматизированный AI-аудит-пайплайн, который анализирует
+        предоставленный исходный код смарт-контракта. На выходе — оценка
+        (0–100) и список находок. wr3 не заменяет ручное ревью.
+      </p>
 
-      <h2 style={{ color: "#4ade80", fontSize: 14, marginTop: 24 }}>$ what wr3 is NOT</h2>
+      <h2 style={{ color: "#4ade80", fontSize: 14, marginTop: 24 }}>$ чем wr3 НЕ является</h2>
       <ul>
-        <li>Not an insurer. We don&apos;t cover losses from exploits we miss or misclassify.</li>
-        <li>Not financial advice. Score is a signal, not a recommendation.</li>
-        <li>Not exhaustive. AI hallucinates; static analyzers miss things; human review still matters.</li>
+        <li>Не страховщик. Мы не покрываем убытки от эксплойтов, которые пропустили или неверно классифицировали.</li>
+        <li>Не финансовый совет. Оценка — сигнал, а не рекомендация.</li>
+        <li>Не исчерпывающий аудит. AI галлюцинирует, статические анализаторы пропускают баги — ручное ревью всё ещё важно.</li>
       </ul>
 
-      <h2 style={{ color: "#4ade80", fontSize: 14, marginTop: 24 }}>$ liability</h2>
-      <p>Liability is capped at the cost of the audit, or $0 for free-tier scans.</p>
+      <h2 style={{ color: "#4ade80", fontSize: 14, marginTop: 24 }}>$ ответственность</h2>
+      <p>Ограничена стоимостью аудита (или $0 для free-тарифа).</p>
 
-      <h2 style={{ color: "#4ade80", fontSize: 14, marginTop: 24 }}>$ disclosure</h2>
-      <p>Severity ratings, scoring weights, and the pipeline source live on{" "}
-        <a href="https://github.com/StarDust1508/WR3" style={{ color: "#4ade80" }}>GitHub</a> — verify them.</p>
+      <h2 style={{ color: "#4ade80", fontSize: 14, marginTop: 24 }}>$ открытость</h2>
+      <p>
+        Веса оценки, severity-классификатор и весь пайплайн лежат в открытом{" "}
+        <a href="https://github.com/StarDust1508/WR3" style={{ color: "#4ade80" }}>GitHub</a> —
+        можно проверить.
+      </p>
     </TerminalPageShell>
   );
 }

@@ -45,9 +45,9 @@ export default function HomePage() {
             wr3
           </Link>
           <nav style={{ display: "flex", gap: 18, fontSize: 12, alignItems: "center" }}>
-            <Link href="/leaderboard" style={{ color: MUTED, textDecoration: "none" }}>leaderboard</Link>
-            <Link href="/pricing" style={{ color: MUTED, textDecoration: "none" }}>pricing</Link>
-            <Link href="/docs" style={{ color: MUTED, textDecoration: "none" }}>docs</Link>
+            <Link href="/leaderboard" style={{ color: MUTED, textDecoration: "none" }}>лидерборд</Link>
+            <Link href="/pricing" style={{ color: MUTED, textDecoration: "none" }}>тарифы</Link>
+            <Link href="/docs" style={{ color: MUTED, textDecoration: "none" }}>доки</Link>
             <a
               href="https://t.me/KitronBot"
               style={{
@@ -62,14 +62,14 @@ export default function HomePage() {
                 fontWeight: 700,
               }}
             >
-              open bot
+              открыть бот
             </a>
           </nav>
         </header>
 
         <section style={{ maxWidth: 720 }}>
           <p style={{ color: MUTED, fontSize: 12, marginBottom: 8 }}>
-            // ai-powered smart-contract audit for vibe-coders
+            // AI-аудит смарт-контрактов для vibe-кодеров
           </p>
           <h1
             style={{
@@ -81,12 +81,12 @@ export default function HomePage() {
               letterSpacing: "-0.02em",
             }}
           >
-            <span style={{ color: PRIMARY }}>$ </span>wr3 audit &lt;contract&gt;
+            <span style={{ color: PRIMARY }}>$ </span>wr3 audit &lt;контракт&gt;
           </h1>
           <p style={{ color: MUTED, fontSize: 14, lineHeight: 1.6, marginTop: 16, maxWidth: 580 }}>
-            Score 0-100 across 5 axes. Baseline static + multi-agent LLM triage +
+            Оценка 0–100 по 5 осям. Baseline-статика + multi-agent LLM-триаж +
             Foundry PoC retry-loop + AI-fuzzing. EVM (eth / base / arbitrum / bsc)
-            and Solana via Sealevel-attacks.
+            и Solana через Sealevel-attacks.
           </p>
 
           <div style={{ marginTop: 32 }}>
@@ -94,9 +94,9 @@ export default function HomePage() {
           </div>
 
           <p style={{ color: DIM, fontSize: 11, marginTop: 12 }}>
-            // free tier: 1 contract / 24h. Paid from $29/mo for unlimited scans + full Foundry PoCs.
+            // free: 1 контракт / 24 ч. Платный — от $29/мес: безлимит сканов и полные Foundry PoC.
             <Link href="/pricing" style={{ color: MUTED, textDecoration: "underline", marginLeft: 6 }}>
-              pricing →
+              тарифы →
             </Link>
           </p>
         </section>
@@ -110,16 +110,16 @@ export default function HomePage() {
           }}
         >
           <Feature
-            title="multi-engine consensus"
-            body="Aderyn + Wake + Slither + Medusa + ItyFuzz + Trident. One pipeline, cross-checked findings."
+            title="multi-engine консенсус"
+            body="Aderyn + Wake + Slither + Medusa + ItyFuzz + Trident. Один пайплайн, кросс-проверенные находки."
           />
           <Feature
-            title="transparent scoring"
-            body="0-100 across 5 axes with published weights. No black-box, no pay-to-play."
+            title="прозрачная оценка"
+            body="0–100 по 5 осям с публичными весами. Без чёрного ящика, без pay-to-play."
           />
           <Feature
-            title="solana, first-class"
-            body="Sealevel-attacks taxonomy, Trident fuzzer. Most AI auditors skip Solana — we don't."
+            title="solana — первый класс"
+            body="Таксономия Sealevel-attacks, Trident fuzzer. Большинство AI-аудиторов пропускают Solana — мы нет."
           />
         </section>
 
@@ -142,14 +142,14 @@ export default function HomePage() {
           >
             <span>© 2026 wr3</span>
             <div style={{ display: "flex", gap: 16 }}>
-              <Link href="/legal/tos" style={{ color: DIM, textDecoration: "none" }}>terms</Link>
-              <Link href="/legal/privacy" style={{ color: DIM, textDecoration: "none" }}>privacy</Link>
+              <Link href="/legal/tos" style={{ color: DIM, textDecoration: "none" }}>условия</Link>
+              <Link href="/legal/privacy" style={{ color: DIM, textDecoration: "none" }}>приватность</Link>
               <a href="https://github.com/StarDust1508/WR3" style={{ color: DIM, textDecoration: "none" }}>github</a>
             </div>
           </div>
           <p style={{ marginTop: 16, maxWidth: 720, fontSize: 10 }}>
-            AI-assisted audit results are best-effort and not a replacement for human review.
-            wr3 provides no warranty. Liability is capped at the cost of the audit.
+            Результаты AI-аудита — best-effort, без гарантий. Не замена ручному ревью.
+            Ответственность ограничена стоимостью аудита.
           </p>
         </footer>
       </div>

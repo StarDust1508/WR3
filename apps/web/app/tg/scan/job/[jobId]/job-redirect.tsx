@@ -15,7 +15,7 @@ import { Logo } from "../../../logo";
  */
 export function JobRedirect({ jobId }: { jobId: string }) {
   const router = useRouter();
-  const [message, setMessage] = useState("Preparing audit…");
+  const [message, setMessage] = useState("Готовлю аудит…");
 
   useEffect(() => {
     let cancelled = false;
