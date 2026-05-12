@@ -10,7 +10,7 @@ celery_app = Celery(
     "wr3",
     broker=settings.redis_url,
     backend=settings.redis_url,
-    include=["wr3_api.workers.scan_worker"],
+    include=["wr3_api.workers.scan_worker", "wr3_api.workers.incident_worker"],
 )
 
 # Eager mode for dev/test: runs tasks inline in the calling process, so we
@@ -29,6 +29,7 @@ celery_app.conf.update(
     task_default_queue="wr3.default",
     task_routes={
         "wr3_api.workers.scan_worker.run_audit_pipeline": {"queue": "wr3.audit"},
+        "wr3_api.workers.incident_worker.refresh_incidents": {"queue": "wr3.incidents"},
     },
     task_always_eager=_eager,
     task_eager_propagates=_eager,

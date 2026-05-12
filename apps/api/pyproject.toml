@@ -19,6 +19,8 @@ dependencies = [
     "sse-starlette>=2.2.0",
     "python-jose[cryptography]>=3.3.0",
     "structlog>=24.4.0",
+    "pgvector>=0.3.6",
+    "feedparser>=6.0.11",
     "wr3-audit-engine",
 ]
 
@@ -34,6 +36,7 @@ dev = [
     "pytest-asyncio>=0.25.0",
     "pytest-cov>=6.0.0",
     "httpx>=0.28.0",
+    "respx>=0.22.0",
     "ruff>=0.8.0",
     "mypy>=1.13.0",
 ]

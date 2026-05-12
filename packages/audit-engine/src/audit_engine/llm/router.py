@@ -217,3 +217,42 @@ class LLMRouter:
             r.raise_for_status()
             data = r.json()
             return data["choices"][0]["message"]["content"]
+
+    # --- embeddings ---------------------------------------------------------
+
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        retry=retry_if_exception_type((httpx.HTTPError, httpx.TimeoutException)),
+        reraise=True,
+    )
+    async def embed(
+        self,
+        text: str,
+        *,
+        model: str = "text-embedding-3-small",
+    ) -> list[float]:
+        """Embed a single string via api.navy (OpenAI-compatible /embeddings).
+
+        Always goes through api.navy regardless of sensitivity — embeddings
+        are non-reversible and we only ever embed public incident text here.
+        If you need to embed sensitive data, add a SECRET-routed variant.
+        """
+        if not self.navyai_key:
+            raise RuntimeError(
+                "embed() requires NAVYAI_API_KEY to be configured"
+            )
+        headers = {
+            "Authorization": f"Bearer {self.navyai_key}",
+            "Content-Type": "application/json",
+        }
+        payload = {"model": model, "input": text}
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            r = await client.post(
+                f"{self.navyai_base_url}/embeddings",
+                headers=headers,
+                json=payload,
+            )
+            r.raise_for_status()
+            data = r.json()
+            return list(data["data"][0]["embedding"])

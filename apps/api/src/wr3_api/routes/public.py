@@ -2,6 +2,7 @@
 
   GET /v1/public/scans      Anonymized leaderboard data
   GET /v1/public/stats      Aggregate counters (total scans, avg score)
+  GET /v1/public/incidents  Recent real-world exploits (Rekt/SlowMist/DefiLlama)
 
 These respect user preferences: anyone with `anonymous_in_public=True` is
 filtered out of leaderboard responses entirely (we don't surface their data
@@ -18,6 +19,7 @@ from sqlalchemy import func, select
 from wr3_api.db import SessionFactory
 from wr3_api.models import Finding as FindingRow
 from wr3_api.models import Scan as ScanRow
+from wr3_api.services import incident_repository as inc_repo
 from wr3_api.services import scan_repository as repo
 
 router = APIRouter()
@@ -82,4 +84,22 @@ async def public_stats() -> dict[str, Any]:
         "critical_findings": int(critical_findings),
         "high_findings": int(high_findings),
         "networks_count": int(networks_count),
+    }
+
+
+@router.get("/incidents")
+async def public_incidents(
+    limit: int = Query(default=10, ge=1, le=50),
+    days: int = Query(default=60, ge=1, le=365),
+) -> dict[str, Any]:
+    """Recent real-world exploit reports, deduplicated across sources.
+
+    Sources: Rekt News RSS, SlowMist Medium RSS, DefiLlama Hacks API.
+    Dedup runs server-side via cosine similarity on api.navy embeddings.
+    """
+    rows = await inc_repo.list_recent(limit=limit, max_age_days=days)
+    total = await inc_repo.count_total()
+    return {
+        "incidents": [inc_repo.incident_to_dict(r) for r in rows],
+        "total": total,
     }

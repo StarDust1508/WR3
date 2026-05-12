@@ -56,6 +56,7 @@ export function TerminalPageShell({
             wr3
           </Link>
           <nav style={{ display: "flex", gap: 18, fontSize: 12, alignItems: "center" }}>
+            <Link href="/incidents" style={{ color: MUTED, textDecoration: "none" }}>инциденты</Link>
             <Link href="/leaderboard" style={{ color: MUTED, textDecoration: "none" }}>лидерборд</Link>
             <Link href="/pricing" style={{ color: MUTED, textDecoration: "none" }}>тарифы</Link>
             <Link href="/docs" style={{ color: MUTED, textDecoration: "none" }}>доки</Link>
