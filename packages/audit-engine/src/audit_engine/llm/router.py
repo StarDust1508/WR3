@@ -1,16 +1,31 @@
-"""LLM router: chooses provider by sensitivity and routes to OpenAI-compatible APIs.
+"""LLM router: dispatches calls to a provider chosen by sensitivity.
 
-Sensitivity model:
-    LOW    — UI text, coding glue. NavyAI is fine.
-    MEDIUM — public-ish reasoning, RAG context. OpenRouter without ZDR.
-    HIGH   — security findings, PoC exploit code. OpenRouter with zdr:true.
-    SECRET — raw 0-days, client-specific data. Local Qwen only, no network.
+Sensitivity policy (honest, not aspirational):
+    LOW     — UI text, coding-glue prompts. api.navy is fine.
+    MEDIUM  — public-ish reasoning, dedup, code-explainer.
+              api.navy. Retention NOT confirmed zero, but no client
+              secrets pass through.
+    HIGH    — security analysis of public on-chain contracts.
+              Default: api.navy with metadata.zdr=False. NavyAI is a
+              reseller proxy and we do not assert ZDR. If
+              OPENROUTER_API_KEY is configured we route through
+              OpenRouter `data_collection: 'deny'` instead, which is
+              their documented zero-retention switch.
+    SECRET  — raw 0-day exploits / private client repos. NEVER hit
+              api.navy/OpenRouter. Local Qwen3-Coder via vLLM at
+              LOCAL_LLM_URL is the only acceptable destination. If
+              local LLM is not configured we raise rather than
+              degrade silently.
+
+The completion result is opaque text; the policy metadata (which provider
+was used, whether ZDR was claimed) is exposed via `last_provider` for the
+caller to thread into Finding.metadata.
 """
 
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any
 
@@ -32,72 +47,141 @@ class Sensitivity(StrEnum):
 class LLMRequest:
     messages: list[dict[str, Any]]
     sensitivity: Sensitivity = Sensitivity.MEDIUM
-    model_hint: str | None = None  # provider-relative ID, e.g. "anthropic/claude-sonnet-4.6"
+    model_hint: str | None = None
     temperature: float = 0.2
     max_tokens: int = 4096
 
 
+@dataclass
+class ProviderDecision:
+    """Which provider/model the router picked and what guarantees apply.
+
+    Threaded into Finding.metadata via `LLMRouter.last_provider`.
+    """
+
+    name: str  # "navyai" | "openrouter" | "local-vllm"
+    model: str
+    base_url: str
+    zdr_claimed: bool
+    extra: dict[str, Any] = field(default_factory=dict)
+
+
+class LocalLLMUnavailableError(RuntimeError):
+    """Raised when Sensitivity.SECRET is requested but no local LLM is configured."""
+
+
 class LLMRouter:
-    """Routes LLM calls to provider chosen by sensitivity."""
+    """Provider-routing LLM client. No silent ZDR claims."""
 
     def __init__(
         self,
         *,
-        openrouter_key: str | None = None,
         navyai_key: str | None = None,
-        local_url: str = "http://localhost:8000/v1",
-        local_model: str = "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        navyai_base_url: str | None = None,
+        navyai_default_model: str | None = None,
+        navyai_cheap_model: str | None = None,
+        openrouter_key: str | None = None,
+        openrouter_base_url: str | None = None,
+        local_url: str | None = None,
+        local_model: str | None = None,
     ) -> None:
-        self.openrouter_key = openrouter_key or os.getenv("OPENROUTER_API_KEY", "")
         self.navyai_key = navyai_key or os.getenv("NAVYAI_API_KEY", "")
-        self.local_url = local_url.rstrip("/")
-        self.local_model = local_model
+        self.navyai_base_url = navyai_base_url or os.getenv(
+            "NAVYAI_BASE_URL", "https://api.navy/v1"
+        )
+        self.navyai_default_model = navyai_default_model or os.getenv(
+            "NAVYAI_DEFAULT_MODEL", "gpt-5.3-codex"
+        )
+        self.navyai_cheap_model = navyai_cheap_model or os.getenv(
+            "NAVYAI_CHEAP_MODEL", "gpt-4o-mini"
+        )
+
+        self.openrouter_key = openrouter_key or os.getenv("OPENROUTER_API_KEY", "")
+        self.openrouter_base_url = openrouter_base_url or os.getenv(
+            "OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"
+        )
+
+        self.local_url = (local_url or os.getenv("LOCAL_LLM_URL", "")).rstrip("/")
+        self.local_model = local_model or os.getenv(
+            "LOCAL_LLM_MODEL", "Qwen/Qwen3-Coder-30B-A3B-Instruct"
+        )
+
+        self.last_provider: ProviderDecision | None = None
 
     async def complete(self, req: LLMRequest) -> str:
-        provider, model, base_url, key, extra = self._select(req)
-        logger.info("llm.dispatch", provider=provider, model=model, sensitivity=req.sensitivity)
+        decision = self._select(req)
+        self.last_provider = decision
+
+        logger.info(
+            "llm.dispatch",
+            provider=decision.name,
+            model=decision.model,
+            sensitivity=req.sensitivity.value,
+            zdr=decision.zdr_claimed,
+        )
 
         return await self._call_openai_compatible(
-            base_url=base_url,
-            key=key,
-            model=model,
+            base_url=decision.base_url,
+            key=self._key_for(decision),
+            model=decision.model,
             messages=req.messages,
             temperature=req.temperature,
             max_tokens=req.max_tokens,
-            extra=extra,
+            extra=decision.extra,
         )
 
-    def _select(
-        self, req: LLMRequest
-    ) -> tuple[str, str, str, str | None, dict[str, Any]]:
+    # --- selection ----------------------------------------------------------
+
+    def _select(self, req: LLMRequest) -> ProviderDecision:
         if req.sensitivity == Sensitivity.SECRET:
-            return ("local", self.local_model, self.local_url, None, {})
-
-        if req.sensitivity == Sensitivity.HIGH:
-            return (
-                "openrouter-zdr",
-                req.model_hint or "anthropic/claude-sonnet-4.6",
-                "https://openrouter.ai/api/v1",
-                self.openrouter_key,
-                {"transforms": [], "route": "fallback", "zdr": True},
+            if not self.local_url:
+                raise LocalLLMUnavailableError(
+                    "Sensitivity.SECRET requires LOCAL_LLM_URL. Refusing to "
+                    "route private client data through a third-party proxy."
+                )
+            return ProviderDecision(
+                name="local-vllm",
+                model=req.model_hint or self.local_model,
+                base_url=self.local_url,
+                zdr_claimed=True,
             )
 
-        if req.sensitivity == Sensitivity.MEDIUM:
-            return (
-                "openrouter",
-                req.model_hint or "anthropic/claude-sonnet-4.6",
-                "https://openrouter.ai/api/v1",
-                self.openrouter_key,
-                {},
+        if req.sensitivity == Sensitivity.HIGH and self.openrouter_key:
+            # OpenRouter documents a `data_collection: "deny"` provider preference
+            # for zero retention. See https://openrouter.ai/docs/features/privacy
+            return ProviderDecision(
+                name="openrouter",
+                model=req.model_hint or "anthropic/claude-sonnet-4.6",
+                base_url=self.openrouter_base_url,
+                zdr_claimed=True,
+                extra={"provider": {"data_collection": "deny"}},
             )
 
-        return (
-            "navyai",
-            req.model_hint or "claude-sonnet-4.6",
-            "https://api.navy/v1",
-            self.navyai_key,
-            {},
+        if req.sensitivity in (Sensitivity.HIGH, Sensitivity.MEDIUM):
+            return ProviderDecision(
+                name="navyai",
+                model=req.model_hint or self.navyai_default_model,
+                base_url=self.navyai_base_url,
+                # NavyAI does NOT confirm zero-retention. We do not claim it.
+                zdr_claimed=False,
+            )
+
+        # LOW
+        return ProviderDecision(
+            name="navyai",
+            model=req.model_hint or self.navyai_cheap_model,
+            base_url=self.navyai_base_url,
+            zdr_claimed=False,
         )
+
+    def _key_for(self, decision: ProviderDecision) -> str | None:
+        if decision.name == "navyai":
+            return self.navyai_key
+        if decision.name == "openrouter":
+            return self.openrouter_key
+        return None  # local vLLM is keyless
+
+    # --- HTTP ---------------------------------------------------------------
 
     @retry(
         stop=stop_after_attempt(3),
@@ -128,7 +212,7 @@ class LLMRouter:
             **extra,
         }
 
-        async with httpx.AsyncClient(timeout=120.0) as client:
+        async with httpx.AsyncClient(timeout=180.0) as client:
             r = await client.post(f"{base_url}/chat/completions", headers=headers, json=payload)
             r.raise_for_status()
             data = r.json()

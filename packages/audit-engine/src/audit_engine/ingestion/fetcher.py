@@ -1,10 +1,17 @@
 """Multi-explorer verified-source fetcher.
 
-All Etherscan-family explorers (Etherscan / BscScan / Basescan / Arbiscan)
-share the same `getsourcecode` API shape. We route by network → explorer
-base URL + API key.
+Uses the Etherscan V2 unified endpoint
+    https://api.etherscan.io/v2/api?chainid={id}&...
+This is the same single endpoint for all EVM chains, distinguished by
+`chainid` (1=eth, 56=bsc, 8453=base, 42161=arbitrum). The V1 per-explorer
+endpoints (api.bscscan.com etc) were deprecated by Etherscan in 2024;
+all four chains now go through one base URL and one API key.
 
-Solana is handled separately via Solana Explorer / Solscan API (TODO).
+Free tier: 5 calls/sec, 100k calls/day. Sign up at
+https://etherscan.io/apis — the resulting key works for all listed
+chains.
+
+Solana is handled separately (TODO: Solscan / Helius — not yet wired).
 """
 
 from __future__ import annotations
@@ -24,23 +31,23 @@ logger = structlog.get_logger()
 Network = Literal["ethereum", "base", "arbitrum", "bsc", "solana"]
 
 
-_EXPLORER_CONFIG: dict[Network, dict[str, str]] = {
-    "ethereum": {
-        "base_url": "https://api.etherscan.io/api",
-        "key_env": "ETHERSCAN_API_KEY",
-    },
-    "base": {
-        "base_url": "https://api.basescan.org/api",
-        "key_env": "BASESCAN_API_KEY",
-    },
-    "arbitrum": {
-        "base_url": "https://api.arbiscan.io/api",
-        "key_env": "ARBISCAN_API_KEY",
-    },
-    "bsc": {
-        "base_url": "https://api.bscscan.com/api",
-        "key_env": "BSCSCAN_API_KEY",
-    },
+# Etherscan V2 multichain endpoint — one base URL for all EVM chains,
+# distinguished by `chainid`. One API key works for all listed chains.
+_ETHERSCAN_V2_BASE_URL = "https://api.etherscan.io/v2/api"
+
+_CHAIN_IDS: dict[Network, int] = {
+    "ethereum": 1,
+    "bsc": 56,
+    "arbitrum": 42161,
+    "base": 8453,
+}
+
+# Per-network env key fallback. Primary is ETHERSCAN_API_KEY (V2 unified).
+_KEY_ENV_PRIORITY: dict[Network, list[str]] = {
+    "ethereum": ["ETHERSCAN_API_KEY"],
+    "bsc": ["ETHERSCAN_API_KEY", "BSCSCAN_API_KEY"],
+    "arbitrum": ["ETHERSCAN_API_KEY", "ARBISCAN_API_KEY"],
+    "base": ["ETHERSCAN_API_KEY", "BASESCAN_API_KEY"],
 }
 
 
@@ -80,10 +87,19 @@ class SourceBundle:
 
 
 class SourceFetcher:
-    """Fetches verified source from an explorer for a given network."""
+    """Fetches verified source from Etherscan V2 multichain endpoint."""
 
     def __init__(self, *, timeout: float = 30.0) -> None:
         self._timeout = timeout
+
+    @staticmethod
+    def _resolve_key(network: Network) -> str | None:
+        """Try primary `ETHERSCAN_API_KEY` then per-network legacy fallbacks."""
+        for env in _KEY_ENV_PRIORITY.get(network, ["ETHERSCAN_API_KEY"]):
+            value = os.getenv(env, "").strip()
+            if value:
+                return value
+        return None
 
     @retry(
         stop=stop_after_attempt(3),
@@ -93,29 +109,37 @@ class SourceFetcher:
     )
     async def fetch(self, *, address: str, network: Network) -> SourceBundle | None:
         if network == "solana":
-            logger.info("ingestion.solana.not_yet")
+            logger.info("ingestion.solana.not_supported_by_etherscan")
             return None
 
         if not _ADDRESS_EVM.match(address):
             logger.warning("ingestion.invalid_address", address=address, network=network)
             return None
 
-        cfg = _EXPLORER_CONFIG.get(network)
-        if cfg is None:
+        chain_id = _CHAIN_IDS.get(network)
+        if chain_id is None:
             logger.warning("ingestion.unsupported_network", network=network)
             return None
 
-        api_key = os.getenv(cfg["key_env"], "")
+        api_key = self._resolve_key(network)
+        if not api_key:
+            logger.warning(
+                "ingestion.missing_api_key",
+                network=network,
+                hint="set ETHERSCAN_API_KEY (free, etherscan.io/apis)",
+            )
+            return None
+
         params = {
+            "chainid": str(chain_id),
             "module": "contract",
             "action": "getsourcecode",
             "address": address,
+            "apikey": api_key,
         }
-        if api_key:
-            params["apikey"] = api_key
 
         async with httpx.AsyncClient(timeout=self._timeout) as client:
-            r = await client.get(cfg["base_url"], params=params)
+            r = await client.get(_ETHERSCAN_V2_BASE_URL, params=params)
             r.raise_for_status()
             data = r.json()
 

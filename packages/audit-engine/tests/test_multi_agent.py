@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-from typing import Any
 
 import pytest
 
@@ -214,11 +213,6 @@ class _ScriptedLLM:
         return '{"decisions": [], "proposed": []}'
 
 
-class _FakeSolodit:
-    async def search(self, q: str, *, limit: int = 5) -> list[Any]:
-        return []
-
-
 @pytest.mark.asyncio
 async def test_multi_agent_runs_all_four_in_parallel() -> None:
     f = _finding()
@@ -243,7 +237,7 @@ async def test_multi_agent_runs_all_four_in_parallel() -> None:
             ),
         }
     )
-    orch = MultiAgentTriage(llm=llm, solodit=_FakeSolodit())  # type: ignore[arg-type]
+    orch = MultiAgentTriage(llm=llm)  # type: ignore[arg-type]
     out = await orch.run([f], source="contract X {}")
 
     # 4 LLM calls, one per sub-agent.
@@ -285,7 +279,7 @@ async def test_multi_agent_dismisses_when_severity_and_fp_agree() -> None:
             "cross-contract risks": json.dumps({"decisions": [], "proposed": []}),
         }
     )
-    orch = MultiAgentTriage(llm=llm, solodit=_FakeSolodit())  # type: ignore[arg-type]
+    orch = MultiAgentTriage(llm=llm)  # type: ignore[arg-type]
     out = await orch.run([f], source="contract X {}")
     assert out[0].dismissed is True
 
@@ -326,7 +320,7 @@ async def test_multi_agent_appends_new_findings_from_business_and_cross() -> Non
             ),
         }
     )
-    orch = MultiAgentTriage(llm=llm, solodit=_FakeSolodit())  # type: ignore[arg-type]
+    orch = MultiAgentTriage(llm=llm)  # type: ignore[arg-type]
     out = await orch.run([f], source="contract X {}")
 
     titles = [x.title for x in out]
@@ -348,7 +342,7 @@ async def test_multi_agent_resilient_to_broken_llm() -> None:
             "cross-contract risks": '{"decisions": [], "proposed": []}',
         }
     )
-    orch = MultiAgentTriage(llm=llm, solodit=_FakeSolodit())  # type: ignore[arg-type]
+    orch = MultiAgentTriage(llm=llm)  # type: ignore[arg-type]
     out = await orch.run([f], source="contract X {}")
     # severity report failed -> dismissal still happens because no confirms
     # and FP can dismiss even without low-severity agreement when sev is unknown.
@@ -359,7 +353,7 @@ async def test_multi_agent_resilient_to_broken_llm() -> None:
 async def test_multi_agent_skips_when_only_info_findings() -> None:
     f = _finding(severity=Severity.INFO)
     llm = _ScriptedLLM({})
-    orch = MultiAgentTriage(llm=llm, solodit=_FakeSolodit())  # type: ignore[arg-type]
+    orch = MultiAgentTriage(llm=llm)  # type: ignore[arg-type]
     out = await orch.run([f], source="")
     # No source, no triageable findings - returned untouched, no LLM calls.
     assert out == [f]

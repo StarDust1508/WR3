@@ -41,7 +41,6 @@ from dataclasses import dataclass, field
 import anyio
 import structlog
 
-from audit_engine.knowledge import SoloditClient
 from audit_engine.llm import LLMRequest, LLMRouter, Sensitivity
 from audit_engine.types import Finding, Severity
 
@@ -199,8 +198,8 @@ class _SubAgent:
         self.system_prompt = system_prompt
         self.llm = llm
 
-    async def run(self, *, source: str, findings: list[Finding], rag: str) -> AgentReport:
-        user = _build_user_prompt(source=source, findings=findings, rag=rag)
+    async def run(self, *, source: str, findings: list[Finding]) -> AgentReport:
+        user = _build_user_prompt(source=source, findings=findings)
         try:
             raw = await self.llm.complete(
                 LLMRequest(
@@ -234,13 +233,11 @@ class MultiAgentTriage:
     def __init__(
         self,
         llm: LLMRouter | None = None,
-        solodit: SoloditClient | None = None,
         *,
         max_source_chars: int = 24_000,
         max_findings_in_prompt: int = 40,
     ) -> None:
         self.llm = llm or LLMRouter()
-        self.solodit = solodit or SoloditClient()
         self.max_source_chars = max_source_chars
         self.max_findings_in_prompt = max_findings_in_prompt
 
@@ -251,8 +248,6 @@ class MultiAgentTriage:
         if not triageable and not source.strip():
             return findings
 
-        # RAG context (best-effort, never aborts triage).
-        rag = await self._fetch_rag(triageable)
         bounded_source = source[: self.max_source_chars]
         bounded_findings = triageable[: self.max_findings_in_prompt]
 
@@ -260,7 +255,7 @@ class MultiAgentTriage:
 
         async def _spawn(name: str, system: str) -> None:
             agent = _SubAgent(name=name, system_prompt=system, llm=self.llm)
-            reports.append(await agent.run(source=bounded_source, findings=bounded_findings, rag=rag))
+            reports.append(await agent.run(source=bounded_source, findings=bounded_findings))
 
         async with anyio.create_task_group() as tg:
             for name, system in _AGENT_DEFINITIONS:
@@ -277,31 +272,11 @@ class MultiAgentTriage:
             return False
         return not (f.severity == Severity.LOW and f.confidence >= 0.8)
 
-    async def _fetch_rag(self, findings: list[Finding]) -> str:
-        seen: set[str] = set()
-        entries: list[str] = []
-        for f in findings:
-            key = f.title.lower()
-            if key in seen or len(seen) >= 3:
-                continue
-            seen.add(key)
-            try:
-                hits = await self.solodit.search(f.title, limit=2)
-            except Exception:
-                hits = []
-            for h in hits:
-                entries.append(
-                    f"- [{h.severity}] {h.title} ({h.source_firm or 'unknown'}): {h.body[:280]}"
-                )
-        if not entries:
-            return ""
-        return "Solodit RAG (similar past findings):\n" + "\n".join(entries[:8])
-
 
 # --- Prompting helpers -------------------------------------------------------
 
 
-def _build_user_prompt(*, source: str, findings: list[Finding], rag: str) -> str:
+def _build_user_prompt(*, source: str, findings: list[Finding]) -> str:
     findings_json = json.dumps(
         [
             {
@@ -319,11 +294,10 @@ def _build_user_prompt(*, source: str, findings: list[Finding], rag: str) -> str
         indent=2,
     )
 
-    parts = ["SOURCE CODE:", "```solidity", source, "```", ""]
-    if rag:
-        parts += [rag, ""]
-    parts += ["RAW FINDINGS:", findings_json]
-    return "\n".join(parts)
+    return "\n".join([
+        "SOURCE CODE:", "```solidity", source, "```", "",
+        "RAW FINDINGS:", findings_json,
+    ])
 
 
 _JSON_BLOCK = re.compile(r"\{.*\}", re.DOTALL)

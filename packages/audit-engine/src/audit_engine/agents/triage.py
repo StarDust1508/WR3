@@ -1,6 +1,6 @@
-"""LLM triage agent — pass 1 of the multi-agent layer.
+"""LLM triage agent — single-call alternative to the multi-agent layer.
 
-Input: raw findings + source code (+ optional Solodit RAG context).
+Input: raw findings + source code.
 Output: same findings, but each annotated with one of:
     - keep   (severity unchanged, confidence may rise)
     - reclassify (severity changed up or down, with rationale)
@@ -24,7 +24,6 @@ import re
 
 import structlog
 
-from audit_engine.knowledge import SoloditClient
 from audit_engine.llm import LLMRequest, LLMRouter, Sensitivity
 from audit_engine.types import Finding, Severity
 
@@ -34,8 +33,7 @@ _TRIAGE_SYSTEM_PROMPT = """You are a senior smart-contract security auditor perf
 
 You receive:
   1. The source code of a Solidity contract.
-  2. Optional similar findings from the Solodit database, for reference.
-  3. A list of raw findings from static analyzers (Aderyn / Wake / Slither /
+  2. A list of raw findings from static analyzers (Aderyn / Wake / Slither /
      baseline regex). Each has an id, title, severity guess, and confidence.
 
 For each finding, decide one of:
@@ -66,13 +64,11 @@ class TriageOrchestrator:
     def __init__(
         self,
         llm: LLMRouter | None = None,
-        solodit: SoloditClient | None = None,
         *,
         max_source_chars: int = 24_000,
         max_findings_in_prompt: int = 40,
     ) -> None:
         self.llm = llm or LLMRouter()
-        self.solodit = solodit or SoloditClient()
         self.max_source_chars = max_source_chars
         self.max_findings_in_prompt = max_findings_in_prompt
 
@@ -82,12 +78,9 @@ class TriageOrchestrator:
             logger.info("triage.skipped.nothing_to_triage", total=len(findings))
             return findings
 
-        rag_context = await self._fetch_rag_context(triageable)
-
         prompt = self._build_prompt(
             source=source[: self.max_source_chars],
             findings=triageable[: self.max_findings_in_prompt],
-            rag=rag_context,
         )
 
         try:
@@ -121,31 +114,8 @@ class TriageOrchestrator:
             return False
         return not (f.severity == Severity.LOW and f.confidence >= 0.8)
 
-    async def _fetch_rag_context(self, findings: list[Finding]) -> str:
-        # Use distinct titles as queries; cap to 3 to control latency.
-        seen: set[str] = set()
-        entries: list[str] = []
-        for f in findings:
-            key = f.title.lower()
-            if key in seen:
-                continue
-            seen.add(key)
-            if len(seen) > 3:
-                break
-            try:
-                hits = await self.solodit.search(f.title, limit=2)
-            except Exception:
-                hits = []
-            for h in hits:
-                entries.append(
-                    f"- [{h.severity}] {h.title} ({h.source_firm or 'unknown'}): {h.body[:280]}"
-                )
-        if not entries:
-            return ""
-        return "Solodit RAG context (similar past findings):\n" + "\n".join(entries[:8])
-
     def _build_prompt(
-        self, *, source: str, findings: list[Finding], rag: str
+        self, *, source: str, findings: list[Finding]
     ) -> str:
         findings_json = json.dumps(
             [
@@ -163,20 +133,15 @@ class TriageOrchestrator:
             ensure_ascii=False,
             indent=2,
         )
-        parts = [
+        return "\n".join([
             "SOURCE CODE:",
             "```solidity",
             source,
             "```",
             "",
-        ]
-        if rag:
-            parts += [rag, ""]
-        parts += [
             "RAW FINDINGS TO TRIAGE:",
             findings_json,
-        ]
-        return "\n".join(parts)
+        ])
 
     _JSON_BLOCK = re.compile(r"\{.*\}", re.DOTALL)
 

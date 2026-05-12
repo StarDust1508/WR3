@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-from typing import Any
 
 import pytest
 
@@ -18,11 +17,6 @@ class _FakeLLM:
     async def complete(self, req: LLMRequest) -> str:
         self.last_request = req
         return self.response
-
-
-class _FakeSolodit:
-    async def search(self, query: str, *, limit: int = 5) -> list[Any]:
-        return []
 
 
 def _fixture_findings() -> list[Finding]:
@@ -70,7 +64,7 @@ async def test_dismiss_decision_marks_finding_dismissed() -> None:
             ]
         }
     )
-    orch = TriageOrchestrator(llm=_FakeLLM(llm_response), solodit=_FakeSolodit())  # type: ignore[arg-type]
+    orch = TriageOrchestrator(llm=_FakeLLM(llm_response))  # type: ignore[arg-type]
     out = await orch.run(_fixture_findings(), source="contract A {}")
 
     tx_origin = next(f for f in out if f.id == "baseline:tx-origin:5")
@@ -92,7 +86,7 @@ async def test_reclassify_changes_severity() -> None:
             ]
         }
     )
-    orch = TriageOrchestrator(llm=_FakeLLM(llm_response), solodit=_FakeSolodit())  # type: ignore[arg-type]
+    orch = TriageOrchestrator(llm=_FakeLLM(llm_response))  # type: ignore[arg-type]
     out = await orch.run(_fixture_findings(), source="contract A {}")
 
     dlg = next(f for f in out if f.id == "baseline:delegatecall:12")
@@ -104,7 +98,7 @@ async def test_reclassify_changes_severity() -> None:
 async def test_info_finding_skips_triage() -> None:
     """INFO severity must not even be sent to the LLM."""
     llm = _FakeLLM('{"decisions": []}')
-    orch = TriageOrchestrator(llm=llm, solodit=_FakeSolodit())  # type: ignore[arg-type]
+    orch = TriageOrchestrator(llm=llm)  # type: ignore[arg-type]
 
     out = await orch.run(_fixture_findings(), source="contract A {}")
     assert llm.last_request is not None
@@ -116,7 +110,7 @@ async def test_info_finding_skips_triage() -> None:
 
 @pytest.mark.asyncio
 async def test_malformed_response_does_not_crash() -> None:
-    orch = TriageOrchestrator(llm=_FakeLLM("not json at all"), solodit=_FakeSolodit())  # type: ignore[arg-type]
+    orch = TriageOrchestrator(llm=_FakeLLM("not json at all"))  # type: ignore[arg-type]
     findings = _fixture_findings()
     out = await orch.run(findings, source="contract A {}")
     # All findings returned unchanged.
@@ -130,7 +124,7 @@ async def test_json_in_markdown_fence_is_parsed() -> None:
         + json.dumps({"decisions": [{"id": "baseline:tx-origin:5", "action": "keep", "rationale": "ok"}]})
         + "\n```"
     )
-    orch = TriageOrchestrator(llm=_FakeLLM(llm_response), solodit=_FakeSolodit())  # type: ignore[arg-type]
+    orch = TriageOrchestrator(llm=_FakeLLM(llm_response))  # type: ignore[arg-type]
     out = await orch.run(_fixture_findings(), source="contract A {}")
     tx_origin = next(f for f in out if f.id == "baseline:tx-origin:5")
     assert tx_origin.dismissed is False
@@ -143,7 +137,7 @@ async def test_llm_exception_returns_findings_unchanged() -> None:
         async def complete(self, req: LLMRequest) -> str:
             raise RuntimeError("network down")
 
-    orch = TriageOrchestrator(llm=_BrokenLLM(), solodit=_FakeSolodit())  # type: ignore[arg-type]
+    orch = TriageOrchestrator(llm=_BrokenLLM())  # type: ignore[arg-type]
     findings = _fixture_findings()
     out = await orch.run(findings, source="contract A {}")
     assert [f.id for f in out] == [f.id for f in findings]
