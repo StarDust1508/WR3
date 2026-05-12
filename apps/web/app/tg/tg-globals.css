@@ -1,0 +1,139 @@
+/* Mini App–scoped CSS. Imported only by the /tg layout. */
+
+:root {
+  /* TG colors get filled in at runtime by TelegramThemeBridge.
+     These are dark-mode defaults that match Telegram's "Default Dark". */
+  --tg-bg: #0f1115;
+  --tg-secondary-bg: #17191f;
+  --tg-section-bg: #1c1f26;
+  --tg-text: #fafafa;
+  --tg-hint: #8a8f99;
+  --tg-subtitle: #a1a1aa;
+  --tg-link: #3b82f6;
+  --tg-accent: #3b82f6;
+  --tg-button: #3b82f6;
+  --tg-button-text: #ffffff;
+  --tg-section-header: #8a8f99;
+  --tg-destructive: #ef4444;
+
+  /* Semantic colors for severity badges that should not bend to TG theme. */
+  --sev-critical: #dc2626;
+  --sev-high: #ea580c;
+  --sev-medium: #ca8a04;
+  --sev-low: #2563eb;
+  --sev-info: #64748b;
+  --sev-good: #16a34a;
+}
+
+html[data-tg-scheme="dark"] {
+  color-scheme: dark;
+}
+
+html[data-tg-scheme="light"] {
+  color-scheme: light;
+}
+
+html, body {
+  background: var(--tg-bg);
+  color: var(--tg-text);
+  /* TG-native font stack: SF on Apple, Roboto on Android, Segoe on Win. */
+  font-family:
+    -apple-system, BlinkMacSystemFont,
+    "SF Pro Text", "SF Pro Display",
+    "Helvetica Neue", "Segoe UI",
+    Roboto, "Apple Color Emoji", "Segoe UI Emoji",
+    system-ui, sans-serif;
+  font-feature-settings: "cv11", "ss01", "ss03";
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Safe-area aware viewport — Telegram exposes --tg-viewport-stable-height */
+.tg-scroll {
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding-top: max(env(safe-area-inset-top), 0px);
+  padding-bottom: max(env(safe-area-inset-bottom), 16px);
+}
+
+.tg-card {
+  background: var(--tg-section-bg);
+  border-radius: 14px;
+  padding: 16px;
+}
+
+.tg-hint {
+  color: var(--tg-hint);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.tg-input {
+  width: 100%;
+  background: var(--tg-secondary-bg);
+  border: 1px solid color-mix(in srgb, var(--tg-text) 10%, transparent);
+  color: var(--tg-text);
+  border-radius: 10px;
+  padding: 14px 14px;
+  font-size: 16px;
+  /* iOS focus zoom kill */
+  -webkit-text-size-adjust: 100%;
+  min-height: 48px;
+  outline: none;
+}
+.tg-input::placeholder {
+  color: var(--tg-hint);
+}
+.tg-input:focus {
+  border-color: var(--tg-button);
+}
+
+.tg-button {
+  background: var(--tg-button);
+  color: var(--tg-button-text);
+  border-radius: 10px;
+  padding: 14px 16px;
+  font-weight: 600;
+  font-size: 15px;
+  min-height: 48px;
+  border: none;
+  cursor: pointer;
+  transition: transform 60ms ease;
+}
+.tg-button:active {
+  transform: scale(0.98);
+}
+.tg-button:disabled {
+  opacity: 0.6;
+}
+
+.tg-button-secondary {
+  background: var(--tg-secondary-bg);
+  color: var(--tg-text);
+  border: 1px solid color-mix(in srgb, var(--tg-text) 10%, transparent);
+}
+
+.tg-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.sev-chip-critical { background: var(--sev-critical); color: white; }
+.sev-chip-high     { background: color-mix(in srgb, var(--sev-high) 18%, transparent); color: var(--sev-high); }
+.sev-chip-medium   { background: color-mix(in srgb, var(--sev-medium) 18%, transparent); color: var(--sev-medium); }
+.sev-chip-low      { background: color-mix(in srgb, var(--sev-low) 18%, transparent); color: var(--sev-low); }
+.sev-chip-info     { background: color-mix(in srgb, var(--sev-info) 18%, transparent); color: var(--sev-info); }
+.sev-chip-good     { background: color-mix(in srgb, var(--sev-good) 18%, transparent); color: var(--sev-good); }
+
+/* Score badge background by tier */
+.tier-red    { color: var(--sev-critical); }
+.tier-yellow { color: var(--sev-medium); }
+.tier-green  { color: var(--sev-good); }
+.tier-blue   { color: var(--sev-low); }

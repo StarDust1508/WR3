@@ -3,9 +3,7 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   transpilePackages: ["@wr3/shared"],
-  experimental: {
-    typedRoutes: true,
-  },
+  // typedRoutes intentionally off — incompatible with Turbopack dev.
   async rewrites() {
     return [
       {

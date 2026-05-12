@@ -10,12 +10,31 @@
 
 const STORAGE_KEY = "wr3.tg.token";
 
-type TgWebApp = {
+type TgThemeParams = {
+  bg_color?: string;
+  secondary_bg_color?: string;
+  text_color?: string;
+  hint_color?: string;
+  link_color?: string;
+  button_color?: string;
+  button_text_color?: string;
+  header_bg_color?: string;
+  accent_text_color?: string;
+  section_bg_color?: string;
+  section_header_text_color?: string;
+  subtitle_text_color?: string;
+  destructive_text_color?: string;
+};
+
+export type TgWebApp = {
   ready?: () => void;
   expand?: () => void;
   initData?: string;
   initDataUnsafe?: { user?: { id: number; first_name?: string; username?: string } };
-  themeParams?: Record<string, string>;
+  themeParams?: TgThemeParams;
+  colorScheme?: "light" | "dark";
+  onEvent?: (event: string, handler: () => void) => void;
+  offEvent?: (event: string, handler: () => void) => void;
 };
 
 declare global {

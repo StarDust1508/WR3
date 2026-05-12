@@ -1,17 +1,35 @@
 "use client";
 
+import { Search } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { getStoredToken } from "@/lib/tg-session";
 
-const NETWORKS = ["base", "ethereum", "arbitrum", "bsc", "solana"] as const;
+const NETWORKS = [
+  { id: "base", label: "Base" },
+  { id: "ethereum", label: "Ethereum" },
+  { id: "arbitrum", label: "Arbitrum" },
+  { id: "bsc", label: "BSC" },
+  { id: "solana", label: "Solana" },
+] as const;
+
+type NetworkId = (typeof NETWORKS)[number]["id"];
+
+function isLikelyAddress(s: string): boolean {
+  const t = s.trim();
+  if (/^0x[a-fA-F0-9]{40}$/.test(t)) return true; // EVM
+  if (/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(t)) return true; // Solana base58
+  return false;
+}
 
 export function MiniAppScanForm() {
   const [address, setAddress] = useState("");
-  const [network, setNetwork] = useState<(typeof NETWORKS)[number]>("base");
+  const [network, setNetwork] = useState<NetworkId>("base");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
+
+  const canSubmit = isLikelyAddress(address) && !pending;
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -19,6 +37,10 @@ export function MiniAppScanForm() {
     const trimmed = address.trim();
     if (!trimmed) {
       setError("Paste a contract address.");
+      return;
+    }
+    if (!isLikelyAddress(trimmed)) {
+      setError("That doesn't look like an EVM (0x...) or Solana address.");
       return;
     }
 
@@ -34,10 +56,15 @@ export function MiniAppScanForm() {
           body: JSON.stringify({ address: trimmed, network }),
         });
         if (!res.ok) {
-          throw new Error(`scan failed (${res.status})`);
+          let detail = `scan failed (${res.status})`;
+          try {
+            const body = (await res.json()) as { detail?: string };
+            if (body?.detail) detail = body.detail;
+          } catch {
+            /* ignore */
+          }
+          throw new Error(detail);
         }
-        // We could subscribe to the SSE here; for the Mini App, simpler:
-        // just open the report page, which lazy-loads as it becomes ready.
         const data = (await res.json()) as { job_id: string };
         router.push(`/tg/scan/job/${data.job_id}`);
       } catch (e) {
@@ -47,44 +74,83 @@ export function MiniAppScanForm() {
   }
 
   return (
-    <form
-      onSubmit={submit}
-      className="space-y-2 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800"
-    >
-      <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
-        Quick scan
-      </h2>
-      <input
-        type="text"
-        value={address}
-        onChange={(e) => setAddress(e.target.value)}
-        placeholder="0x..."
-        className="w-full rounded-md border border-zinc-300 bg-white px-3 py-3 text-base dark:border-zinc-700 dark:bg-zinc-900"
-        autoComplete="off"
-        spellCheck={false}
-      />
-      <div className="flex items-center gap-2">
-        <select
-          value={network}
-          onChange={(e) => setNetwork(e.target.value as (typeof NETWORKS)[number])}
-          className="flex-1 rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-        >
-          {NETWORKS.map((n) => (
-            <option key={n} value={n}>
-              {n}
-            </option>
-          ))}
-        </select>
-        <button
-          type="submit"
-          disabled={pending}
-          className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white dark:bg-zinc-50 dark:text-zinc-900"
-        >
-          {pending ? "…" : "Scan"}
-        </button>
+    <form onSubmit={submit} className="tg-card flex flex-col gap-3">
+      <h2 className="tg-hint">Quick scan</h2>
+
+      <div className="relative">
+        <Search
+          size={16}
+          color="var(--tg-hint)"
+          aria-hidden
+          style={{
+            position: "absolute",
+            left: 14,
+            top: "50%",
+            transform: "translateY(-50%)",
+            pointerEvents: "none",
+          }}
+        />
+        <input
+          type="text"
+          value={address}
+          onChange={(e) => setAddress(e.target.value)}
+          placeholder="0x... or Solana address"
+          className="tg-input"
+          style={{ paddingLeft: 38 }}
+          autoComplete="off"
+          autoCapitalize="off"
+          autoCorrect="off"
+          spellCheck={false}
+          inputMode="text"
+        />
       </div>
+
+      <div
+        className="flex gap-2 overflow-x-auto"
+        style={{ scrollbarWidth: "none" }}
+      >
+        {NETWORKS.map((n) => {
+          const active = network === n.id;
+          return (
+            <button
+              key={n.id}
+              type="button"
+              onClick={() => setNetwork(n.id)}
+              className="tg-chip"
+              style={{
+                background: active
+                  ? "var(--tg-button)"
+                  : "color-mix(in srgb, var(--tg-text) 8%, transparent)",
+                color: active ? "var(--tg-button-text)" : "var(--tg-text)",
+                padding: "8px 14px",
+                fontSize: 13,
+                textTransform: "none",
+                letterSpacing: 0,
+                fontWeight: 500,
+                minHeight: 36,
+                whiteSpace: "nowrap",
+              }}
+            >
+              {n.label}
+            </button>
+          );
+        })}
+      </div>
+
+      <button
+        type="submit"
+        disabled={!canSubmit}
+        className="tg-button"
+      >
+        {pending ? "Scanning…" : "Scan"}
+      </button>
+
       {error && (
-        <p role="alert" className="text-sm text-red-600">
+        <p
+          role="alert"
+          className="text-sm"
+          style={{ color: "var(--tg-destructive)" }}
+        >
           {error}
         </p>
       )}
