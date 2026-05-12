@@ -25,9 +25,16 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Origins:
+#   - localhost:3000 — Next.js dev server when developing locally
+#   - https://*.pages.dev — Cloudflare Pages deployments of the Mini App
+#   - https://t.me — Telegram WebApp iframe origin
+# Using `allow_origin_regex` so we cover preview deploys like
+# https://abc123.wr3.pages.dev that get generated for every CF Pages branch.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=["http://localhost:3000", "https://t.me"],
+    allow_origin_regex=r"https://([a-z0-9-]+\.)?wr3\.pages\.dev",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -1,0 +1,26 @@
+# Cloudflare Workers config for the wr3 Mini App.
+#
+# Built by `@opennextjs/cloudflare` (see open-next.config.ts and the
+# `cf:build` script in package.json). The adapter produces:
+#   .open-next/worker.js   — the Worker entry that serves Next.js
+#   .open-next/assets/     — static files (Next.js public/, hashed JS, CSS)
+#
+# At runtime the Worker reads ASSETS to serve static files and falls back
+# to its own handler for SSR + API routes.
+
+name = "wr3"
+main = ".open-next/worker.js"
+compatibility_date = "2024-12-30"
+compatibility_flags = ["nodejs_compat"]
+
+[assets]
+directory = ".open-next/assets"
+binding = "ASSETS"
+
+# Runtime env vars set in the CF Workers dashboard
+# (Settings -> Variables and Secrets) instead of here, so they can rotate
+# without code changes. WR3_API_URL is set by the operator at deploy time;
+# it points at the FastAPI tunnel (e.g. https://xxx.serveousercontent.com).
+[vars]
+# placeholder so `wrangler` doesn't complain about an empty section
+WR3_DEPLOYED_AT = "ci"
