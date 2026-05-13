@@ -1,15 +1,12 @@
 import path from "node:path";
 import type { NextConfig } from "next";
 
-// `WR3_API_URL` must be set to the FastAPI origin (e.g. a Cloudflare Tunnel
-// or serveo URL while developing). The rewrite below proxies every
-// /api/v1/* call the Mini App makes back to that origin so the browser
-// sees same-origin responses — no CORS, no preflight.
-//
-// In production on Cloudflare Workers, OpenNext.js translates these
-// rewrites into Worker fetch calls — they happen at the edge, not in
-// the browser.
-const apiOrigin = process.env.WR3_API_URL ?? "http://localhost:8001";
+// API proxy: /api/v1/* → ${WR3_API_URL}/v1/* is implemented as a runtime
+// Route Handler at `apps/web/app/api/v1/[...path]/route.ts`. We DON'T use
+// `rewrites()` here because Next.js bakes rewrite targets at build time —
+// on CF Workers that means rotating the upstream URL requires a full
+// rebuild. The route handler reads `process.env.WR3_API_URL` at request
+// time, so the dashboard env var actually takes effect immediately.
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
@@ -19,14 +16,6 @@ const nextConfig: NextConfig = {
   // works there too.
   turbopack: {
     root: path.resolve(__dirname, "../.."),
-  },
-  async rewrites() {
-    return [
-      {
-        source: "/api/v1/:path*",
-        destination: `${apiOrigin}/v1/:path*`,
-      },
-    ];
   },
 };
 
