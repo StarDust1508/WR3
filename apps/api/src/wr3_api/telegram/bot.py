@@ -147,8 +147,18 @@ def detect_network_and_address(args: list[str]) -> tuple[str | None, str | None]
     return address, network
 
 
-async def handle_update(update: dict[str, Any], *, web_base_url: str) -> BotReply:
-    """Process one Telegram Update; return outbound actions."""
+async def handle_update(
+    update: dict[str, Any],
+    *,
+    web_base_url: str,
+    bot_token: str | None = None,
+) -> BotReply:
+    """Process one Telegram Update; return outbound actions.
+
+    `bot_token` is optional; only the /refund handler needs it (it calls the
+    Telegram API inline to inspect the refund response before committing
+    DB rollback). All other handlers work without it.
+    """
     # Stars payment flow: pre_checkout_query MUST be answered within 10s, or
     # Telegram cancels the payment. We always accept here — validation
     # happens earlier (when we send the invoice) and at successful_payment
@@ -206,7 +216,9 @@ async def handle_update(update: dict[str, Any], *, web_base_url: str) -> BotRepl
         if args and args[0].startswith("upgrade_"):
             return _handle_upgrade(chat_id=chat_id, plan=args[0][len("upgrade_"):])
         if args and args[0] == "refund":
-            return await _handle_refund(chat_id=chat_id, tg_user_id=int(tg_user_id))
+            return await _handle_refund(
+                chat_id=chat_id, tg_user_id=int(tg_user_id), bot_token=bot_token
+            )
         return _greet(chat_id=chat_id, web_base_url=web_base_url)
 
     if command == "/help":
@@ -221,7 +233,9 @@ async def handle_update(update: dict[str, Any], *, web_base_url: str) -> BotRepl
         )
 
     if command == "/refund":
-        return await _handle_refund(chat_id=chat_id, tg_user_id=int(tg_user_id))
+        return await _handle_refund(
+            chat_id=chat_id, tg_user_id=int(tg_user_id), bot_token=bot_token
+        )
 
     # Unknown / plain text: assume an address paste.
     address, network = detect_network_and_address([text, *args])
@@ -312,16 +326,19 @@ def _handle_upgrade(*, chat_id: int, plan: str) -> BotReply:
     ])
 
 
-async def _handle_refund(*, chat_id: int, tg_user_id: int) -> BotReply:
+async def _handle_refund(
+    *, chat_id: int, tg_user_id: int, bot_token: str | None = None
+) -> BotReply:
     """Refund the user's most recent active Stars subscription.
 
-    Flow:
-      1. Look up the user; find their active Subscription.
-      2. Issue refundStarPayment to Telegram (Bot API does the actual
-         money movement — Stars return to user's balance instantly).
-      3. Mark the subscription refunded in our DB (period_end=now,
-         tier→free).
-    If there's no active subscription we just tell them.
+    Order matters here: we call Telegram FIRST (inline, awaiting the
+    response), and only roll back our DB if Telegram actually executed the
+    refund. Otherwise we'd leave the user with no paid tier AND no Stars
+    back when Telegram rejects (e.g. >21-day refund window expired).
+
+    If `bot_token` is missing — happens only in unit tests — we fall back
+    to the previous behaviour (record DB-side, queue the action) so tests
+    that don't inject a token still exercise the rest of the flow.
     """
     user = await user_repo.upsert_telegram_user(telegram_user_id=tg_user_id)
     active = await sub_repo.get_active_for_user(user.id)
@@ -344,34 +361,100 @@ async def _handle_refund(*, chat_id: int, tg_user_id: int) -> BotReply:
             )
         ])
 
-    actions: list[BotAction] = [
-        _refund_stars(
+    # Try the inline path first. Without a token we can't verify Telegram's
+    # response, so the fallback path queues the action and trusts the
+    # delivery layer (legacy behaviour, kept so unit tests still cover the
+    # DB-rollback half of the logic).
+    if bot_token:
+        ok, error = await _execute_refund_now(
             tg_user_id=tg_user_id,
             charge_id=active.provider_payment_id,
-        ),
-    ]
+            bot_token=bot_token,
+        )
+        if not ok:
+            return BotReply(actions=[
+                _send_message(
+                    chat_id,
+                    f"❌ Telegram отклонил возврат: `{error or 'unknown error'}`.\n\n"
+                    "Чаще всего это означает что прошёл 21-дневный лимит. "
+                    "Подписка осталась активной — напиши в этот чат, если "
+                    "нужна помощь.",
+                )
+            ])
 
-    # Update our DB now — if Telegram rejects the refund (e.g. past 21-day
-    # window) the user can still see this in execution logs; the active
-    # subscription rollback is cheap to reverse manually if needed. Doing
-    # it post-API would risk the user getting refunded Stars but keeping
-    # the paid tier in our system on transient errors.
+    # Telegram confirmed the refund (or we're in test-mode fallback). Now
+    # commit the DB rollback. If THIS step fails we've got Stars-refunded-
+    # but-DB-still-paid; logged loudly so we can reconcile manually.
     refunded = await sub_repo.refund_active_subscription(user.id)
-    if refunded is not None:
-        actions.append(
+    if refunded is None:
+        logger.error(
+            "refund.db_rollback_failed_after_telegram_ok",
+            user_id=str(user.id),
+            charge_id=active.provider_payment_id,
+        )
+        return BotReply(actions=[
             _send_message(
                 chat_id,
-                (
-                    f"✓ Запрос на возврат отправлен в Telegram.\n\n"
-                    f"*{active.amount} ⭐* вернутся на твой Stars-баланс. "
-                    f"Тариф откатан к *free*.\n\n"
-                    "Если Stars не пришли через минуту — возможно, прошёл "
-                    "21-дневный лимит Telegram. Напиши в чат, разберёмся."
-                ),
+                "⚠ Возврат прошёл в Telegram, но в нашей БД случилась "
+                "ошибка отката. Stars уже у тебя — напиши в чат, поправим тариф.",
+            )
+        ])
+
+    actions: list[BotAction] = []
+    if not bot_token:
+        # Test/fallback path: queue the action for later delivery.
+        actions.append(
+            _refund_stars(
+                tg_user_id=tg_user_id,
+                charge_id=active.provider_payment_id,
             )
         )
 
+    actions.append(
+        _send_message(
+            chat_id,
+            (
+                f"✓ *{active.amount} ⭐* возвращены на твой Stars-баланс.\n"
+                f"Тариф откатан к *free*."
+            ),
+        )
+    )
     return BotReply(actions=actions)
+
+
+async def _execute_refund_now(
+    *,
+    tg_user_id: int,
+    charge_id: str,
+    bot_token: str,
+    timeout: float = 10.0,
+) -> tuple[bool, str | None]:
+    """Call refundStarPayment synchronously. Returns (ok, error_description).
+
+    A 200 response with `ok: true` is a successful refund. Anything else —
+    HTTP error, network failure, or `ok: false` body — is treated as a
+    refund failure; the DB must not be rolled back in that case.
+    """
+    base = f"https://api.telegram.org/bot{bot_token}"
+    payload = {
+        "user_id": tg_user_id,
+        "telegram_payment_charge_id": charge_id,
+    }
+    try:
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            r = await client.post(f"{base}/refundStarPayment", json=payload)
+    except httpx.HTTPError as e:
+        logger.warning("refund.transport_error", error=str(e))
+        return False, f"network error: {e}"
+
+    try:
+        body = r.json()
+    except Exception:  # noqa: BLE001 - we don't know what shape Telegram returned
+        return False, f"HTTP {r.status_code}: non-JSON body"
+
+    if r.status_code != 200 or not body.get("ok"):
+        return False, body.get("description") or f"HTTP {r.status_code}"
+    return True, None
 
 
 async def _handle_successful_payment(*, message: dict[str, Any]) -> BotReply:

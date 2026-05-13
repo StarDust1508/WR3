@@ -184,6 +184,23 @@ def test_build_query_text_truncates_description() -> None:
     long_desc = "x" * 2000
     f = _finding("high", "Title", description=long_desc)
     text = incident_search._build_query_text(f)
-    # title + \n\n + first 600 chars of description
-    assert text.startswith("Title\n\n")
-    assert len(text) <= len("Title\n\n") + 600
+    # severity prefix + title + \n\n + first 600 chars of description
+    assert text.startswith("high-severity smart contract vulnerability. Title\n\n")
+    # Body capped at 600 even when description is huge.
+    body_start = text.index("Title\n\n") + len("Title\n\n")
+    assert len(text[body_start:]) <= 600
+
+
+def test_build_query_text_includes_severity_prefix() -> None:
+    """Empirically, this prefix lifts recall by a few points. Lock it in."""
+    f = _finding("critical", "Reentrancy", description="x")
+    text = incident_search._build_query_text(f)
+    assert text.startswith("critical-severity smart contract vulnerability.")
+
+
+def test_build_query_text_no_severity_omits_prefix() -> None:
+    """Defensive: a finding without severity (shouldn't happen in practice)
+    must not produce a bare 'unknown-severity ...' prefix."""
+    f = {"title": "X", "description": "y", "severity": ""}
+    text = incident_search._build_query_text(f)
+    assert "severity" not in text.lower().split(".")[0]

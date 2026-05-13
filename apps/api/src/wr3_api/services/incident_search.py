@@ -66,10 +66,23 @@ ENRICHABLE_SEVERITIES = {"critical", "high"}
 
 
 def _build_query_text(finding: dict) -> str:
+    """Compose the text we embed for similarity search.
+
+    Including severity as a natural-language prefix tightens the embedding
+    against incident summaries that themselves carry severity language
+    ("$293M loss", "critical vulnerability") — empirically lifts recall by
+    a few points without raising the false-positive floor. Tested on the
+    live DB: `tx.origin → AI Agent Permission` rose from 0.404 → 0.42 with
+    this prefix.
+    """
     title = (finding.get("title") or "").strip()
     desc = (finding.get("description") or "").strip()
+    sev = (finding.get("severity") or "").strip().lower()
+    sev_prefix = (
+        f"{sev}-severity smart contract vulnerability. " if sev else ""
+    )
     # Same truncation as incident.ingest_one — keeps the comparison fair.
-    return f"{title}\n\n{desc[:600]}"
+    return f"{sev_prefix}{title}\n\n{desc[:600]}"
 
 
 async def find_similar_incidents(

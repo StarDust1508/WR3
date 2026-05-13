@@ -122,9 +122,13 @@ async def test_defillama_filters_by_age() -> None:
     assert incidents[0].title == "FreshHack"
     assert incidents[0].loss_usd == 1_000_000
     assert incidents[0].source == "defillama"
-    # Summary should include the structured fields
-    assert "Reentrancy" in incidents[0].summary
+    # Summary uses natural-language prose (technique/classification/chain
+    # embedded into sentences for better embedding similarity vs structured
+    # "Key: value" listings).
+    assert "reentrancy" in incidents[0].summary.lower()
     assert "Ethereum" in incidents[0].summary
+    assert "FreshHack" in incidents[0].summary  # protocol name is part of the prose
+    assert "$1,000,000" in incidents[0].summary  # loss formatted with commas
 
 
 async def test_defillama_falls_back_to_canonical_url_when_source_empty() -> None:

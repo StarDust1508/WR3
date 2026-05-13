@@ -164,14 +164,18 @@ async def get_scan_report(scan_id: UUID) -> dict[str, Any]:
 
 
 @router.get("")
-async def list_recent_scans(
+async def list_my_recent_scans(
     limit: int = 20,
-    mine: bool = False,
-    user: User | None = Depends(current_user_optional),
+    user: User = Depends(current_user_required),
 ) -> list[dict[str, Any]]:
-    """When `mine=true` and authed, scope to caller; otherwise: global recent."""
-    user_id = user.id if (mine and user is not None) else None
-    rows = await repo.recent_scans(limit=min(max(limit, 1), 100), user_id=user_id)
+    """Caller's own recent scans. Authenticated only.
+
+    There is intentionally no public "global recent scans" listing here —
+    that role belongs to /v1/public/scans which respects each user's
+    `anonymous_in_public` toggle. Exposing an un-anonymised listing on the
+    /v1/scan path would silently bypass that opt-out.
+    """
+    rows = await repo.recent_scans(limit=min(max(limit, 1), 100), user_id=user.id)
     return [
         {
             "id": str(s.id),

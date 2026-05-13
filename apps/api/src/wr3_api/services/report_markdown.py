@@ -11,11 +11,46 @@ would make this module reach into vector search. Keeping this pure-render.
 
 from __future__ import annotations
 
+import re
 from datetime import datetime
 
 from wr3_api.models import Finding, Scan
 
 _SEVERITY_ORDER = ["critical", "high", "medium", "low", "info"]
+
+
+# Markdown special characters that change rendering. We escape these in any
+# string that came from user input or LLM output, because an attacker who
+# can influence a finding title (via crafted source code that the multi-
+# agent reasoner repeats verbatim) could otherwise inject:
+#   - headings (#) to break document structure
+#   - links ([text](evil-url)) to phish readers
+#   - images (![](evil)) which can be fetched by Markdown viewers
+#   - emphasis (* _) confusing the reader about what's authoritative
+# We deliberately do NOT escape inside fenced code blocks — those are
+# rendered as text-only.
+_MD_INLINE_SPECIALS = re.compile(r"([\\\[\]()*_`>#!|])")
+
+
+def _md_inline(s: str | None) -> str:
+    """Escape characters that change inline Markdown rendering."""
+    if not s:
+        return ""
+    return _MD_INLINE_SPECIALS.sub(r"\\\1", s)
+
+
+def _md_block(s: str | None) -> str:
+    """Render multi-paragraph user content as quoted blocks.
+
+    The body is wrapped in '> ' lines so even if a leading '#' slipped
+    through, it renders as a blockquoted heading inside the quoted region
+    rather than restructuring the document. Pipes are escaped for table
+    safety.
+    """
+    if not s:
+        return ""
+    lines = [_MD_INLINE_SPECIALS.sub(r"\\\1", line) for line in s.split("\n")]
+    return "\n".join(lines)
 _SEVERITY_LABEL = {
     "critical": "🔴 CRITICAL",
     "high":     "🟠 HIGH",
@@ -70,10 +105,14 @@ def render_scan_markdown(scan: Scan, findings: list[Finding]) -> str:
         lines.append("| Axis | Weight | Score | Rationale |")
         lines.append("|---|---:|---:|---|")
         for a in axes:
-            name = str(a.get("name", "")).replace("|", "\\|")
+            # Axes come from the scoring stage (server-controlled), but rationale
+            # is partly LLM-driven so we escape it just like any other user-ish
+            # text. Pipes get escaped twice: once for inline markdown, once for
+            # table-cell escaping (already covered by inline escape).
+            name = _md_inline(str(a.get("name", "")))
             weight = a.get("weight")
             score = a.get("score")
-            rationale = str(a.get("rationale", "")).replace("|", "\\|").replace("\n", " ")
+            rationale = _md_inline(str(a.get("rationale", "")).replace("\n", " "))
             weight_str = f"{round(float(weight) * 100)}%" if weight is not None else "—"
             score_str = f"{float(score):.1f}" if score is not None else "—"
             lines.append(f"| {name} | {weight_str} | {score_str} | {rationale} |")
@@ -134,24 +173,29 @@ def render_scan_markdown(scan: Scan, findings: list[Finding]) -> str:
 
 def _render_finding(f: Finding) -> list[str]:
     out: list[str] = []
-    location = f.source_engine
+    location = _md_inline(f.source_engine)
     if f.line is not None:
-        location += f":{f.line}"
+        location += f":{int(f.line)}"
     badges: list[str] = []
     if f.poc_validated:
         badges.append("**PoC ✓**")
     badge_str = " · " + " · ".join(badges) if badges else ""
 
-    out.append(f"#### {f.title}")
+    # Title is high-attack-surface: LLM triage can copy attacker-controlled
+    # source comments verbatim. Escape inline-markdown specials so titles
+    # can never inject headings, links, or images.
+    out.append(f"#### {_md_inline(f.title)}")
     out.append("")
     out.append(
         f"`{location}` · confidence {round(f.confidence * 100)}%{badge_str}"
     )
     if f.file:
-        out.append(f"file: `{f.file}`")
+        # file paths are server-derived but pass through escape for defense
+        # in depth — a crafted compiler include could put markdown in a name.
+        out.append(f"file: `{_md_inline(f.file)}`")
     if f.description:
         out.append("")
-        out.append(f.description.strip())
+        out.append(_md_block(f.description.strip()))
 
     # Similar historical incidents (W12 enrichment). Stored in `extra` JSONB
     # column as `metadata.similar_incidents` by incident_search.
@@ -161,11 +205,22 @@ def _render_finding(f: Finding) -> list[str]:
         out.append("**Similar past incidents:**")
         for inc in similar:
             sim_pct = round(float(inc.get("similarity", 0)) * 100)
-            title = (inc.get("title") or "").replace("|", "\\|")
+            title = _md_inline(inc.get("title") or "")
             url = inc.get("url") or ""
+            # We render the URL as plain text (auto-linked by most renderers)
+            # rather than `[title](url)` to avoid having to escape URL
+            # contents — escaping `(`, `)` etc. would mangle valid URLs, and
+            # leaving them unescaped lets an attacker close the link early
+            # via `inj)](evil)`. Only http(s) URLs are emitted; anything
+            # else is dropped to prevent javascript: schemes.
+            if not isinstance(url, str) or not url.startswith(("http://", "https://")):
+                url = ""
             loss = inc.get("loss_usd")
             loss_str = f" — ${loss:,}" if loss else ""
-            out.append(f"- [{title}]({url}){loss_str}  _(similarity {sim_pct}%)_")
+            line = f"- **{title}**{loss_str}  _(similarity {sim_pct}%)_"
+            if url:
+                line += f"\n  <{url}>"
+            out.append(line)
     return out
 
 

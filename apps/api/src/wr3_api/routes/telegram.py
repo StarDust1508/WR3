@@ -47,6 +47,10 @@ async def telegram_webhook(
     if site:
         web_base_url = str(site).rstrip("/")
 
-    reply = await handle_update(update, web_base_url=web_base_url)
+    reply = await handle_update(
+        update,
+        web_base_url=web_base_url,
+        bot_token=settings.telegram_bot_token,
+    )
     await execute_actions(reply.actions, bot_token=settings.telegram_bot_token)
     return {"ok": True}

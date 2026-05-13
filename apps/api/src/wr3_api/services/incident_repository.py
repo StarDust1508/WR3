@@ -110,13 +110,18 @@ async def ingest_one(
                 .limit(DEDUP_SCAN_LIMIT)
             )
             rows = (await session.execute(q)).all()
+            # Walk results in decreasing similarity. We want the BEST
+            # cross-source match above threshold. Same-source matches are
+            # skipped (those would be two posts from the same outlet about
+            # the same event; keep them as separate observations). Stop as
+            # soon as similarity drops below threshold — further rows are
+            # only less similar.
             for row, sim in rows:
-                if sim >= DEDUP_COSINE_THRESHOLD and row.source != scraped.source:
+                if sim < DEDUP_COSINE_THRESHOLD:
+                    break
+                if row.source != scraped.source:
                     canonical = row
                     break
-                # First miss is enough — results are sorted by distance ascending.
-                # Anything past the first row will only be less similar.
-                break
 
         if canonical is not None:
             _merge_into_canonical(canonical, scraped)
