@@ -56,63 +56,82 @@ export function OwnerPanel() {
 
   return (
     <main className="mx-auto max-w-xl px-4 pb-32 pt-4">
-      <Link href="/tg" className="text-xs" style={{ color: "var(--hb-text-dim)" }}>
-        ← назад
+      <Link
+        href="/tg"
+        className="text-xs"
+        style={{ color: "var(--hb-text-dim)", textDecoration: "none" }}
+      >
+        ‹ Назад
       </Link>
 
       <h1
-        className="mt-4 text-sm hb-prompt"
+        className="mt-4 text-lg font-bold"
         style={{ color: "var(--hb-text-hi)" }}
       >
-        настройки владельца<span className="hb-cursor" />
+        Настройки пайплайна
       </h1>
-      <p className="mt-1 text-[11px]" style={{ color: "var(--hb-text-muted)" }}>
-        // переключатели меняют поведение пайплайна при следующем скане
+      <p
+        className="mt-1 text-[12px] leading-relaxed"
+        style={{ color: "var(--hb-text-dim)" }}
+      >
+        Изменения применяются со следующего скана. По умолчанию все стадии включены.
       </p>
 
       {error && (
-        <p className="mt-3 text-xs" style={{ color: "var(--hb-error)" }}>
-          <span>ERR </span>{error}
+        <p
+          className="mt-3 text-xs leading-relaxed"
+          style={{
+            color: "var(--hb-error)",
+            background: "rgba(248,113,113,0.08)",
+            border: "1px solid rgba(248,113,113,0.30)",
+            padding: "8px 10px",
+            borderRadius: 4,
+          }}
+        >
+          {error}
         </p>
       )}
 
       {prefs === null ? (
-        <p className="mt-8 text-center text-xs hb-prompt">
-          загрузка<span className="hb-cursor" />
+        <p
+          className="mt-8 text-center text-xs hb-dots"
+          style={{ color: "var(--hb-text-dim)" }}
+        >
+          Загрузка
         </p>
       ) : (
         <section className="mt-5 flex flex-col gap-2">
           <Toggle
-            label="auto-poc"
-            help="Стадия 4: Foundry PoC retry-loop для HIGH/CRITICAL находок. Расходует LLM-токены + forge."
+            label="Foundry PoC retry-loop"
+            help="Пытается воспроизвести HIGH/CRITICAL находки реальным Foundry-тестом. Расход: 1–3 LLM-вызова на находку + forge run."
             value={prefs.auto_poc}
             saving={savingKey === "auto_poc"}
             onClick={() => toggle("auto_poc")}
           />
           <Toggle
-            label="auto-fuzzing"
-            help="Стадия 5: AI-сгенерированные инварианты через medusa/forge invariant. Самая дорогая стадия."
+            label="AI-fuzzing"
+            help="Генерирует инварианты и прогоняет forge invariant testing. Самая дорогая стадия — отключайте на ранних драфтах."
             value={prefs.auto_fuzzing}
             saving={savingKey === "auto_fuzzing"}
             onClick={() => toggle("auto_fuzzing")}
           />
           <Toggle
-            label="multi-agent triage"
-            help="Стадия 3: 4 параллельных Claude-агента (severity / FP / business / cross-contract). Off = один LLM-вызов."
+            label="Multi-agent триаж"
+            help="4 параллельных Claude-агента (severity / FP / business-logic / cross-contract). Off — один LLM-вызов с худшей точностью, но в 3–4 раза дешевле."
             value={prefs.multi_agent_triage}
             saving={savingKey === "multi_agent_triage"}
             onClick={() => toggle("multi_agent_triage")}
           />
           <Toggle
-            label="мониторинг 24/7"
-            help="Каждые 6 часов проверяем твои контракты через Etherscan: alert при смене source code, владельца или upgrade impl. Без LLM-токенов."
+            label="Мониторинг контрактов"
+            help="Каждые 6 часов проверяем ваши контракты через Etherscan и присылаем алерт при смене source code, владельца или impl. Без LLM-расхода."
             value={prefs.continuous_monitoring}
             saving={savingKey === "continuous_monitoring"}
             onClick={() => toggle("continuous_monitoring")}
           />
           <Toggle
-            label="анонимность в публичном"
-            help="Скрыть твой handle из публичного лидерборда / индекса сканов."
+            label="Анонимность в публичном"
+            help="Скрывает ваш профиль и сканы из публичного лидерборда и общего индекса."
             value={prefs.anonymous_in_public}
             saving={savingKey === "anonymous_in_public"}
             onClick={() => toggle("anonymous_in_public")}
@@ -120,21 +139,46 @@ export function OwnerPanel() {
         </section>
       )}
 
-      <section className="mt-8">
-        <h2 className="tg-hint mb-2">итог конфигурации</h2>
-        <pre
-          className="tg-card text-[11px]"
-          style={{
-            color: "var(--hb-text-dim)",
-            whiteSpace: "pre-wrap",
-            margin: 0,
-          }}
-        >
-{prefs ? renderConfigDump(prefs) : "$ ..."}
-        </pre>
-      </section>
+      {prefs && (
+        <section className="mt-8">
+          <h2 className="tg-hint mb-2">Прогноз для следующего скана</h2>
+          <div
+            className="tg-card text-[11px] leading-relaxed"
+            style={{ color: "var(--hb-text-dim)" }}
+          >
+            <p>
+              <span style={{ color: "var(--hb-text-hi)" }}>~{estimateCost(prefs)}</span>
+              {" "}LLM-токенов на средний контракт ·{" "}
+              <span style={{ color: "var(--hb-text-hi)" }}>~{estimateDuration(prefs)}с</span>
+              {" "}общая длительность.
+            </p>
+            <p className="mt-2" style={{ color: "var(--hb-text-muted)" }}>
+              Оценки приблизительны и зависят от размера контракта.
+            </p>
+          </div>
+        </section>
+      )}
     </main>
   );
+}
+
+function estimateCost(p: Prefs): string {
+  let tokens = 8_000; // baseline + ingestion is roughly constant
+  if (p.multi_agent_triage) tokens += 18_000;
+  else tokens += 5_000;
+  if (p.auto_poc) tokens += 12_000;
+  if (p.auto_fuzzing) tokens += 9_000;
+  if (tokens >= 1000) return `${Math.round(tokens / 1000)}K`;
+  return String(tokens);
+}
+
+function estimateDuration(p: Prefs): number {
+  let secs = 20; // ingestion + static
+  if (p.multi_agent_triage) secs += 15;
+  else secs += 6;
+  if (p.auto_poc) secs += 18;
+  if (p.auto_fuzzing) secs += 30;
+  return Math.round(secs);
 }
 
 function Toggle({
@@ -154,17 +198,23 @@ function Toggle({
     <div className="tg-card flex items-start gap-3">
       <div className="min-w-0 flex-1">
         <p
-          className="text-xs font-bold"
+          className="text-sm font-bold"
           style={{ color: "var(--hb-text-hi)" }}
         >
           {label}
           {saving && (
-            <span className="ml-2 text-[10px]" style={{ color: "var(--hb-text-muted)" }}>
-              сохраняю…
+            <span
+              className="ml-2 text-[10px]"
+              style={{ color: "var(--hb-text-dim)" }}
+            >
+              Сохранение…
             </span>
           )}
         </p>
-        <p className="mt-1 text-[11px]" style={{ color: "var(--hb-text-muted)" }}>
+        <p
+          className="mt-1 text-[11px] leading-relaxed"
+          style={{ color: "var(--hb-text-dim)" }}
+        >
           {help}
         </p>
       </div>
@@ -183,16 +233,3 @@ function Toggle({
   );
 }
 
-function renderConfigDump(p: Prefs): string {
-  const lines = [
-    "$ wr3 config dump",
-    "{",
-    `  "auto_poc":              ${p.auto_poc},`,
-    `  "auto_fuzzing":          ${p.auto_fuzzing},`,
-    `  "multi_agent_triage":    ${p.multi_agent_triage},`,
-    `  "continuous_monitoring": ${p.continuous_monitoring},`,
-    `  "anonymous_in_public":   ${p.anonymous_in_public}`,
-    "}",
-  ];
-  return lines.join("\n");
-}

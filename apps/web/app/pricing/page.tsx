@@ -4,81 +4,80 @@ export const metadata = { title: "wr3 — тарифы" };
 
 const PRIMARY = "#4ade80";
 const HI = "#d4ffd4";
-const MUTED = "#5a8a5a";
-const DIM = "#3a5e3a";
+const MUTED = "#8bb88b";
+const DIM = "#547654";
 const BG = "#0a0e0a";
 
-// Deep-link в Telegram-бот с payload — бот понимает префикс upgrade_<plan>
-// и отвечает блёрбом про конкретный тариф.
+// Deep-link to the Telegram bot — `upgrade_<plan>` payload triggers the
+// Stars invoice flow on /start with that arg.
 function tgUpgradeLink(plan: string): string {
   return `https://t.me/KitronBot?start=upgrade_${plan}`;
 }
 
 export default function PricingPage() {
   return (
-    <TerminalPageShell title="тарифы">
-      <p style={{ color: MUTED, fontSize: 12 }}>
-        // free навсегда. Платные тарифы — оплата через{" "}
-        <span style={{ color: HI }}>Telegram Stars</span> прямо в боте,
-        в один тап. Без карт, без KYC. Нажми <code>$ подписаться</code> ↓
+    <TerminalPageShell title="Тарифы" eyebrow="// pricing">
+      <p style={{ color: MUTED, fontSize: 14, lineHeight: 1.6 }}>
+        Платные тарифы — Telegram Stars прямо в боте. Без карт и KYC. Free
+        навсегда.
       </p>
 
       <div
         style={{
-          marginTop: 24,
+          marginTop: 28,
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+          gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
           gap: 16,
         }}
       >
         <Plan
-          name="free"
+          name="Free"
           price="$0"
           period="навсегда"
           plan="free"
-          ctaLabel="старт"
+          ctaLabel="Начать"
           features={[
-            "1 контракт / 24 ч",
-            "Baseline-статика (EVM + Solana)",
+            "1 контракт в сутки",
+            "Baseline-статика (EVM и Solana)",
             "Single-call LLM-триаж",
             "Публичная оценка 0–100 + светофор",
           ]}
         />
         <Plan
-          name="hobby"
+          name="Hobby"
           price="$29"
           period="/ мес"
           plan="hobby"
-          ctaLabel="подписаться"
+          ctaLabel="Подписаться"
           features={[
-            "10 контрактов / мес",
-            "Multi-agent триаж (4 параллельных Claude)",
-            "Foundry PoC retry-loop (HIGH/CRITICAL)",
+            "10 контрактов в месяц",
+            "Multi-agent триаж (4 Claude-агента)",
+            "Foundry PoC retry-loop для HIGH/CRITICAL",
             "Telegram-уведомления о завершении",
           ]}
         />
         <Plan
-          name="team"
+          name="Team"
           price="$99"
           period="/ мес"
           plan="team"
           highlighted
-          ctaLabel="подписаться"
+          ctaLabel="Подписаться"
           features={[
             "Безлимит контрактов",
             "AI-fuzzing (forge invariant)",
             "Мониторинг каждые 6 часов",
-            "TG-уведомления об изменениях контракта",
+            "Уведомления об изменениях контракта",
           ]}
         />
         <Plan
-          name="pro"
+          name="Pro"
           price="$499"
           period="/ мес"
           plan="pro"
-          ctaLabel="подписаться"
+          ctaLabel="Подписаться"
           features={[
-            "Всё из team",
+            "Всё из Team",
             "Расширенный LLM-триаж (бóльшие контексты)",
             "Кастомные инварианты по запросу",
             "Помощь с Safe Harbor onboarding",
@@ -86,44 +85,58 @@ export default function PricingPage() {
         />
       </div>
 
-      <section style={{ marginTop: 40 }}>
+      <section style={{ marginTop: 48 }}>
         <h2
           style={{
-            color: PRIMARY,
-            fontSize: 13,
+            color: HI,
+            fontSize: 18,
             margin: 0,
             fontWeight: 700,
+            letterSpacing: "-0.01em",
           }}
         >
-          $ оплата
+          Оплата
         </h2>
-        <ul style={{ color: MUTED, fontSize: 12, lineHeight: 1.8, marginTop: 8 }}>
+        <ul
+          style={{
+            color: MUTED,
+            fontSize: 14,
+            lineHeight: 1.7,
+            marginTop: 12,
+            paddingLeft: 20,
+          }}
+        >
           <li>
-            <span style={{ color: HI }}>telegram stars.</span> Единственный
-            способ оплаты сейчас. В один тап прямо в боте, без карт и KYC.
-            Hobby — 2200 ⭐, team — 7500 ⭐, pro — 38000 ⭐. Период 30 дней,
-            продление — новой покупкой.
+            <span style={{ color: HI, fontWeight: 600 }}>Telegram Stars.</span>{" "}
+            Единственный способ оплаты на старте. Hobby — 2200 ⭐, Team — 7500 ⭐,
+            Pro — 38 000 ⭐. Период — 30 дней, продление новой покупкой.
           </li>
           <li>
-            <span style={{ color: HI }}>возврат.</span> Команда{" "}
+            <span style={{ color: HI, fontWeight: 600 }}>Возврат.</span> Команда{" "}
             <code>/refund</code> в @KitronBot — Telegram возвращает Stars на
-            твой баланс мгновенно. Тариф откатывается к free.
+            ваш баланс мгновенно. Тариф откатывается к free.
           </li>
         </ul>
       </section>
 
-      <section style={{ marginTop: 32 }}>
-        <h2 style={{ color: PRIMARY, fontSize: 13, margin: 0, fontWeight: 700 }}>
-          $ enterprise / кастом
-        </h2>
-        <p style={{ color: MUTED, fontSize: 12, marginTop: 8 }}>
-          // нужен per-engagement аудит, white-label или объёмные скидки?
-        </p>
-        <a
-          href="https://t.me/KitronBot?start=upgrade_enterprise"
-          style={cta()}
+      <section style={{ marginTop: 40 }}>
+        <h2
+          style={{
+            color: HI,
+            fontSize: 18,
+            margin: 0,
+            fontWeight: 700,
+            letterSpacing: "-0.01em",
+          }}
         >
-          $ написать в @KitronBot
+          Enterprise и кастом
+        </h2>
+        <p style={{ color: MUTED, fontSize: 14, marginTop: 10, lineHeight: 1.6 }}>
+          Per-engagement аудит, white-label или объёмные скидки — обсудим
+          индивидуально.
+        </p>
+        <a href="https://t.me/KitronBot?start=upgrade_enterprise" style={cta()}>
+          Написать в Telegram
         </a>
       </section>
     </TerminalPageShell>
@@ -132,16 +145,14 @@ export default function PricingPage() {
   function cta(): React.CSSProperties {
     return {
       display: "inline-block",
-      marginTop: 8,
+      marginTop: 14,
       color: PRIMARY,
       border: `1px solid ${PRIMARY}`,
-      padding: "8px 14px",
+      padding: "10px 18px",
       borderRadius: 4,
       textDecoration: "none",
-      fontSize: 11,
+      fontSize: 13,
       fontWeight: 700,
-      letterSpacing: "0.04em",
-      textTransform: "uppercase",
     };
   }
 }
@@ -167,43 +178,74 @@ function Plan({
     <article
       style={{
         border: `1px solid ${highlighted ? PRIMARY : DIM}`,
-        borderRadius: 6,
-        padding: 18,
-        background: highlighted ? "rgba(74, 222, 128, 0.04)" : BG,
+        borderRadius: 8,
+        padding: 22,
+        background: highlighted ? "rgba(74, 222, 128, 0.05)" : BG,
         display: "flex",
         flexDirection: "column",
-        gap: 12,
+        gap: 14,
+        transition: "border-color 150ms ease, transform 150ms ease",
+        position: "relative",
       }}
     >
-      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
-        <span style={{ color: PRIMARY, fontWeight: 700, fontSize: 14 }}>// {name}</span>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
+        <span style={{ color: HI, fontWeight: 700, fontSize: 16 }}>{name}</span>
         {highlighted && (
           <span
             style={{
               color: BG,
               background: PRIMARY,
-              fontSize: 9,
-              padding: "2px 6px",
+              fontSize: 10,
+              padding: "3px 8px",
               borderRadius: 3,
               fontWeight: 700,
-              letterSpacing: "0.06em",
+              letterSpacing: "0.04em",
+              textTransform: "uppercase",
             }}
           >
-            ВЫБОР
+            Рекомендуем
           </span>
         )}
       </div>
 
       <div>
-        <span style={{ color: HI, fontSize: 26, fontWeight: 800, lineHeight: 1 }}>{price}</span>
-        <span style={{ color: MUTED, fontSize: 11, marginLeft: 6 }}>{period}</span>
+        <span
+          style={{
+            color: HI,
+            fontSize: 30,
+            fontWeight: 800,
+            lineHeight: 1,
+            fontVariantNumeric: "tabular-nums",
+          }}
+        >
+          {price}
+        </span>
+        <span style={{ color: MUTED, fontSize: 12, marginLeft: 6 }}>{period}</span>
       </div>
 
-      <ul style={{ listStyle: "none", padding: 0, margin: 0, fontSize: 12, color: MUTED }}>
+      <ul
+        style={{
+          listStyle: "none",
+          padding: 0,
+          margin: 0,
+          fontSize: 13,
+          color: MUTED,
+          lineHeight: 1.55,
+        }}
+      >
         {features.map((f) => (
-          <li key={f} style={{ padding: "3px 0" }}>
-            <span style={{ color: PRIMARY, marginRight: 6 }}>+</span>
-            {f}
+          <li
+            key={f}
+            style={{ padding: "4px 0", display: "flex", gap: 8, alignItems: "start" }}
+          >
+            <span style={{ color: PRIMARY, flexShrink: 0 }}>+</span>
+            <span>{f}</span>
           </li>
         ))}
       </ul>
@@ -218,15 +260,13 @@ function Plan({
           background: highlighted ? PRIMARY : "transparent",
           color: highlighted ? BG : PRIMARY,
           border: `1px solid ${PRIMARY}`,
-          padding: "10px 14px",
+          padding: "11px 16px",
           borderRadius: 4,
-          fontSize: 11,
+          fontSize: 13,
           fontWeight: 700,
-          letterSpacing: "0.04em",
-          textTransform: "uppercase",
         }}
       >
-        $ {ctaLabel}
+        {ctaLabel}
       </a>
     </article>
   );

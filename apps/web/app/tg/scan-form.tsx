@@ -5,11 +5,11 @@ import { useState, useTransition } from "react";
 import { getStoredToken } from "@/lib/tg-session";
 
 const NETWORKS = [
-  { id: "ethereum", label: "eth" },
-  { id: "base", label: "base" },
-  { id: "arbitrum", label: "arb" },
-  { id: "bsc", label: "bsc" },
-  { id: "solana", label: "sol" },
+  { id: "ethereum", label: "Ethereum" },
+  { id: "base", label: "Base" },
+  { id: "arbitrum", label: "Arbitrum" },
+  { id: "bsc", label: "BSC" },
+  { id: "solana", label: "Solana" },
 ] as const;
 
 type NetworkId = (typeof NETWORKS)[number]["id"];
@@ -32,12 +32,11 @@ export function MiniAppScanForm() {
     e.preventDefault();
     setError(null);
     const trimmed = address.trim();
-    if (!trimmed) {
-      setError("вставь адрес контракта");
-      return;
-    }
+    // Empty case is unreachable — button is disabled while field is empty.
     if (!isLikelyAddress(trimmed)) {
-      setError("неверный формат адреса (нужен 0x... или base58)");
+      setError(
+        "Неверный формат адреса. Ожидается 0x… (40 hex) для EVM или base58 для Solana.",
+      );
       return;
     }
     startTransition(async () => {
@@ -51,7 +50,7 @@ export function MiniAppScanForm() {
           body: JSON.stringify({ address: trimmed, network }),
         });
         if (!res.ok) {
-          let detail = `скан не запустился (${res.status})`;
+          let detail = `Не удалось запустить скан (HTTP ${res.status}).`;
           try {
             const body = (await res.json()) as { detail?: string };
             if (body?.detail) detail = body.detail;
@@ -68,28 +67,27 @@ export function MiniAppScanForm() {
 
   return (
     <form onSubmit={submit} className="tg-card flex flex-col gap-3">
-      <h2 className="tg-hint">аудит -i</h2>
+      <h2 className="tg-hint">Новый аудит</h2>
 
-      <div className="flex items-center gap-2">
-        <span style={{ color: "var(--hb-primary)", fontSize: 14 }}>$</span>
-        <input
-          type="text"
-          value={address}
-          onChange={(e) => setAddress(e.target.value)}
-          placeholder="0x... либо base58"
-          className="tg-input"
-          autoComplete="off"
-          autoCapitalize="off"
-          autoCorrect="off"
-          spellCheck={false}
-          inputMode="text"
-          style={{ flex: 1 }}
-        />
-      </div>
+      <input
+        type="text"
+        value={address}
+        onChange={(e) => setAddress(e.target.value)}
+        placeholder="Адрес контракта"
+        aria-label="Адрес контракта"
+        className="tg-input"
+        autoComplete="off"
+        autoCapitalize="off"
+        autoCorrect="off"
+        spellCheck={false}
+        inputMode="text"
+        // 16px font-size prevents iOS Safari from zooming on focus.
+        style={{ fontSize: 16 }}
+      />
 
       <div
         className="flex gap-1.5 overflow-x-auto"
-        style={{ scrollbarWidth: "none", paddingLeft: 18 }}
+        style={{ scrollbarWidth: "none" }}
       >
         {NETWORKS.map((n) => {
           const active = network === n.id;
@@ -102,15 +100,18 @@ export function MiniAppScanForm() {
               style={{
                 background: active ? "var(--hb-primary)" : "transparent",
                 color: active ? "var(--hb-bg)" : "var(--hb-text-dim)",
-                border: active ? "1px solid var(--hb-primary)" : "1px solid var(--hb-border)",
-                padding: "6px 12px",
-                fontSize: 11,
-                minHeight: 30,
+                border: active
+                  ? "1px solid var(--hb-primary)"
+                  : "1px solid var(--hb-border)",
+                padding: "10px 14px",
+                fontSize: 12,
+                minHeight: 44,
                 whiteSpace: "nowrap",
                 cursor: "pointer",
+                fontWeight: active ? 700 : 500,
               }}
             >
-              --{n.label}
+              {n.label}
             </button>
           );
         })}
@@ -122,12 +123,22 @@ export function MiniAppScanForm() {
         className="tg-button tg-button-primary"
         style={{ marginTop: 4 }}
       >
-        {pending ? "сканирую…" : "старт"}
+        {pending ? "Запускаем…" : "Запустить аудит"}
       </button>
 
       {error && (
-        <p role="alert" className="text-xs" style={{ color: "var(--hb-error)" }}>
-          <span style={{ color: "var(--hb-error)" }}>ERR </span>{error}
+        <p
+          role="alert"
+          className="text-[11px] leading-relaxed"
+          style={{
+            color: "var(--hb-error)",
+            background: "rgba(248,113,113,0.08)",
+            border: "1px solid rgba(248,113,113,0.30)",
+            padding: "8px 10px",
+            borderRadius: 4,
+          }}
+        >
+          {error}
         </p>
       )}
     </form>

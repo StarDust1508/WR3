@@ -8,8 +8,12 @@
   --hb-border-hi: #2d5d2d;
 
   --hb-text: #a8e6a8;        /* main green */
-  --hb-text-dim: #5a8a5a;    /* hint */
-  --hb-text-muted: #3a5e3a;  /* very faded */
+  /* dim was #5a8a5a (~3.4:1 vs bg — fails WCAG AA at 11-12px body). Bumped
+   * to #8bb88b for ~5.2:1 on the same surface so hints and "muted" body
+   * copy stay readable on mobile without losing the brand tone. */
+  --hb-text-dim: #8bb88b;    /* hint */
+  /* muted is now only chrome/borders/dates — never body sentences. */
+  --hb-text-muted: #547654;  /* tertiary */
   --hb-text-hi: #d4ffd4;     /* highlighted */
 
   --hb-primary: #4ade80;     /* primary green for accents */
@@ -80,14 +84,19 @@ html, body {
 .tg-card-interactive:hover { border-color: var(--hb-border-hi); }
 .tg-card-interactive:active { background: var(--hb-surface-hi); }
 
-/* === Section headers === */
+/* === Section headers ===
+ * Single uppercase rank; no `//` auto-prefix. Use plain dim instead of
+ * muted so the labels are scannable but don't compete with content.
+ * If you really need a code-comment visual, use the explicit
+ * `.tg-hint-code` class below — it's opt-in.
+ */
 .tg-hint {
-  color: var(--hb-text-muted);
+  color: var(--hb-text-dim);
   font-size: 11px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
-.tg-hint::before { content: "// "; }
+.tg-hint-code::before { content: "// "; color: var(--hb-text-muted); }
 
 /* === Inputs === */
 .tg-input {
@@ -216,20 +225,38 @@ html, body {
   background: var(--hb-primary);
 }
 
-/* === Prompt-style header === */
+/* === Prompt-style header (USE SPARINGLY) ===
+ * Reserved for the single H1 on a page — adds a `$ ` accent. Don't apply
+ * to subsection titles or buttons; it loses meaning when repeated.
+ */
 .hb-prompt {
   font-family: inherit;
   color: var(--hb-text-dim);
 }
 .hb-prompt::before { content: "$ "; color: var(--hb-primary); }
 
-/* === Cursor blink (decorative) === */
-.hb-cursor::after {
-  content: "▮";
+/* === Loading dots ===
+ * Replaces the previous `.hb-cursor` blinking block on loading screens.
+ * Three pulsing dots in the brand green — calmer than a tty caret, doesn't
+ * read as "cursor parked here waiting for you to type something".
+ */
+.hb-dots::after {
+  content: "...";
+  display: inline-block;
   color: var(--hb-primary);
-  animation: hb-blink 1s steps(1) infinite;
-  margin-left: 2px;
+  letter-spacing: 0.2em;
+  animation: hb-dots 1.2s steps(4) infinite;
+  overflow: hidden;
+  vertical-align: bottom;
+  width: 1.2em;
 }
-@keyframes hb-blink {
-  50% { opacity: 0; }
+@keyframes hb-dots {
+  0%   { width: 0; }
+  100% { width: 1.2em; }
+}
+
+/* Legacy cursor — kept only because a few non-critical screens still use it
+ * (we are removing them); will be deleted once usages are gone. */
+.hb-cursor::after {
+  content: "";
 }

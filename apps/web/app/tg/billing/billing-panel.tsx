@@ -66,37 +66,59 @@ export function BillingPanel() {
 
   return (
     <main className="mx-auto max-w-xl px-4 pb-32 pt-4">
-      <Link href="/tg" className="text-xs" style={{ color: "var(--hb-text-dim)" }}>
-        ← назад
+      <Link
+        href="/tg"
+        className="text-xs"
+        style={{ color: "var(--hb-text-dim)", textDecoration: "none" }}
+      >
+        ‹ Назад
       </Link>
 
-      <h1 className="mt-4 text-sm hb-prompt" style={{ color: "var(--hb-text-hi)" }}>
-        тариф<span className="hb-cursor" />
+      <h1
+        className="mt-4 text-lg font-bold"
+        style={{ color: "var(--hb-text-hi)" }}
+      >
+        Тариф
       </h1>
-      <p className="mt-1 text-[11px]" style={{ color: "var(--hb-text-muted)" }}>
-        // оплата через telegram stars — в один тап, без карт
+      <p
+        className="mt-1 text-[12px] leading-relaxed"
+        style={{ color: "var(--hb-text-dim)" }}
+      >
+        Оплата через Telegram Stars прямо в боте. Без карт, без KYC.
       </p>
 
       {error && (
-        <p className="mt-3 text-xs" style={{ color: "var(--hb-error)" }}>
-          <span>ERR </span>{error}
+        <p
+          className="mt-3 text-xs leading-relaxed"
+          style={{
+            color: "var(--hb-error)",
+            background: "rgba(248,113,113,0.08)",
+            border: "1px solid rgba(248,113,113,0.30)",
+            padding: "8px 10px",
+            borderRadius: 4,
+          }}
+        >
+          {error}
         </p>
       )}
 
       {sub === null && !error ? (
-        <p className="mt-8 text-center text-xs hb-prompt">
-          загрузка<span className="hb-cursor" />
+        <p
+          className="mt-8 text-center text-xs hb-dots"
+          style={{ color: "var(--hb-text-dim)" }}
+        >
+          Загрузка
         </p>
       ) : sub ? (
         <CurrentPlan sub={sub} />
       ) : null}
 
       <section className="mt-6">
-        <h2 className="tg-hint mb-2">купить / продлить</h2>
+        <h2 className="tg-hint mb-2">Купить или продлить</h2>
         <div className="flex flex-col gap-2">
           {plans.length === 0 ? (
-            <p className="text-[11px]" style={{ color: "var(--hb-text-muted)" }}>
-              каталог недоступен
+            <p className="text-[11px]" style={{ color: "var(--hb-text-dim)" }}>
+              Каталог временно недоступен.
             </p>
           ) : (
             plans.map((p) => (
@@ -111,8 +133,11 @@ export function BillingPanel() {
         </div>
       </section>
 
-      <p className="mt-8 text-center text-[10px]" style={{ color: "var(--hb-text-muted)" }}>
-        возврат stars — через `/refund` в боте в течение 14 дней
+      <p
+        className="mt-8 text-center text-[10px] leading-relaxed"
+        style={{ color: "var(--hb-text-dim)" }}
+      >
+        Возврат Stars — командой <code>/refund</code> в боте, в течение 14 дней.
       </p>
     </main>
   );
@@ -122,12 +147,18 @@ function CurrentPlan({ sub }: { sub: Subscription }) {
   if (!sub.active) {
     return (
       <div className="tg-card mt-4">
-        <p className="tg-hint mb-1">сейчас</p>
-        <p className="text-sm font-bold" style={{ color: "var(--hb-text-hi)" }}>
-          free <span style={{ color: "var(--hb-text-muted)", fontWeight: 400 }}>· без оплаты</span>
+        <p className="tg-hint mb-1">Текущий тариф</p>
+        <p
+          className="text-base font-bold"
+          style={{ color: "var(--hb-text-hi)" }}
+        >
+          Free
         </p>
-        <p className="mt-2 text-[11px]" style={{ color: "var(--hb-text-muted)" }}>
-          1 контракт / 24 ч. Baseline-статика + single-call триаж.
+        <p
+          className="mt-2 text-[11px] leading-relaxed"
+          style={{ color: "var(--hb-text-dim)" }}
+        >
+          1 контракт в сутки. Baseline-статика + single-call триаж.
         </p>
       </div>
     );
@@ -141,19 +172,28 @@ function CurrentPlan({ sub }: { sub: Subscription }) {
     : "—";
   return (
     <div className="tg-card mt-4">
-      <p className="tg-hint mb-1">сейчас</p>
-      <p className="text-sm font-bold" style={{ color: "var(--hb-text-hi)" }}>
-        {sub.plan}{" "}
-        <span style={{ color: "var(--hb-text-muted)", fontWeight: 400 }}>
-          · до {endStr}
+      <p className="tg-hint mb-1">Текущий тариф</p>
+      <p
+        className="text-base font-bold capitalize"
+        style={{ color: "var(--hb-text-hi)" }}
+      >
+        {sub.plan}
+        <span
+          className="ml-2 text-xs font-normal"
+          style={{ color: "var(--hb-text-dim)" }}
+        >
+          до {endStr}
         </span>
       </p>
-      <p className="mt-2 text-[11px]" style={{ color: "var(--hb-text-muted)" }}>
+      <p
+        className="mt-2 text-[11px] leading-relaxed"
+        style={{ color: "var(--hb-text-dim)" }}
+      >
         {PLAN_BLURB[sub.plan] ?? ""}
       </p>
       {sub.amount && sub.currency === "XTR" && (
-        <p className="mt-1 text-[10px]" style={{ color: "var(--hb-text-dim)" }}>
-          оплачено {sub.amount} ⭐
+        <p className="mt-2 text-[10px]" style={{ color: "var(--hb-text-dim)" }}>
+          Оплачено: {sub.amount} ⭐
         </p>
       )}
       {sub.provider === "telegram_stars" && (
@@ -161,11 +201,12 @@ function CurrentPlan({ sub }: { sub: Subscription }) {
           href="https://t.me/KitronBot?start=refund"
           className="mt-3 inline-block text-[11px]"
           style={{
-            color: "var(--hb-text-muted)",
+            color: "var(--hb-text-dim)",
             textDecoration: "underline",
+            textUnderlineOffset: 3,
           }}
         >
-          вернуть Stars (откроет бота)
+          Вернуть Stars (открыть бота)
         </a>
       )}
     </div>
@@ -181,17 +222,20 @@ function PlanRow({ plan, stars, isCurrent }: { plan: string; stars: number; isCu
       rel="noopener noreferrer"
       className="tg-card-interactive flex items-center gap-3"
     >
-      <span style={{ color: "var(--hb-text-muted)", fontSize: 11 }}>$</span>
       <div className="min-w-0 flex-1">
-        <p className="text-xs font-bold" style={{ color: "var(--hb-text-hi)" }}>
+        <p
+          className="text-sm font-bold capitalize"
+          style={{ color: "var(--hb-text-hi)" }}
+        >
           {plan}
           {isCurrent && (
-            <span className="ml-2 tg-chip sev-chip-good" style={{ textTransform: "lowercase" }}>
-              активен
-            </span>
+            <span className="ml-2 tg-chip sev-chip-good">Активен</span>
           )}
         </p>
-        <p className="text-[11px]" style={{ color: "var(--hb-text-muted)" }}>
+        <p
+          className="mt-0.5 text-[11px] leading-relaxed"
+          style={{ color: "var(--hb-text-dim)" }}
+        >
           {PLAN_BLURB[plan] ?? ""}
         </p>
       </div>

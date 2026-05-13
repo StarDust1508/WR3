@@ -116,9 +116,13 @@ function RecentIncidents() {
   return (
     <section className="mt-6">
       <h2 className="tg-hint mb-2 flex items-center justify-between">
-        <span>свежие эксплойты</span>
-        <Link href="/incidents" className="text-[10px]" style={{ color: "var(--hb-text-muted)" }}>
-          все →
+        <span>Свежие эксплойты</span>
+        <Link
+          href="/incidents"
+          className="text-[10px]"
+          style={{ color: "var(--hb-text-dim)", textDecoration: "none" }}
+        >
+          Все
         </Link>
       </h2>
       <ul className="flex flex-col gap-1.5">
@@ -131,16 +135,28 @@ function RecentIncidents() {
               className="tg-card-interactive flex items-start gap-2"
               style={{ padding: 10 }}
             >
-              <span style={{ color: "var(--hb-text-muted)", fontSize: 10, marginTop: 2 }}>
-                {i.source}
+              <span
+                className="font-bold uppercase"
+                style={{
+                  color: "var(--hb-text-dim)",
+                  fontSize: 9,
+                  marginTop: 3,
+                  letterSpacing: "0.06em",
+                  minWidth: 56,
+                }}
+              >
+                {sourceLabel(i.source)}
               </span>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-xs" style={{ color: "var(--hb-text-hi)" }}>
+                <p
+                  className="truncate text-xs font-medium"
+                  style={{ color: "var(--hb-text-hi)" }}
+                >
                   {i.title}
                 </p>
                 {i.loss_usd != null && (
-                  <p className="text-[10px]" style={{ color: "#f87171" }}>
-                    ${formatIncidentLoss(i.loss_usd)}
+                  <p className="mt-0.5 text-[10px]" style={{ color: "#f87171" }}>
+                    Убыток: ${formatIncidentLoss(i.loss_usd)}
                   </p>
                 )}
               </div>
@@ -150,6 +166,16 @@ function RecentIncidents() {
       </ul>
     </section>
   );
+}
+
+function sourceLabel(source: string): string {
+  return (
+    {
+      rekt: "Rekt",
+      slowmist: "SlowMist",
+      defillama: "DefiLlama",
+    } as Record<string, string>
+  )[source] ?? source;
 }
 
 function formatIncidentLoss(usd: number): string {
@@ -163,8 +189,8 @@ function BootScreen() {
   return (
     <div className="flex min-h-[80vh] flex-col items-center justify-center gap-3 px-6">
       <Logo size={56} />
-      <p className="hb-prompt text-xs">
-        <span>загрузка</span><span className="hb-cursor" />
+      <p className="text-xs hb-dots" style={{ color: "var(--hb-text-dim)" }}>
+        Загрузка
       </p>
     </div>
   );
@@ -174,12 +200,19 @@ function NotInTelegram() {
   return (
     <div className="mx-auto max-w-md px-6 pt-16 text-center">
       <div className="mb-4 inline-block"><Logo size={56} /></div>
-      <p className="hb-prompt text-sm">открой из telegram</p>
-      <p className="mt-2 text-xs" style={{ color: "var(--hb-text-muted)" }}>
-        wr3 — это Telegram Mini App. Открой через @KitronBot для входа.
+      <p className="text-sm font-bold" style={{ color: "var(--hb-text-hi)" }}>
+        Откройте через Telegram
       </p>
-      <Link href="/" className="mt-6 inline-block text-xs underline" style={{ color: "var(--hb-text-dim)" }}>
-        → веб-версия
+      <p className="mt-3 text-xs" style={{ color: "var(--hb-text-dim)" }}>
+        wr3 — Telegram Mini App. Запустите через @KitronBot — там автоматический
+        вход и доступ ко всем функциям.
+      </p>
+      <Link
+        href="/"
+        className="mt-6 inline-block text-xs underline"
+        style={{ color: "var(--hb-text-dim)" }}
+      >
+        К веб-версии
       </Link>
     </div>
   );
@@ -188,18 +221,18 @@ function NotInTelegram() {
 function AuthError({ message }: { message: string | null }) {
   return (
     <div className="mx-auto max-w-md px-6 pt-16 text-center">
-      <p className="hb-prompt text-sm">
-        <span style={{ color: "var(--hb-error)" }}>ERR</span> вход
+      <p className="text-sm font-bold" style={{ color: "var(--hb-error)" }}>
+        Не удалось войти
       </p>
-      <p className="mt-2 text-xs" style={{ color: "var(--hb-text-muted)" }}>
-        {message ?? "Неизвестная ошибка"}
+      <p className="mt-2 text-xs" style={{ color: "var(--hb-text-dim)" }}>
+        {message ?? "Неизвестная ошибка. Попробуйте ещё раз."}
       </p>
       <button
         type="button"
         onClick={() => window.location.reload()}
         className="tg-button mt-6"
       >
-        повторить
+        Повторить
       </button>
     </div>
   );
@@ -217,23 +250,35 @@ function Header({ user }: { user: Wr3User | null }) {
       <div className="min-w-0 flex-1">
         <Link
           href="/tg/billing"
-          className="text-[10px]"
-          style={{ color: "var(--hb-text-muted)", textDecoration: "none" }}
+          className="inline-block text-[10px] font-bold"
+          style={{
+            color: "var(--hb-primary)",
+            background: "rgba(74,222,128,0.10)",
+            border: "1px solid rgba(74,222,128,0.35)",
+            borderRadius: 3,
+            padding: "1px 6px",
+            letterSpacing: "0.05em",
+            textTransform: "uppercase",
+            textDecoration: "none",
+          }}
           title="Управление тарифом"
         >
-          [{tierLabel}]
+          {tierLabel}
         </Link>
-        <p className="truncate text-sm font-bold" style={{ color: "var(--hb-text-hi)" }}>
+        <p
+          className="mt-1 truncate text-sm font-bold"
+          style={{ color: "var(--hb-text-hi)" }}
+        >
           {handle}
         </p>
       </div>
       <Link
         href="/tg/owner"
         className="tg-button tg-button-ghost"
-        style={{ padding: "8px 12px", fontSize: 10 }}
-        title="Настройки владельца — тумблеры пайплайна"
+        style={{ padding: "8px 12px", fontSize: 11 }}
+        title="Настройки пайплайна"
       >
-        cfg
+        Настройки
       </Link>
     </header>
   );
@@ -243,13 +288,16 @@ function RecentScans({ scans }: { scans: ScanRow[] }) {
   if (scans.length === 0) {
     return (
       <section className="mt-5">
-        <h2 className="tg-hint mb-2">мои сканы</h2>
+        <h2 className="tg-hint mb-2">Мои сканы</h2>
         <div className="tg-card text-center" style={{ padding: "24px 12px" }}>
-          <p className="text-xs" style={{ color: "var(--hb-text-muted)" }}>
-            пока пусто
+          <p className="text-xs font-medium" style={{ color: "var(--hb-text-hi)" }}>
+            Сканов пока нет
           </p>
-          <p className="mt-1 text-[11px]" style={{ color: "var(--hb-text-muted)" }}>
-            вставь адрес контракта выше — запустим первый аудит
+          <p
+            className="mt-2 text-[11px]"
+            style={{ color: "var(--hb-text-dim)", lineHeight: 1.5 }}
+          >
+            Введите адрес контракта в форму выше — первый аудит займёт около 60 секунд.
           </p>
         </div>
       </section>
@@ -257,22 +305,29 @@ function RecentScans({ scans }: { scans: ScanRow[] }) {
   }
   return (
     <section className="mt-5">
-      <h2 className="tg-hint mb-2">мои сканы · {scans.length}</h2>
+      <h2 className="tg-hint mb-2">Мои сканы · {scans.length}</h2>
       <ul className="flex flex-col gap-2">
         {scans.map((s) => (
           <li key={s.id}>
-            <Link href={`/tg/scan/${s.id}`} className="tg-card-interactive flex items-center gap-3">
-              <span style={{ color: "var(--hb-text-muted)", fontSize: 11 }}>$</span>
+            <Link
+              href={`/tg/scan/${s.id}`}
+              className="tg-card-interactive flex items-center gap-3"
+            >
               <div className="min-w-0 flex-1">
-                <p className="truncate text-xs" style={{ color: "var(--hb-text-hi)" }}>
+                <p
+                  className="truncate text-xs font-medium"
+                  style={{ color: "var(--hb-text-hi)" }}
+                >
                   {shortAddr(s.address)}
                 </p>
-                <p className="text-[10px]" style={{ color: "var(--hb-text-muted)" }}>
+                <p
+                  className="text-[10px]"
+                  style={{ color: "var(--hb-text-dim)" }}
+                >
                   {s.network} · {stageLabel(s.stage, s.progress)} · {relTime(s.created_at)}
                 </p>
               </div>
               <ScoreBadge score={s.score} tier={s.tier} stage={s.stage} />
-              <span style={{ color: "var(--hb-text-muted)", fontSize: 11 }}>→</span>
             </Link>
           </li>
         ))}
@@ -299,9 +354,9 @@ function Footer() {
   return (
     <p
       className="mt-12 text-center text-[10px] leading-relaxed"
-      style={{ color: "var(--hb-text-muted)" }}
+      style={{ color: "var(--hb-text-dim)" }}
     >
-      ai-аудит · без гарантий · не замена ручному ревью
+      AI-аудит — best-effort. Для критичных контрактов рекомендуем ручное ревью.
     </p>
   );
 }
@@ -311,17 +366,17 @@ function shortAddr(a: string): string {
   return `${a.slice(0, 6)}…${a.slice(-4)}`;
 }
 function stageLabel(stage: string, progress: number): string {
-  if (stage === "done") return "готово";
-  if (stage === "error") return "ОШИБКА";
+  if (stage === "done") return "Готово";
+  if (stage === "error") return "Ошибка";
   const ru: Record<string, string> = {
-    queued: "подготовка",
-    static: "статика",
-    triage: "ai-триаж",
-    poc: "poc",
-    fuzzing: "fuzzing",
-    scoring: "оценка",
+    queued: "Подготовка",
+    static: "Статический анализ",
+    triage: "LLM-триаж",
+    poc: "PoC",
+    fuzzing: "Fuzzing",
+    scoring: "Оценка",
   };
-  return `${ru[stage] ?? stage} ${progress}%`;
+  return `${ru[stage] ?? stage} · ${progress}%`;
 }
 function relTime(iso: string): string {
   const t = new Date(iso).getTime();

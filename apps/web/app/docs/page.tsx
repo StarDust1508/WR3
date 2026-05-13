@@ -4,8 +4,8 @@ import { TerminalPageShell } from "@/components/terminal-page-shell";
 export const metadata = { title: "wr3 — документация" };
 
 const PRIMARY = "#4ade80";
-const MUTED = "#5a8a5a";
-const DIM = "#3a5e3a";
+const MUTED = "#8bb88b";
+const DIM = "#547654";
 const FG = "#a8e6a8";
 const HI = "#d4ffd4";
 
@@ -22,18 +22,19 @@ const codeBlock: React.CSSProperties = {
 };
 
 const h2: React.CSSProperties = {
-  color: PRIMARY,
-  fontSize: 14,
-  marginTop: 32,
-  marginBottom: 8,
+  color: HI,
+  fontSize: 20,
+  marginTop: 40,
+  marginBottom: 12,
   fontWeight: 700,
+  letterSpacing: "-0.01em",
 };
 
 const h3: React.CSSProperties = {
   color: HI,
-  fontSize: 13,
-  marginTop: 20,
-  marginBottom: 6,
+  fontSize: 15,
+  marginTop: 24,
+  marginBottom: 8,
   fontWeight: 700,
 };
 
@@ -52,34 +53,63 @@ const td: React.CSSProperties = {
 
 export default function DocsPage() {
   return (
-    <TerminalPageShell title="документация">
-      <nav style={{ color: MUTED, fontSize: 11, marginBottom: 16 }}>
-        // содержание:{" "}
-        <Toc href="#quickstart">быстрый старт</Toc> ·{" "}
-        <Toc href="#pipeline">пайплайн</Toc> ·{" "}
-        <Toc href="#scoring">оценка</Toc> ·{" "}
-        <Toc href="#owner">настройки владельца</Toc> ·{" "}
-        <Toc href="#api">api</Toc> ·{" "}
-        <Toc href="#faq">faq</Toc>
+    <TerminalPageShell title="Документация" eyebrow="// docs">
+      <nav
+        style={{
+          color: MUTED,
+          fontSize: 13,
+          marginBottom: 24,
+          padding: "12px 16px",
+          background: "#0a0e0a",
+          border: `1px solid ${DIM}`,
+          borderRadius: 6,
+          lineHeight: 1.8,
+        }}
+      >
+        Содержание:{" "}
+        <Toc href="#quickstart">Быстрый старт</Toc> ·{" "}
+        <Toc href="#pipeline">Пайплайн</Toc> ·{" "}
+        <Toc href="#scoring">Оценка</Toc> ·{" "}
+        <Toc href="#owner">Настройки пайплайна</Toc> ·{" "}
+        <Toc href="#api">API</Toc> ·{" "}
+        <Toc href="#faq">FAQ</Toc>
       </nav>
 
-      <h2 id="quickstart" style={h2}>$ быстрый старт</h2>
+      <h2 id="quickstart" style={h2}>Быстрый старт</h2>
       <p>Самый короткий путь до рабочего аудита:</p>
-      <ol style={{ paddingLeft: 20, color: FG }}>
+      <ol style={{ paddingLeft: 24, color: FG, lineHeight: 1.8 }}>
         <li>
-          Открой <a href="https://t.me/KitronBot" style={{ color: PRIMARY }}>@KitronBot</a> в Telegram.
+          Откройте{" "}
+          <a href="https://t.me/KitronBot" style={{ color: PRIMARY, textDecoration: "underline" }}>
+            @KitronBot
+          </a>{" "}
+          в Telegram.
         </li>
-        <li>Нажми <code>Start</code>, затем кнопку меню <code>wr3 audit</code>.</li>
-        <li>Вставь адрес контракта (0x… для EVM, base58 для Solana).</li>
-        <li>Выбери сеть. Нажми <code>старт</code>.</li>
-        <li>Пайплайн отработает за ~30–60 сек. Получишь оценку и список находок.</li>
+        <li>
+          Нажмите <code>Start</code>, затем меню <code>wr3 audit</code>.
+        </li>
+        <li>Введите адрес контракта (0x… для EVM, base58 для Solana).</li>
+        <li>
+          Выберите сеть, нажмите <code>Запустить аудит</code>.
+        </li>
+        <li>Пайплайн отработает за 30–60 секунд — получите оценку и список находок.</li>
       </ol>
-      <p style={{ color: MUTED, fontSize: 11 }}>
-        // нужен контракт для теста? Возьми USDC:{" "}
+      <aside
+        style={{
+          color: MUTED,
+          fontSize: 13,
+          marginTop: 16,
+          padding: "10px 14px",
+          background: "#0a0e0a",
+          border: `1px solid ${DIM}`,
+          borderRadius: 4,
+        }}
+      >
+        Пример для проверки: USDC —{" "}
         <code>0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48</code> в сети ethereum.
-      </p>
+      </aside>
 
-      <h2 id="pipeline" style={h2}>$ пайплайн — 7 стадий</h2>
+      <h2 id="pipeline" style={h2}>Пайплайн — 7 стадий</h2>
       <p>
         Каждый скан идёт через один и тот же DAG. Стадии можно отключать
         per-user через <Link href="#owner" style={{ color: PRIMARY }}>настройки владельца</Link>.
@@ -126,31 +156,33 @@ export default function DocsPage() {
         </table>
       </div>
 
-      <h2 id="scoring" style={h2}>$ оценка — 5 осей</h2>
+      <h2 id="scoring" style={h2}>Оценка — 5 осей</h2>
       <p>
-        Финальный score 0–100 — взвешенное среднее по 5 осям. Веса{" "}
-        <b style={{ color: HI }}>публичные</b>:
+        Финальный score 0–100 — взвешенное среднее по 5 осям с{" "}
+        <b style={{ color: HI }}>публичными весами</b>. В MVP активны две оси
+        (Code Security и Tokenomics через GoPlus), остальные помечены как
+        pending — они не дают накрутки до интеграции реальных сигналов.
       </p>
       <div style={{ overflowX: "auto" }}>
         <table style={tableBase}>
           <thead>
-            <tr style={{ color: MUTED, fontSize: 10 }}>
-              <th style={{ ...td, textAlign: "left" }}>ОСЬ</th>
-              <th style={{ ...td, textAlign: "right" }}>ВЕС</th>
-              <th style={{ ...td, textAlign: "left" }}>СИГНАЛ</th>
+            <tr style={{ color: MUTED, fontSize: 11 }}>
+              <th style={{ ...td, textAlign: "left" }}>Ось</th>
+              <th style={{ ...td, textAlign: "right" }}>Вес</th>
+              <th style={{ ...td, textAlign: "left" }}>Сигнал</th>
             </tr>
           </thead>
           <tbody style={{ color: FG }}>
-            <tr><td style={td}>безопасность кода</td><td style={{ ...td, textAlign: "right" }}>35%</td><td style={td}>находки (штраф по severity)</td></tr>
-            <tr><td style={td}>токеномика / централизация</td><td style={{ ...td, textAlign: "right" }}>20%</td><td style={td}>привилегии owner, mint authority, upgradeability</td></tr>
-            <tr><td style={td}>liquidity risk</td><td style={{ ...td, textAlign: "right" }}>15%</td><td style={td}>% залоченного LP, концентрация у крупных холдеров</td></tr>
-            <tr><td style={td}>команда / KYC</td><td style={{ ...td, textAlign: "right" }}>15%</td><td style={td}>verified на эксплорере, публичная команда, KYC-бэдж</td></tr>
-            <tr><td style={td}>on-chain поведение</td><td style={{ ...td, textAlign: "right" }}>15%</td><td style={td}>тренд TVL, swap-объём, anomaly-score, возраст</td></tr>
+            <tr><td style={td}>Code Security</td><td style={{ ...td, textAlign: "right" }}>35%</td><td style={td}>находки (штраф по severity)</td></tr>
+            <tr><td style={td}>Tokenomics / Centralization</td><td style={{ ...td, textAlign: "right" }}>20%</td><td style={td}>GoPlus: owner-привилегии, mint authority, proxy</td></tr>
+            <tr><td style={td}>Liquidity Risk</td><td style={{ ...td, textAlign: "right" }}>15%</td><td style={td}>LP-lock %, top-holder concentration <i style={{ color: MUTED }}>(pending)</i></td></tr>
+            <tr><td style={td}>Team / KYC</td><td style={{ ...td, textAlign: "right" }}>15%</td><td style={td}>MetaMask phishing list, GitHub-сигналы <i style={{ color: MUTED }}>(pending)</i></td></tr>
+            <tr><td style={td}>On-chain Behavior</td><td style={{ ...td, textAlign: "right" }}>15%</td><td style={td}>TVL trend, volume, age, anomaly score <i style={{ color: MUTED }}>(pending)</i></td></tr>
           </tbody>
         </table>
       </div>
 
-      <h3 style={h3}>severity → штраф к оценке</h3>
+      <h3 style={h3}>Severity → штраф к оценке</h3>
       <pre style={codeBlock}>
 {`critical    -40   любая critical-находка форсит tier=red
 high        -20   потолок tier = yellow
@@ -159,38 +191,38 @@ low          -2
 info          0`}
       </pre>
 
-      <h3 style={h3}>tier mapping</h3>
+      <h3 style={h3}>Tier mapping</h3>
       <pre style={codeBlock}>
-{`0  ≤ score < 40    red       высокий риск     есть critical/high или много medium
-40 ≤ score < 70    yellow    осторожно        medium-severity находки
-70 ≤ score < 90    green     приемлемо        только минорные замечания
-90 ≤ score ≤ 100   blue      отлично          значимых security-находок нет`}
+{`0  ≤ score < 40    red       Высокий риск     critical/high или много medium
+40 ≤ score < 70    yellow    Осторожно        medium-severity находки
+70 ≤ score < 90    green     Приемлемо        только минорные замечания
+90 ≤ score ≤ 100   blue      Отлично          значимых находок нет`}
       </pre>
 
-      <h2 id="owner" style={h2}>$ настройки владельца</h2>
+      <h2 id="owner" style={h2}>Настройки пайплайна</h2>
       <p>
-        Открой Mini App, нажми <code>cfg</code> в шапке. Каждый тумблер реально
-        меняет поведение пайплайна при следующем скане:
+        Откройте Mini App и нажмите <code>Настройки</code> в шапке. Каждый
+        переключатель реально меняет поведение пайплайна при следующем скане:
       </p>
       <div style={{ overflowX: "auto" }}>
         <table style={tableBase}>
           <thead>
-            <tr style={{ color: MUTED, fontSize: 10 }}>
-              <th style={{ ...td, textAlign: "left" }}>ТУМБЛЕР</th>
-              <th style={{ ...td, textAlign: "left" }}>ЭФФЕКТ</th>
+            <tr style={{ color: MUTED, fontSize: 11 }}>
+              <th style={{ ...td, textAlign: "left" }}>Параметр</th>
+              <th style={{ ...td, textAlign: "left" }}>Эффект</th>
             </tr>
           </thead>
           <tbody style={{ color: FG }}>
-            <tr><td style={td}><code>auto_poc</code></td><td style={td}>Стадия 4 (Foundry PoC retry-loop). По умолчанию: вкл.</td></tr>
-            <tr><td style={td}><code>auto_fuzzing</code></td><td style={td}>Стадия 5 (medusa / forge invariant). По умолчанию: вкл.</td></tr>
-            <tr><td style={td}><code>multi_agent_triage</code></td><td style={td}>4 параллельных Claude-агента. Off = один LLM-вызов. По умолчанию: вкл.</td></tr>
-            <tr><td style={td}><code>continuous_monitoring</code></td><td style={td}>Каждые 6 ч проверяем твои контракты через Etherscan — алерт при смене source / владельца / impl. Без LLM-расхода.</td></tr>
-            <tr><td style={td}><code>anonymous_in_public</code></td><td style={td}>Скрыть себя из /leaderboard. По умолчанию: выкл.</td></tr>
+            <tr><td style={td}><code>auto_poc</code></td><td style={td}>Foundry PoC retry-loop для HIGH/CRITICAL находок. По умолчанию: включено.</td></tr>
+            <tr><td style={td}><code>auto_fuzzing</code></td><td style={td}>AI-fuzzing через forge invariant testing. По умолчанию: включено.</td></tr>
+            <tr><td style={td}><code>multi_agent_triage</code></td><td style={td}>4 параллельных Claude-агента вместо одного. По умолчанию: включено.</td></tr>
+            <tr><td style={td}><code>continuous_monitoring</code></td><td style={td}>Каждые 6 ч проверяем ваши контракты через Etherscan — алерт при смене source / владельца / impl. Без LLM-расхода.</td></tr>
+            <tr><td style={td}><code>anonymous_in_public</code></td><td style={td}>Скрыть себя из публичного лидерборда. По умолчанию: выключено.</td></tr>
           </tbody>
         </table>
       </div>
 
-      <h2 id="api" style={h2}>$ api</h2>
+      <h2 id="api" style={h2}>API</h2>
       <p>Публичные эндпоинты (без авторизации):</p>
       <pre style={codeBlock}>
 {`GET  /v1/public/scans?limit=50&min_score=0
@@ -212,45 +244,50 @@ GET    /v1/auth/preferences          настройки владельца
 PATCH  /v1/auth/preferences          частичное обновление`}
       </pre>
 
-      <h2 id="faq" style={h2}>$ faq</h2>
+      <h2 id="faq" style={h2}>FAQ</h2>
 
       <h3 style={h3}>wr3 умеет аудитить Solana?</h3>
       <p>
-        Да. У нас собственный анализатор на базе{" "}
-        <a href="https://github.com/coral-xyz/sealevel-attacks" style={{ color: PRIMARY }}>
+        Да. Собственный анализатор на базе{" "}
+        <a href="https://github.com/coral-xyz/sealevel-attacks" style={{ color: PRIMARY, textDecoration: "underline" }}>
           Sealevel-attacks
         </a>{" "}
-        для Anchor-программ — покрываем 11 из 13 категорий (signer auth, arbitrary CPI,
-        PDA bump из caller input и др.).
+        для Anchor-программ — покрываем 11 из 13 категорий (signer auth, arbitrary
+        CPI, PDA bump из caller input и др.).
       </p>
 
-      <h3 style={h3}>зачем оценка, а не просто список находок?</h3>
+      <h3 style={h3}>Зачем оценка, а не просто список находок?</h3>
       <p>
-        Одно число даёт не-эксперту принять решение go / no-go за 2 секунды.
-        Разбивка в одном тапе. Существующие scoring-инструменты (CertiK Skynet) —{" "}
-        <b style={{ color: HI }}>pay-to-play</b> со скрытыми весами. wr3 веса публикует.
+        Одно число даёт не-эксперту принять решение go / no-go за пару секунд.
+        Разбивка раскрывается в одном клике. Существующие scoring-инструменты
+        (CertiK Skynet) — <b style={{ color: HI }}>pay-to-play</b> со скрытыми
+        весами; wr3 веса публикует.
       </p>
 
-      <h3 style={h3}>можно сканировать контракт без verified-source на Etherscan?</h3>
+      <h3 style={h3}>Можно сканировать контракт без verified-source на Etherscan?</h3>
       <p>
-        Вставь исходный код прямо в форму скана. Пайплайн работает одинаково
-        вне зависимости от того, пришёл source с эксплорера или от тебя.
+        Да — вставьте исходный код прямо в форму скана. Пайплайн работает
+        одинаково независимо от того, пришёл source с эксплорера или от вас.
       </p>
 
-      <h3 style={h3}>как экспортировать находки?</h3>
+      <h3 style={h3}>Как экспортировать находки?</h3>
       <p>
-        JSON: <code>GET /v1/scan/{`{id}`}</code> со своим токеном.
-        Markdown (для GitHub-issue или клиента): <code>GET /v1/scan/{`{id}`}/report.md</code> —
-        публичный, без авторизации, скачивается как файл.
+        JSON: <code>GET /v1/scan/{`{id}`}</code> с вашим токеном. Markdown (для
+        GitHub-issue или клиента): <code>GET /v1/scan/{`{id}`}/report.md</code>{" "}
+        — публичный, без авторизации, скачивается как файл.
       </p>
 
-      <h3 style={h3}>как удалить свои данные?</h3>
+      <h3 style={h3}>Как удалить свои данные?</h3>
       <p>
-        Напиши <a href="https://t.me/KitronBot" style={{ color: PRIMARY }}>@KitronBot</a>{" "}
-        слово <code>delete</code>. Удалим аккаунт и все привязанные сканы в течение 72 часов.
+        Напишите{" "}
+        <a href="https://t.me/KitronBot" style={{ color: PRIMARY, textDecoration: "underline" }}>
+          @KitronBot
+        </a>{" "}
+        слово <code>delete</code> — удалим аккаунт и все связанные сканы в
+        течение 72 часов.
       </p>
 
-      <h2 style={h2}>$ ссылки</h2>
+      <h2 style={h2}>Ссылки</h2>
       <ul style={{ color: FG }}>
         <li><a href="https://github.com/StarDust1508/WR3" style={{ color: PRIMARY }}>GitHub-репозиторий</a></li>
         <li><a href="https://github.com/coral-xyz/sealevel-attacks" style={{ color: PRIMARY }}>Sealevel-attacks taxonomy</a></li>

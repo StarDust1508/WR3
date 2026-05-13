@@ -4,8 +4,8 @@ export const metadata = { title: "wr3 — инциденты" };
 export const dynamic = "force-dynamic";
 
 const HI = "#d4ffd4";
-const MUTED = "#5a8a5a";
-const DIM = "#3a5e3a";
+const MUTED = "#8bb88b";
+const DIM = "#547654";
 const FG = "#a8e6a8";
 const ERR = "#f87171";
 
@@ -46,24 +46,35 @@ export default async function IncidentsPage() {
   const data = await fetchIncidents();
 
   return (
-    <TerminalPageShell title="инциденты">
-      <p style={{ color: MUTED, fontSize: 12 }}>
-        // живой фид DeFi-эксплойтов — Rekt News + SlowMist + DefiLlama Hacks.
-        Дедуп через embedding-сходство на api.navy (text-embedding-3-small).
+    <TerminalPageShell title="Инциденты" eyebrow="// feed">
+      <p style={{ color: MUTED, fontSize: 14, lineHeight: 1.6 }}>
+        Лента эксплойтов из Rekt News, SlowMist и DefiLlama. Дубликаты схлопываем
+        по семантическому сходству, поэтому один и тот же хак из разных источников
+        не дублируется.
       </p>
 
       {data === null ? (
-        <p style={{ color: ERR, fontSize: 12, marginTop: 24 }}>
-          ERR не удалось загрузить ленту инцидентов
+        <p
+          style={{
+            color: ERR,
+            fontSize: 13,
+            marginTop: 24,
+            padding: "10px 14px",
+            background: "rgba(248,113,113,0.08)",
+            border: "1px solid rgba(248,113,113,0.30)",
+            borderRadius: 4,
+          }}
+        >
+          Лента инцидентов сейчас недоступна. Попробуйте обновить через минуту.
         </p>
       ) : data.incidents.length === 0 ? (
-        <p style={{ color: MUTED, fontSize: 12, marginTop: 24 }}>
-          пока пусто — ждём первый refresh пайплайна
+        <p style={{ color: MUTED, fontSize: 13, marginTop: 24 }}>
+          Лента пуста. Следующее обновление — в течение 6 часов.
         </p>
       ) : (
         <>
-          <p style={{ color: DIM, fontSize: 11, marginTop: 8 }}>
-            // всего записей в БД: {data.total} · показано {data.incidents.length}
+          <p style={{ color: DIM, fontSize: 12, marginTop: 8 }}>
+            Всего в базе: {data.total} · показано {data.incidents.length}
           </p>
           <ul
             style={{

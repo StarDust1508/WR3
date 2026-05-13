@@ -81,8 +81,17 @@ export function ScanDetailMini({ scanId }: { scanId: string }) {
     return (
       <main className="mx-auto max-w-xl px-4 pb-12 pt-4">
         <BackLink />
-        <p className="mt-6 text-sm" style={{ color: "var(--hb-error)" }}>
-          <span>ERR </span>{error}
+        <p
+          className="mt-6 text-sm leading-relaxed"
+          style={{
+            color: "var(--hb-error)",
+            background: "rgba(248,113,113,0.08)",
+            border: "1px solid rgba(248,113,113,0.30)",
+            padding: "10px 12px",
+            borderRadius: 4,
+          }}
+        >
+          {error}
         </p>
       </main>
     );
@@ -91,8 +100,11 @@ export function ScanDetailMini({ scanId }: { scanId: string }) {
     return (
       <main className="mx-auto max-w-xl px-4 pb-12 pt-4">
         <BackLink />
-        <p className="mt-12 text-center text-xs hb-prompt">
-          загрузка<span className="hb-cursor" />
+        <p
+          className="mt-12 text-center text-xs hb-dots"
+          style={{ color: "var(--hb-text-dim)" }}
+        >
+          Загрузка
         </p>
       </main>
     );
@@ -106,11 +118,14 @@ export function ScanDetailMini({ scanId }: { scanId: string }) {
       <BackLink />
 
       <header className="mb-4 mt-3">
-        <p className="text-[10px]" style={{ color: "var(--hb-text-muted)" }}>
-          // цель · {scan.network}
+        <p
+          className="text-[10px] uppercase"
+          style={{ color: "var(--hb-text-dim)", letterSpacing: "0.08em" }}
+        >
+          Контракт · {scan.network}
         </p>
         <p
-          className="break-all text-xs"
+          className="mt-1 break-all text-xs font-medium"
           style={{ color: "var(--hb-text-hi)" }}
         >
           {scan.address}
@@ -126,28 +141,35 @@ export function ScanDetailMini({ scanId }: { scanId: string }) {
       )}
 
       {scan.stage === "done" && (
-        <p className="mt-3 text-center text-[10px]" style={{ color: "var(--hb-text-muted)" }}>
+        <p className="mt-3 text-center text-[11px]">
           <a
             href={`/api/v1/scan/${scan.id}/report.md`}
-            style={{ color: "var(--hb-primary)", textDecoration: "none" }}
+            style={{
+              color: "var(--hb-primary)",
+              textDecoration: "underline",
+              textUnderlineOffset: 3,
+            }}
             download
           >
-            ↓ скачать .md
+            Скачать отчёт в Markdown
           </a>
         </p>
       )}
 
       {active.length > 0 && (
         <section className="mt-5">
-          <h2 className="tg-hint mb-2">находки · {active.length}</h2>
+          <h2 className="tg-hint mb-2">Находки · {active.length}</h2>
           <ul className="flex flex-col gap-1.5">
             {active.map((f) => <FindingRow key={f.id} finding={f} />)}
           </ul>
         </section>
       )}
 
-      <p className="mt-10 text-center text-[10px]" style={{ color: "var(--hb-text-muted)" }}>
-        ai-аудит · без гарантий · не замена ручному ревью
+      <p
+        className="mt-10 text-center text-[10px] leading-relaxed"
+        style={{ color: "var(--hb-text-dim)" }}
+      >
+        AI-аудит — best-effort. Для критичных контрактов рекомендуем ручное ревью.
       </p>
     </main>
   );
@@ -155,46 +177,71 @@ export function ScanDetailMini({ scanId }: { scanId: string }) {
 
 function SolanaMetaCard({ meta }: { meta: ChainMetadata }) {
   return (
-    <div className="tg-card mt-3" style={{ padding: 12 }}>
-      <p className="tg-hint mb-1">on-chain метаданные</p>
-      <div className="text-[11px]" style={{ color: "var(--hb-text-dim)", lineHeight: 1.6 }}>
-        <div>
-          <span style={{ color: "var(--hb-text-muted)" }}>исполняемая: </span>
-          <span style={{ color: "var(--hb-text-hi)" }}>{meta.executable ? "да" : "нет"}</span>
-        </div>
-        <div>
-          <span style={{ color: "var(--hb-text-muted)" }}>обновляемая: </span>
+    <div className="tg-card mt-3" style={{ padding: 14 }}>
+      <p className="tg-hint mb-2">On-chain метаданные</p>
+      <dl
+        className="grid gap-y-1.5 text-[11px]"
+        style={{
+          gridTemplateColumns: "max-content 1fr",
+          columnGap: 12,
+          color: "var(--hb-text-dim)",
+        }}
+      >
+        <dt>Исполняемая</dt>
+        <dd style={{ color: "var(--hb-text-hi)" }}>{meta.executable ? "Да" : "Нет"}</dd>
+
+        <dt>Обновляемая</dt>
+        <dd>
           {meta.upgradeable ? (
-            <span style={{ color: "var(--hb-warn, #f59e0b)" }}>да ⚠ риск централизации</span>
-          ) : (
-            <span style={{ color: "var(--hb-text-hi)" }}>нет — байткод заморожен</span>
-          )}
-        </div>
-        {meta.upgradeable && meta.upgrade_authority && (
-          <div className="mt-1">
-            <span style={{ color: "var(--hb-text-muted)" }}>upgrade authority: </span>
-            <span className="break-all" style={{ color: "var(--hb-text-hi)", fontFamily: "monospace", fontSize: 10 }}>
-              {meta.upgrade_authority}
+            <span style={{ color: "var(--hb-warn, #f59e0b)", fontWeight: 600 }}>
+              Да — риск централизации
             </span>
-          </div>
+          ) : (
+            <span style={{ color: "var(--hb-text-hi)" }}>Нет — байткод заморожен</span>
+          )}
+        </dd>
+
+        {meta.upgradeable && meta.upgrade_authority && (
+          <>
+            <dt>Upgrade authority</dt>
+            <dd
+              className="break-all"
+              style={{
+                color: "var(--hb-text-hi)",
+                fontFamily: "monospace",
+                fontSize: 10,
+              }}
+            >
+              {meta.upgrade_authority}
+            </dd>
+          </>
         )}
         {meta.upgradeable && meta.last_upgrade_slot != null && (
-          <div>
-            <span style={{ color: "var(--hb-text-muted)" }}>last upgrade slot: </span>
-            <span style={{ color: "var(--hb-text-hi)", fontFamily: "monospace" }}>
+          <>
+            <dt>Last upgrade slot</dt>
+            <dd
+              style={{ color: "var(--hb-text-hi)", fontFamily: "monospace" }}
+            >
               {meta.last_upgrade_slot.toLocaleString("ru-RU")}
-            </span>
-          </div>
+            </dd>
+          </>
         )}
-      </div>
+      </dl>
     </div>
   );
 }
 
 function BackLink() {
   return (
-    <Link href="/tg" className="text-xs" style={{ color: "var(--hb-text-dim)" }}>
-      ← назад
+    <Link
+      href="/tg"
+      className="text-xs"
+      style={{
+        color: "var(--hb-text-dim)",
+        textDecoration: "none",
+      }}
+    >
+      ‹ Назад
     </Link>
   );
 }
@@ -202,12 +249,15 @@ function BackLink() {
 function ProgressCard({ stage, progress }: { stage: string; progress: number }) {
   return (
     <div className="tg-card">
-      <p className="tg-hint mb-2">выполняется</p>
-      <p className="mb-2 text-xs" style={{ color: "var(--hb-text-hi)" }}>
-        <span className="hb-cursor">{stageLabel(stage)}</span>
-        <span className="ml-2" style={{ color: "var(--hb-text-muted)" }}>{progress}%</span>
+      <p className="tg-hint mb-2">Выполняется</p>
+      <p className="mb-2 flex items-baseline justify-between text-xs">
+        <span style={{ color: "var(--hb-text-hi)" }}>{stageLabel(stage)}</span>
+        <span style={{ color: "var(--hb-text-dim)" }}>{progress}%</span>
       </p>
-      <div className="h-1 w-full overflow-hidden" style={{ background: "var(--hb-bg)", border: "1px solid var(--hb-border)" }}>
+      <div
+        className="h-1 w-full overflow-hidden"
+        style={{ background: "var(--hb-bg)", border: "1px solid var(--hb-border)" }}
+      >
         <div
           style={{
             width: `${Math.min(100, Math.max(0, progress))}%`,
@@ -221,24 +271,62 @@ function ProgressCard({ stage, progress }: { stage: string; progress: number }) 
   );
 }
 
-function ScoreCard({ score, tier, counts, duration }: { score: number; tier: string; counts: SeverityCounts; duration: number | null }) {
+function ScoreCard({
+  score,
+  tier,
+  counts,
+  duration,
+}: {
+  score: number;
+  tier: string;
+  counts: SeverityCounts;
+  duration: number | null;
+}) {
   const tierClass = `tier-${tier}`;
   const verdict = verdictFor(tier);
   return (
     <div className="tg-card flex flex-col gap-3">
       <div className="flex items-baseline gap-3">
-        <span className={`${tierClass}`} style={{ fontSize: 36, fontWeight: 800, lineHeight: 1 }}>
+        <span
+          className={tierClass}
+          style={{ fontSize: 44, fontWeight: 800, lineHeight: 1, fontVariantNumeric: "tabular-nums" }}
+        >
           {Math.round(score)}
         </span>
-        <span style={{ color: "var(--hb-text-muted)", fontSize: 11 }}>/100</span>
-        <span className="ml-auto text-[10px]" style={{ color: "var(--hb-text-muted)" }}>
-          {duration != null && `${duration.toFixed(1)}s`}
+        <span style={{ color: "var(--hb-text-dim)", fontSize: 12 }}>/ 100</span>
+        <span
+          className="ml-auto text-[10px]"
+          style={{ color: "var(--hb-text-dim)" }}
+        >
+          {duration != null && `${duration.toFixed(1)} с`}
         </span>
       </div>
-      <p className="text-xs" style={{ color: "var(--hb-text-hi)" }}>
-        <span className={tierClass}>[{tier}]</span> {verdict.label}
+      {/* Score bar — turns the number into context. */}
+      <div
+        aria-hidden="true"
+        style={{
+          height: 4,
+          background: "var(--hb-bg)",
+          border: "1px solid var(--hb-border)",
+          borderRadius: 2,
+          overflow: "hidden",
+        }}
+      >
+        <div
+          style={{
+            width: `${Math.min(100, Math.max(0, score))}%`,
+            height: "100%",
+            background: "currentColor",
+          }}
+          className={tierClass}
+        />
+      </div>
+      <p className="text-xs font-semibold" style={{ color: "var(--hb-text-hi)" }}>
+        {verdict.label}
       </p>
-      <p className="text-[11px]" style={{ color: "var(--hb-text-dim)" }}>{verdict.body}</p>
+      <p className="text-[11px] leading-relaxed" style={{ color: "var(--hb-text-dim)" }}>
+        {verdict.body}
+      </p>
       <SeveritySummary counts={counts} />
     </div>
   );
@@ -246,15 +334,22 @@ function ScoreCard({ score, tier, counts, duration }: { score: number; tier: str
 
 function SeveritySummary({ counts }: { counts: SeverityCounts }) {
   const order: Array<{ k: keyof SeverityCounts; cls: string; label: string }> = [
-    { k: "critical", cls: "sev-chip-critical", label: "crit" },
-    { k: "high",     cls: "sev-chip-high",     label: "high" },
-    { k: "medium",   cls: "sev-chip-medium",   label: "med" },
-    { k: "low",      cls: "sev-chip-low",      label: "low" },
-    { k: "info",     cls: "sev-chip-info",     label: "info" },
+    { k: "critical", cls: "sev-chip-critical", label: "Critical" },
+    { k: "high",     cls: "sev-chip-high",     label: "High" },
+    { k: "medium",   cls: "sev-chip-medium",   label: "Medium" },
+    { k: "low",      cls: "sev-chip-low",      label: "Low" },
+    { k: "info",     cls: "sev-chip-info",     label: "Info" },
   ];
   const visible = order.filter((o) => counts[o.k] > 0);
   if (visible.length === 0) {
-    return <p className="text-xs" style={{ color: "var(--sev-good)" }}>✓ чисто</p>;
+    return (
+      <p
+        className="text-xs font-medium"
+        style={{ color: "var(--sev-good, #4ade80)" }}
+      >
+        Уязвимостей не найдено
+      </p>
+    );
   }
   return (
     <div className="flex flex-wrap gap-1.5">
@@ -307,8 +402,11 @@ function SimilarIncidents({ incidents }: { incidents: SimilarIncident[] }) {
       className="mt-2 border-t pt-2"
       style={{ borderColor: "var(--hb-border)" }}
     >
-      <p className="text-[10px]" style={{ color: "var(--hb-text-muted)" }}>
-        // похожие реальные эксплойты
+      <p
+        className="text-[10px] uppercase"
+        style={{ color: "var(--hb-text-dim)", letterSpacing: "0.08em" }}
+      >
+        Похожие реальные эксплойты
       </p>
       <ul className="mt-1 flex flex-col gap-1">
         {incidents.map((i) => (
@@ -361,21 +459,37 @@ function countBySeverity(findings: Finding[]): SeverityCounts {
 }
 
 function stageLabel(stage: string): string {
-  return ({
-    queued: "подготовка",
-    static: "статика",
-    triage: "ai-триаж",
-    poc: "poc",
-    fuzzing: "fuzzing",
-    scoring: "оценка",
-  } as Record<string, string>)[stage] ?? stage;
+  return (
+    {
+      queued: "Подготовка",
+      static: "Статический анализ",
+      triage: "LLM-триаж",
+      poc: "Проверка эксплойтов (PoC)",
+      fuzzing: "AI-fuzzing",
+      scoring: "Оценка",
+    } as Record<string, string>
+  )[stage] ?? stage;
 }
 
 function verdictFor(tier: string): { label: string; body: string } {
-  return ({
-    red:    { label: "высокий риск", body: "есть critical или high-severity находки" },
-    yellow: { label: "осторожно",    body: "medium-severity находки — рекомендуем ревью" },
-    green:  { label: "приемлемо",    body: "только минорные замечания" },
-    blue:   { label: "отлично",      body: "значимых security-находок нет" },
-  } as Record<string, { label: string; body: string }>)[tier] ?? { label: tier, body: "" };
+  return (
+    {
+      red: {
+        label: "Высокий риск",
+        body: "Есть critical или high-severity находки. Перед деплоем требуется ревью.",
+      },
+      yellow: {
+        label: "Осторожно",
+        body: "Найдены medium-severity замечания. Стоит просмотреть перед продакшеном.",
+      },
+      green: {
+        label: "Приемлемо",
+        body: "Только минорные замечания. Существенных security-проблем не выявлено.",
+      },
+      blue: {
+        label: "Отлично",
+        body: "Значимых security-находок нет. Контракт прошёл все стадии чисто.",
+      },
+    } as Record<string, { label: string; body: string }>
+  )[tier] ?? { label: tier, body: "" };
 }

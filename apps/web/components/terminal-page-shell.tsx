@@ -3,20 +3,34 @@ import type { ReactNode } from "react";
 
 const BG = "#0a0e0a";
 const FG = "#a8e6a8";
+const HI = "#d4ffd4";
 const PRIMARY = "#4ade80";
-const MUTED = "#5a8a5a";
-const DIM = "#3a5e3a";
+// MUTED bumped from #5a8a5a → #8bb88b for WCAG AA at small sizes.
+const MUTED = "#8bb88b";
+const DIM = "#547654";
 
 /**
  * Shared shell for non-Mini-App pages (landing, pricing, docs, legal).
- * Keeps the same terminal aesthetic as /tg without re-implementing the
+ * Keeps the same brand aesthetic as /tg without re-implementing the
  * navigation on each page.
+ *
+ * Design rules baked in:
+ *   - Body / article copy is in a proportional UI font, not monospace.
+ *     Monospace stays only on inline `<code>` and `<pre>`. Wall-of-mono
+ *     prose was the biggest readability hit in the previous pass.
+ *   - One `$ ` accent per page, on the H1. Subsection titles inside
+ *     `{children}` should NOT add their own `$ `.
+ *   - One `//` line above the H1 if useful — pages can pass `eyebrow`.
+ *     Default: omit the comment line entirely.
  */
 export function TerminalPageShell({
   title,
+  eyebrow,
   children,
 }: {
   title: string;
+  /** Optional small uppercase pre-headline shown above the H1. */
+  eyebrow?: string;
   children: ReactNode;
 }) {
   return (
@@ -26,7 +40,7 @@ export function TerminalPageShell({
         background: BG,
         color: FG,
         fontFamily:
-          'ui-monospace, "SF Mono", Menlo, "JetBrains Mono", Consolas, monospace',
+          'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Inter, sans-serif',
         padding: "32px 24px 64px",
       }}
     >
@@ -36,7 +50,7 @@ export function TerminalPageShell({
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            marginBottom: 40,
+            marginBottom: 48,
             flexWrap: "wrap",
             gap: 12,
           }}
@@ -51,65 +65,90 @@ export function TerminalPageShell({
               padding: "5px 10px",
               borderRadius: 4,
               textDecoration: "none",
+              fontFamily:
+                'ui-monospace, "SF Mono", Menlo, "JetBrains Mono", Consolas, monospace',
             }}
           >
             wr3
           </Link>
-          <nav style={{ display: "flex", gap: 18, fontSize: 12, alignItems: "center" }}>
-            <Link href="/incidents" style={{ color: MUTED, textDecoration: "none" }}>инциденты</Link>
-            <Link href="/leaderboard" style={{ color: MUTED, textDecoration: "none" }}>лидерборд</Link>
-            <Link href="/pricing" style={{ color: MUTED, textDecoration: "none" }}>тарифы</Link>
-            <Link href="/docs" style={{ color: MUTED, textDecoration: "none" }}>доки</Link>
+          <nav style={{ display: "flex", gap: 20, fontSize: 13, alignItems: "center" }}>
+            <Link href="/incidents" style={{ color: MUTED, textDecoration: "none" }}>
+              Инциденты
+            </Link>
+            <Link href="/leaderboard" style={{ color: MUTED, textDecoration: "none" }}>
+              Лидерборд
+            </Link>
+            <Link href="/pricing" style={{ color: MUTED, textDecoration: "none" }}>
+              Тарифы
+            </Link>
+            <Link href="/docs" style={{ color: MUTED, textDecoration: "none" }}>
+              Документация
+            </Link>
             <a
               href="https://t.me/KitronBot"
               style={{
-                color: PRIMARY,
-                border: `1px solid ${PRIMARY}`,
-                padding: "4px 10px",
+                color: BG,
+                background: PRIMARY,
+                padding: "6px 12px",
                 borderRadius: 4,
                 textDecoration: "none",
-                letterSpacing: "0.04em",
-                textTransform: "uppercase",
-                fontSize: 10,
+                fontSize: 11,
                 fontWeight: 700,
               }}
             >
-              открыть бот
+              Открыть бот
             </a>
           </nav>
         </header>
 
-        <p style={{ color: MUTED, fontSize: 12, margin: 0 }}>// {title}</p>
+        {eyebrow && (
+          <p
+            style={{
+              color: DIM,
+              fontSize: 12,
+              margin: "0 0 10px",
+              letterSpacing: "0.1em",
+              textTransform: "uppercase",
+              fontFamily:
+                'ui-monospace, "SF Mono", Menlo, Consolas, monospace',
+            }}
+          >
+            {eyebrow}
+          </p>
+        )}
         <h1
           style={{
-            fontSize: "clamp(24px, 4vw, 36px)",
-            fontWeight: 700,
+            fontSize: "clamp(28px, 4.5vw, 40px)",
+            fontWeight: 800,
             lineHeight: 1.15,
-            margin: "4px 0 24px",
-            color: FG,
+            margin: "0 0 32px",
+            color: HI,
             letterSpacing: "-0.02em",
           }}
         >
-          <span style={{ color: PRIMARY }}>$ </span>
-          wr3 {title}
+          {title}
         </h1>
 
         <article
           style={{
             background: "#0f1a0f",
             border: `1px solid ${DIM}`,
-            borderRadius: 6,
-            padding: 24,
+            borderRadius: 8,
+            padding: 28,
             color: FG,
-            fontSize: 13,
+            fontSize: 14,
             lineHeight: 1.7,
           }}
         >
           {children}
         </article>
 
-        <footer style={{ marginTop: 64, fontSize: 11, color: DIM, textAlign: "center" }}>
-          <Link href="/" style={{ color: DIM, textDecoration: "none" }}>← на главную</Link>
+        <footer
+          style={{ marginTop: 64, fontSize: 12, color: MUTED, textAlign: "center" }}
+        >
+          <Link href="/" style={{ color: MUTED, textDecoration: "none" }}>
+            ‹ На главную
+          </Link>
         </footer>
       </div>
     </main>

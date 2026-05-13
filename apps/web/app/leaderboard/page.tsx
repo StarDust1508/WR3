@@ -28,9 +28,10 @@ type PublicStats = {
 };
 
 const PRIMARY = "#4ade80";
-const MUTED = "#5a8a5a";
-const DIM = "#3a5e3a";
+const MUTED = "#8bb88b";
+const DIM = "#547654";
 const FG = "#a8e6a8";
+const HI = "#d4ffd4";
 
 async function fetchStats(): Promise<PublicStats | null> {
   const apiUrl = process.env.WR3_API_URL ?? "http://localhost:8001";
@@ -58,58 +59,69 @@ export default async function LeaderboardPage() {
   const [stats, scans] = await Promise.all([fetchStats(), fetchScans()]);
 
   return (
-    <TerminalPageShell title="лидерборд">
-      <p style={{ color: MUTED, fontSize: 12 }}>
-        // публичные сканы, сортировка по score. Пользователей с opt-out здесь нет.
+    <TerminalPageShell title="Лидерборд" eyebrow="// scans">
+      <p style={{ color: MUTED, fontSize: 14, lineHeight: 1.6 }}>
+        Публичные сканы, отсортированные по score. Пользователи с включённой
+        анонимностью здесь не показываются.
       </p>
 
       {stats && (
         <section
           style={{
-            marginTop: 16,
+            marginTop: 24,
             display: "grid",
             gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
             gap: 12,
           }}
         >
-          <Stat label="сканов завершено" value={stats.total_scans.toString()} />
+          <Stat label="Сканов завершено" value={stats.total_scans.toString()} />
           <Stat
-            label="средний score"
+            label="Средний score"
             value={stats.avg_score != null ? stats.avg_score.toFixed(1) : "—"}
           />
-          <Stat label="critical найдено" value={stats.critical_findings.toString()} accent />
-          <Stat label="high найдено" value={stats.high_findings.toString()} />
-          <Stat label="сетей" value={stats.networks_count.toString()} />
+          <Stat label="Critical" value={stats.critical_findings.toString()} accent />
+          <Stat label="High" value={stats.high_findings.toString()} />
+          <Stat label="Сетей" value={stats.networks_count.toString()} />
         </section>
       )}
 
-      <section style={{ marginTop: 24, overflowX: "auto" }}>
+      <section style={{ marginTop: 32, overflowX: "auto" }}>
         {scans.length === 0 ? (
           <p
             style={{
               color: MUTED,
-              fontSize: 12,
+              fontSize: 13,
               textAlign: "center",
               padding: "40px 0",
             }}
           >
-            // ещё нет завершённых сканов. Запусти первый через{" "}
-            <a href="https://t.me/KitronBot" style={{ color: PRIMARY }}>
+            Ещё нет завершённых сканов. Запустите первый через{" "}
+            <a
+              href="https://t.me/KitronBot"
+              style={{ color: PRIMARY, textDecoration: "underline" }}
+            >
               @KitronBot
             </a>
             .
           </p>
         ) : (
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+          <table
+            style={{
+              width: "100%",
+              borderCollapse: "collapse",
+              fontSize: 13,
+              fontVariantNumeric: "tabular-nums",
+            }}
+          >
             <thead>
               <tr style={{ borderBottom: `1px solid ${DIM}` }}>
                 <Th>#</Th>
-                <Th>контракт</Th>
-                <Th>сеть</Th>
-                <Th align="right">score</Th>
-                <Th align="right">находок</Th>
-                <Th>автор</Th>
-                <Th align="right">когда</Th>
+                <Th>Контракт</Th>
+                <Th>Сеть</Th>
+                <Th align="right">Score</Th>
+                <Th align="right">Находок</Th>
+                <Th>Автор</Th>
+                <Th align="right">Когда</Th>
               </tr>
             </thead>
             <tbody>
@@ -121,10 +133,12 @@ export default async function LeaderboardPage() {
         )}
       </section>
 
-      <p style={{ color: DIM, fontSize: 10, marginTop: 24 }}>
-        // хочешь скрыться из публичного списка? Открой{" "}
-        <Link href="/tg/owner" style={{ color: MUTED }}>cfg</Link> в Mini App и
-        включи <code>anonymous_in_public</code>.
+      <p style={{ color: MUTED, fontSize: 12, marginTop: 32 }}>
+        Не хотите попадать в лидерборд? Откройте{" "}
+        <Link href="/tg/owner" style={{ color: PRIMARY, textDecoration: "underline" }}>
+          настройки в Mini App
+        </Link>{" "}
+        и включите анонимность в публичном.
       </p>
     </TerminalPageShell>
   );
@@ -143,21 +157,22 @@ function Stat({ label, value, accent }: { label: string; value: string; accent?:
       <p
         style={{
           color: MUTED,
-          fontSize: 10,
+          fontSize: 11,
           margin: 0,
           letterSpacing: "0.06em",
           textTransform: "uppercase",
         }}
       >
-        // {label}
+        {label}
       </p>
       <p
         style={{
-          color: accent ? "#f87171" : FG,
-          fontSize: 22,
-          fontWeight: 700,
-          margin: "4px 0 0",
+          color: accent ? "#f87171" : HI,
+          fontSize: 26,
+          fontWeight: 800,
+          margin: "6px 0 0",
           lineHeight: 1,
+          fontVariantNumeric: "tabular-nums",
         }}
       >
         {value}

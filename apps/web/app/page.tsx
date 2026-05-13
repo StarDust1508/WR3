@@ -4,8 +4,10 @@ import { ScanInput } from "@/components/scan-input";
 const BG = "#0a0e0a";
 const FG = "#a8e6a8";
 const PRIMARY = "#4ade80";
-const MUTED = "#5a8a5a";
-const DIM = "#3a5e3a";
+const HI = "#d4ffd4";
+// Lighter green for body / muted copy — contrast ~5.2:1 vs BG (was 3.4:1).
+const MUTED = "#8bb88b";
+const DIM = "#547654";
 
 export default function HomePage() {
   return (
@@ -44,82 +46,105 @@ export default function HomePage() {
           >
             wr3
           </Link>
-          <nav style={{ display: "flex", gap: 18, fontSize: 12, alignItems: "center" }}>
-            <Link href="/leaderboard" style={{ color: MUTED, textDecoration: "none" }}>лидерборд</Link>
-            <Link href="/pricing" style={{ color: MUTED, textDecoration: "none" }}>тарифы</Link>
-            <Link href="/docs" style={{ color: MUTED, textDecoration: "none" }}>доки</Link>
+          <nav style={{ display: "flex", gap: 20, fontSize: 13, alignItems: "center" }}>
+            <Link href="/incidents" style={{ color: MUTED, textDecoration: "none" }}>Инциденты</Link>
+            <Link href="/leaderboard" style={{ color: MUTED, textDecoration: "none" }}>Лидерборд</Link>
+            <Link href="/pricing" style={{ color: MUTED, textDecoration: "none" }}>Тарифы</Link>
+            <Link href="/docs" style={{ color: MUTED, textDecoration: "none" }}>Документация</Link>
             <a
               href="https://t.me/KitronBot"
               style={{
-                color: PRIMARY,
-                border: `1px solid ${PRIMARY}`,
-                padding: "4px 10px",
+                color: BG,
+                background: PRIMARY,
+                padding: "6px 12px",
                 borderRadius: 4,
                 textDecoration: "none",
-                letterSpacing: "0.04em",
-                textTransform: "uppercase",
-                fontSize: 10,
+                fontSize: 11,
                 fontWeight: 700,
               }}
             >
-              открыть бот
+              Открыть бот
             </a>
           </nav>
         </header>
 
-        <section style={{ maxWidth: 720 }}>
-          <p style={{ color: MUTED, fontSize: 12, marginBottom: 8 }}>
-            // AI-аудит смарт-контрактов для vibe-кодеров
+        <section style={{ maxWidth: 740 }}>
+          <p
+            className="tg-hint-code"
+            style={{
+              color: DIM,
+              fontSize: 12,
+              marginBottom: 12,
+              textTransform: "uppercase",
+              letterSpacing: "0.1em",
+            }}
+          >
+            AI-аудит смарт-контрактов
           </p>
           <h1
             style={{
-              fontSize: "clamp(28px, 5vw, 44px)",
-              fontWeight: 700,
-              lineHeight: 1.1,
+              fontSize: "clamp(32px, 5.5vw, 52px)",
+              fontWeight: 800,
+              lineHeight: 1.05,
               margin: 0,
-              color: FG,
+              color: HI,
               letterSpacing: "-0.02em",
             }}
           >
-            <span style={{ color: PRIMARY }}>$ </span>wr3 audit &lt;контракт&gt;
+            Найдите уязвимости до того,
+            <br />
+            как их найдёт{" "}
+            <span style={{ color: PRIMARY }}>атакующий</span>.
           </h1>
-          <p style={{ color: MUTED, fontSize: 14, lineHeight: 1.6, marginTop: 16, maxWidth: 580 }}>
-            Оценка 0–100 по 5 осям. Baseline-статика + multi-agent LLM-триаж +
-            Foundry PoC retry-loop + AI-fuzzing. EVM (eth / base / arbitrum / bsc)
-            и Solana через Sealevel-attacks.
+          <p
+            style={{
+              color: MUTED,
+              fontSize: 15,
+              lineHeight: 1.6,
+              marginTop: 20,
+              maxWidth: 620,
+            }}
+          >
+            От адреса контракта до полного отчёта за минуту. Multi-engine статика
+            (Aderyn, Slither, Wake), LLM-триаж в 4 параллельных агента, Foundry
+            PoC retry-loop и AI-fuzzing. EVM и Solana — в одном пайплайне.
           </p>
 
           <div style={{ marginTop: 32 }}>
             <ScanInput />
           </div>
 
-          <p style={{ color: DIM, fontSize: 11, marginTop: 12 }}>
-            // free: 1 контракт / 24 ч. Платный — от $29/мес: безлимит сканов и полные Foundry PoC.
-            <Link href="/pricing" style={{ color: MUTED, textDecoration: "underline", marginLeft: 6 }}>
-              тарифы →
+          <p style={{ color: DIM, fontSize: 12, marginTop: 16 }}>
+            Free — 1 контракт в сутки. Платно от $29 в месяц: безлимит и полный
+            Foundry PoC.{" "}
+            <Link
+              href="/pricing"
+              style={{ color: PRIMARY, textDecoration: "underline", textUnderlineOffset: 2 }}
+            >
+              Тарифы
             </Link>
           </p>
         </section>
 
         <section
           style={{
-            marginTop: 80,
+            marginTop: 96,
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+            gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
             gap: 16,
           }}
         >
           <Feature
-            title="multi-engine консенсус"
-            body="Aderyn + Wake + Slither + Medusa + ItyFuzz + Trident. Один пайплайн, кросс-проверенные находки."
+            title="Multi-engine консенсус"
+            body="Aderyn, Slither, Wake и собственный baseline-анализатор работают параллельно. Кросс-проверенные находки получают больший вес на триаже."
           />
           <Feature
-            title="прозрачная оценка"
-            body="0–100 по 5 осям с публичными весами. Без чёрного ящика, без pay-to-play."
+            title="Прозрачная оценка"
+            body="Шкала 0–100 по 5 осям с открытыми весами. Никаких чёрных ящиков, никаких pay-to-play — методология опубликована."
           />
           <Feature
-            title="solana — первый класс"
-            body="Таксономия Sealevel-attacks, Trident fuzzer. Большинство AI-аудиторов пропускают Solana — мы нет."
+            title="Solana — первого класса"
+            body="Полная таксономия Sealevel-attacks, метаданные программы через JSON-RPC. Большинство AI-аудиторов пропускают Solana — wr3 нет."
           />
         </section>
 
@@ -142,13 +167,13 @@ export default function HomePage() {
           >
             <span>© 2026 wr3</span>
             <div style={{ display: "flex", gap: 16 }}>
-              <Link href="/legal/tos" style={{ color: DIM, textDecoration: "none" }}>условия</Link>
-              <Link href="/legal/privacy" style={{ color: DIM, textDecoration: "none" }}>приватность</Link>
-              <a href="https://github.com/StarDust1508/WR3" style={{ color: DIM, textDecoration: "none" }}>github</a>
+              <Link href="/legal/tos" style={{ color: MUTED, textDecoration: "none" }}>Условия</Link>
+              <Link href="/legal/privacy" style={{ color: MUTED, textDecoration: "none" }}>Приватность</Link>
+              <a href="https://github.com/StarDust1508/WR3" style={{ color: MUTED, textDecoration: "none" }}>GitHub</a>
             </div>
           </div>
-          <p style={{ marginTop: 16, maxWidth: 720, fontSize: 10 }}>
-            Результаты AI-аудита — best-effort, без гарантий. Не замена ручному ревью.
+          <p style={{ marginTop: 16, maxWidth: 720, fontSize: 11, lineHeight: 1.6 }}>
+            Результаты AI-аудита — best-effort. Не замена ручному ревью.
             Ответственность ограничена стоимостью аудита.
           </p>
         </footer>
@@ -164,22 +189,22 @@ function Feature({ title, body }: { title: string; body: string }) {
         background: "#0f1a0f",
         border: `1px solid ${DIM}`,
         borderRadius: 6,
-        padding: 16,
+        padding: 20,
+        transition: "border-color 150ms ease, transform 150ms ease",
       }}
     >
       <h3
         style={{
-          color: PRIMARY,
-          fontSize: 11,
+          color: HI,
+          fontSize: 14,
           fontWeight: 700,
-          letterSpacing: "0.06em",
-          textTransform: "uppercase",
           margin: 0,
+          letterSpacing: "-0.01em",
         }}
       >
-        // {title}
+        {title}
       </h3>
-      <p style={{ color: MUTED, fontSize: 12, marginTop: 8, lineHeight: 1.6 }}>{body}</p>
+      <p style={{ color: MUTED, fontSize: 13, marginTop: 10, lineHeight: 1.65 }}>{body}</p>
     </div>
   );
 }
