@@ -21,8 +21,12 @@
  *   verbatim — CF Workers supports streaming response bodies.
  */
 
+// NOTE on runtime: do NOT set `runtime = "edge"` here. OpenNext-CF runs
+// every handler in workerd already, and the explicit `edge` declaration
+// makes the build emit a different shape that crashes at request time
+// (500 Internal Server Error from the worker, no useful log). Just omit
+// the runtime export — OpenNext picks the right one.
 export const dynamic = "force-dynamic";
-export const runtime = "edge";
 
 const HOP_BY_HOP_HEADERS = new Set([
   "connection",
@@ -41,64 +45,84 @@ async function proxy(
   req: Request,
   ctx: { params: Promise<{ path: string[] }> },
 ): Promise<Response> {
-  const { path = [] } = await ctx.params;
-  const apiOrigin = (process.env.WR3_API_URL ?? "http://localhost:8001").replace(
-    /\/$/,
-    "",
-  );
-  const url = new URL(req.url);
-  const target = `${apiOrigin}/v1/${path.join("/")}${url.search}`;
-
-  // Filter outgoing headers: hop-by-hop and host MUST be dropped (Cloudflare
-  // would otherwise echo back our own gateway as Host to the origin and
-  // confuse routing on serveo / tunnels).
-  const headers = new Headers();
-  req.headers.forEach((value, key) => {
-    if (!HOP_BY_HOP_HEADERS.has(key.toLowerCase())) {
-      headers.set(key, value);
-    }
-  });
-
-  const init: RequestInit = {
-    method: req.method,
-    headers,
-    redirect: "manual",
-  };
-  if (req.method !== "GET" && req.method !== "HEAD") {
-    // Forward the original body. We use arrayBuffer() to materialise it
-    // because CF Workers's fetch can't take a ReadableStream body across
-    // the Worker boundary in all cases.
-    init.body = await req.arrayBuffer();
-  }
-
-  let upstream: Response;
   try {
-    upstream = await fetch(target, init);
+    const params = await ctx.params;
+    const path = params.path ?? [];
+    const apiOrigin = (
+      process.env.WR3_API_URL ?? "http://localhost:8001"
+    ).replace(/\/$/, "");
+    const url = new URL(req.url);
+    const target = `${apiOrigin}/v1/${path.join("/")}${url.search}`;
+
+    // Filter outgoing headers: hop-by-hop and host MUST be dropped
+    // (Cloudflare would otherwise echo our own gateway as Host to the
+    // origin and confuse routing on serveo / tunnels).
+    const headers = new Headers();
+    req.headers.forEach((value, key) => {
+      if (!HOP_BY_HOP_HEADERS.has(key.toLowerCase())) {
+        headers.set(key, value);
+      }
+    });
+
+    const init: RequestInit = {
+      method: req.method,
+      headers,
+      redirect: "manual",
+    };
+    if (req.method !== "GET" && req.method !== "HEAD") {
+      // Forward the original body. arrayBuffer() materialises it so CF
+      // Workers's fetch can take it across the Worker boundary.
+      init.body = await req.arrayBuffer();
+    }
+
+    let upstream: Response;
+    try {
+      upstream = await fetch(target, init);
+    } catch (e) {
+      return new Response(
+        JSON.stringify({
+          error: "upstream_unreachable",
+          message: (e as Error).message,
+          target_host: new URL(target).host,
+        }),
+        {
+          status: 502,
+          headers: { "content-type": "application/json" },
+        },
+      );
+    }
+
+    // Pass response headers through, minus hop-by-hop. We MUST keep
+    // content-type so streaming (text/event-stream for SSE) works.
+    const respHeaders = new Headers();
+    upstream.headers.forEach((value, key) => {
+      if (!HOP_BY_HOP_HEADERS.has(key.toLowerCase())) {
+        respHeaders.set(key, value);
+      }
+    });
+
+    return new Response(upstream.body, {
+      status: upstream.status,
+      statusText: upstream.statusText,
+      headers: respHeaders,
+    });
   } catch (e) {
-    return Response.json(
-      {
-        error: "upstream_unreachable",
+    // Catch-all so the worker never throws a bare 500. If we reach here
+    // something is wrong with our own code (bad params, fetch unavailable,
+    // etc.). Surface the error message so the operator can diagnose
+    // without digging through CF Workers logs.
+    return new Response(
+      JSON.stringify({
+        error: "proxy_internal_error",
         message: (e as Error).message,
-        target_host: new URL(target).host,
+        stack: (e as Error).stack?.split("\n").slice(0, 5),
+      }),
+      {
+        status: 500,
+        headers: { "content-type": "application/json" },
       },
-      { status: 502 },
     );
   }
-
-  // Pass response headers through, minus hop-by-hop. We MUST keep
-  // content-type so streaming (text/event-stream for SSE) works.
-  const respHeaders = new Headers();
-  upstream.headers.forEach((value, key) => {
-    if (!HOP_BY_HOP_HEADERS.has(key.toLowerCase())) {
-      respHeaders.set(key, value);
-    }
-  });
-
-  return new Response(upstream.body, {
-    status: upstream.status,
-    statusText: upstream.statusText,
-    headers: respHeaders,
-  });
 }
 
 export async function GET(req: Request, ctx: { params: Promise<{ path: string[] }> }) {
