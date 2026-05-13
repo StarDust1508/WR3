@@ -37,7 +37,10 @@ class Finding(BaseModel):
 class ScoreAxis(BaseModel):
     name: str
     weight: float = Field(..., ge=0.0, le=1.0)
-    score: float = Field(..., ge=0.0, le=100.0)
+    # `score=None` means the axis isn't evaluated yet (weight should be 0).
+    # We surface None instead of fake-neutral 80 so the renderer can show
+    # "pending" honestly instead of padding the final score.
+    score: float | None = Field(default=None, ge=0.0, le=100.0)
     rationale: str
 
 

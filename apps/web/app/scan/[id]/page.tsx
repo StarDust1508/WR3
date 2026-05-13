@@ -14,7 +14,7 @@ interface ScanDetail {
   score: number | null;
   tier: Tier | null;
   report: {
-    axes?: Array<{ name: string; weight: number; score: number; rationale: string }>;
+    axes?: Array<{ name: string; weight: number; score: number | null; rationale: string }>;
     chain_metadata?: {
       address?: string;
       executable?: boolean;
@@ -134,15 +134,27 @@ export default async function ScanDetailPage({
             Разбивка по осям
           </p>
           <div className="space-y-2">
-            {(scan.report?.axes ?? []).map((a) => (
-              <div key={a.name} className="grid grid-cols-[180px_60px_1fr] gap-3 text-sm">
-                <span className="text-zinc-700 dark:text-zinc-300">{a.name}</span>
-                <span className="font-mono text-zinc-500">{a.score.toFixed(1)}</span>
-                <span className="truncate text-zinc-500">
-                  {a.rationale} <span className="text-zinc-400">(вес {Math.round(a.weight * 100)}%)</span>
-                </span>
-              </div>
-            ))}
+            {(scan.report?.axes ?? []).map((a) => {
+              const pending = a.weight === 0 || a.score === null;
+              return (
+                <div key={a.name} className="grid grid-cols-[180px_60px_1fr] gap-3 text-sm">
+                  <span className={pending ? "text-zinc-400" : "text-zinc-700 dark:text-zinc-300"}>
+                    {a.name}
+                  </span>
+                  <span className="font-mono text-zinc-500">
+                    {a.score === null ? "—" : a.score.toFixed(1)}
+                  </span>
+                  <span className="truncate text-zinc-500">
+                    {a.rationale}{" "}
+                    <span className="text-zinc-400">
+                      {pending
+                        ? "(не считается в общий score)"
+                        : `(вес ${Math.round(a.weight * 100)}%)`}
+                    </span>
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </div>
       </section>

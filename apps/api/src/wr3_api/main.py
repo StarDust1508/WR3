@@ -27,14 +27,25 @@ app = FastAPI(
 
 # Origins:
 #   - localhost:3000 — Next.js dev server when developing locally
-#   - https://*.pages.dev — Cloudflare Pages deployments of the Mini App
 #   - https://t.me — Telegram WebApp iframe origin
-# Using `allow_origin_regex` so we cover preview deploys like
-# https://abc123.wr3.pages.dev that get generated for every CF Pages branch.
+#   - *.wr3.pages.dev — legacy Cloudflare Pages (kept for grace period)
+#   - *.workers.dev — Cloudflare Workers deploys, both prod and preview.
+#     The actual production host is currently `wr3.bigmandmitriy777.workers.dev`
+#     after the Pages-to-Workers migration. The regex matches any wr3-prefixed
+#     workers.dev subdomain so we don't have to bake the personal account
+#     name into the API.
+# allow_credentials=True is REQUIRED for our cookie/JWT auth, which means
+# `allow_origins=["*"]` is illegal — the regex covers all valid origins.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000", "https://t.me"],
-    allow_origin_regex=r"https://([a-z0-9-]+\.)?wr3\.pages\.dev",
+    allow_origin_regex=(
+        r"https://("
+        r"([a-z0-9-]+\.)?wr3\.pages\.dev"
+        r"|wr3(\.[a-z0-9-]+)?\.workers\.dev"
+        r"|[a-z0-9-]+\.wr3\.workers\.dev"
+        r")"
+    ),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

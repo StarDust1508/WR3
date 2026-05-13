@@ -35,6 +35,30 @@ from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_ex
 
 logger = structlog.get_logger()
 
+# Module-singleton httpx clients — one per timeout band. Previous code did
+# `async with httpx.AsyncClient(...) as client:` per LLM call, which:
+#   - issued a fresh TLS handshake to api.navy/openrouter per request
+#   - tore down the TCP connection immediately after each response
+# Reusing a pooled client means subsequent calls in the same scan can ride
+# an already-warm TLS session, roughly halving the RTT on completion calls
+# and saving the cert validation cost on every retry.
+_chat_client: httpx.AsyncClient | None = None
+_embed_client: httpx.AsyncClient | None = None
+
+
+def _get_chat_client() -> httpx.AsyncClient:
+    global _chat_client
+    if _chat_client is None:
+        _chat_client = httpx.AsyncClient(timeout=180.0)
+    return _chat_client
+
+
+def _get_embed_client() -> httpx.AsyncClient:
+    global _embed_client
+    if _embed_client is None:
+        _embed_client = httpx.AsyncClient(timeout=60.0)
+    return _embed_client
+
 
 class Sensitivity(StrEnum):
     LOW = "low"
@@ -212,11 +236,11 @@ class LLMRouter:
             **extra,
         }
 
-        async with httpx.AsyncClient(timeout=180.0) as client:
-            r = await client.post(f"{base_url}/chat/completions", headers=headers, json=payload)
-            r.raise_for_status()
-            data = r.json()
-            return data["choices"][0]["message"]["content"]
+        client = _get_chat_client()
+        r = await client.post(f"{base_url}/chat/completions", headers=headers, json=payload)
+        r.raise_for_status()
+        data = r.json()
+        return data["choices"][0]["message"]["content"]
 
     # --- embeddings ---------------------------------------------------------
 
@@ -269,14 +293,14 @@ class LLMRouter:
             "Content-Type": "application/json",
         }
         payload = {"model": model, "input": texts}
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            r = await client.post(
-                f"{self.navyai_base_url}/embeddings",
-                headers=headers,
-                json=payload,
-            )
-            r.raise_for_status()
-            data = r.json()
+        client = _get_embed_client()
+        r = await client.post(
+            f"{self.navyai_base_url}/embeddings",
+            headers=headers,
+            json=payload,
+        )
+        r.raise_for_status()
+        data = r.json()
         # The response `data` array is ordered by `index`; sort defensively
         # in case the provider ever returns out-of-order.
         rows = sorted(data["data"], key=lambda d: d["index"])

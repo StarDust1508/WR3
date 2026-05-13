@@ -126,36 +126,51 @@ class AuditPipeline:
         # Stage 4 — Foundry PoC generation for HIGH/CRITICAL findings.
         yield PipelineEvent(stage="poc", progress=60, message="Generating PoCs for high-severity")
         if self._poc is not None:
-            targets = [f for f in self.findings if self._poc.should_attempt(f)]
+            # Skip PoC for LLM-proposed findings — they're abstract claims
+            # (e.g. "this contract might have business-logic flaw X") with
+            # no concrete file/line for forge test to target. Attempting
+            # them burns LLM tokens producing unprovable PoCs.
+            targets = [
+                f for f in self.findings
+                if self._poc.should_attempt(f)
+                and not f.source_engine.startswith("llm-")
+                and f.line is not None
+            ]
             log.info("pipeline.poc.targets", count=len(targets))
+            # Index findings by id ONCE; per-finding update is now O(1)
+            # instead of rewalking the whole findings list each iteration.
+            # On a scan with 20 findings and 5 PoC targets the old code
+            # did 100 model_copy() calls; this does 5.
+            findings_by_id = {f.id: f for f in self.findings}
             for idx, finding in enumerate(targets):
                 outcome = await self._poc.generate(
                     scan_id=self.scan_id or "ad-hoc",
                     finding=finding,
                     target_source=source_code,
                 )
-                self.findings = [
-                    f.model_copy(
+                original = findings_by_id.get(finding.id)
+                if original is not None:
+                    findings_by_id[finding.id] = original.model_copy(
                         update={
                             "poc_path": outcome.artifact_path,
                             "poc_validated": outcome.validated,
                             "metadata": {
-                                **f.metadata,
+                                **original.metadata,
                                 "poc_attempts": outcome.attempts,
                                 "poc_diagnostic": outcome.diagnostic,
                             },
                         }
                     )
-                    if f.id == finding.id
-                    else f
-                    for f in self.findings
-                ]
                 # Mid-stage progress nudges so UI doesn't sit still on long PoCs.
                 yield PipelineEvent(
                     stage="poc",
                     progress=60 + int(20 * (idx + 1) / max(len(targets), 1)),
                     message=f"PoC {idx + 1}/{len(targets)}: {finding.title[:60]}",
                 )
+            # Materialize back into a list — preserves the original ordering
+            # because dict insertion order is guaranteed in Python 3.7+ and
+            # we built findings_by_id from the original list.
+            self.findings = list(findings_by_id.values())
 
         # Stage 5 — AI-fuzzing with LLM-generated invariants.
         yield PipelineEvent(stage="fuzzing", progress=80, message="AI-fuzzing invariants")
@@ -207,6 +222,44 @@ class AuditPipeline:
                     self._report.chain_metadata = meta.to_dict()
             except Exception as e:
                 log.warning("pipeline.solana_metadata_failed", error=str(e))
+        else:
+            # EVM Tokenomics axis: enrich via GoPlus Security. Free public
+            # API, no key required at our request volume. The scoring
+            # module then promotes the axis from weight=0 to its target
+            # weight ON THIS SCAN only — other axes stay pending until
+            # they get their own real signal source.
+            try:
+                from audit_engine.enrichment.goplus import (
+                    compute_tokenomics_score,
+                    fetch_token_security,
+                )
+
+                ts = await fetch_token_security(
+                    address=address, network=self.network
+                )
+                if ts is not None:
+                    self._report.chain_metadata = {
+                        **(self._report.chain_metadata or {}),
+                        "token_security": ts.to_dict(),
+                    }
+                    # Replace the placeholder Tokenomics axis with real numbers.
+                    score, rationale = compute_tokenomics_score(ts)
+                    for i, axis in enumerate(self._report.axes):
+                        if axis.name == "Tokenomics / Centralization":
+                            from audit_engine.scoring import AXIS_WEIGHTS_TARGET
+                            from audit_engine.types import ScoreAxis
+                            self._report.axes[i] = ScoreAxis(
+                                name=axis.name,
+                                weight=AXIS_WEIGHTS_TARGET[axis.name],
+                                score=score,
+                                rationale=rationale,
+                            )
+                            break
+                    # Re-compute the weighted total since one axis now
+                    # contributes — keep severity overrides intact.
+                    self._report = _recompute_weighted_score(self._report)
+            except Exception as e:
+                log.warning("pipeline.goplus_failed", error=str(e))
 
         yield PipelineEvent(
             stage="done",
@@ -218,3 +271,38 @@ class AuditPipeline:
         if self._report is None:
             return {"status": "incomplete"}
         return self._report.model_dump(mode="json")
+
+
+def _recompute_weighted_score(report: AuditReport) -> AuditReport:
+    """Re-derive `report.score` + `report.tier` from the current axes.
+
+    Called after enrichment promotes an axis from inactive (weight=0) to
+    active. We preserve the severity-override semantics from
+    `scoring.compute_score`: a CRITICAL caps the score at 39.9 (tier=red),
+    a HIGH caps at 69.9.
+    """
+    from typing import Literal
+
+    from audit_engine.scoring import _tier
+    from audit_engine.types import Severity
+
+    weighted = sum(
+        (a.score or 0.0) * a.weight
+        for a in report.axes
+        if a.weight > 0 and a.score is not None
+    )
+    score = round(weighted, 1)
+
+    has_critical = any(f.severity == Severity.CRITICAL for f in report.findings)
+    has_high = any(f.severity == Severity.HIGH for f in report.findings)
+    tier: Literal["red", "yellow", "green", "blue"]
+    if has_critical:
+        tier = "red"
+        score = min(score, 39.9)
+    elif has_high:
+        tier = _tier(min(score, 69.9))
+        score = min(score, 69.9)
+    else:
+        tier = _tier(score)
+
+    return report.model_copy(update={"score": score, "tier": tier})

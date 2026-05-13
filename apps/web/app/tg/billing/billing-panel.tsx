@@ -19,8 +19,8 @@ type Plan = { plan: string; stars: number };
 
 const PLAN_BLURB: Record<string, string> = {
   hobby: "10 контрактов / мес · multi-agent триаж · PoC retry-loop",
-  team:  "Безлимит · AI-fuzzing · мониторинг 24/7",
-  pro:   "Всё из Team + Certora formal verification",
+  team:  "Безлимит · AI-fuzzing · мониторинг каждые 6 ч",
+  pro:   "Всё из Team + расширенный LLM-триаж и кастомные инварианты",
 };
 
 /**

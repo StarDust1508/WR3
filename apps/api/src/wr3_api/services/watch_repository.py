@@ -7,7 +7,7 @@ import uuid
 from datetime import UTC, datetime, timedelta
 
 import structlog
-from sqlalchemy import select, update
+from sqlalchemy import select, text, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from wr3_api.db import SessionFactory
@@ -32,11 +32,15 @@ async def ensure_watched(
     address: str,
     network: str,
 ) -> WatchedContract:
-    """Idempotent insert. Called from scan_worker on every successful scan
-    by a user with continuous_monitoring=True.
+    """Idempotent insert/reset. Called from scan_worker after each successful
+    scan when continuous_monitoring=True.
 
-    We use PostgreSQL `INSERT ... ON CONFLICT DO NOTHING` so two parallel
-    scans of the same contract by the same user don't race-double-insert.
+    Critical invariant: on conflict we MUST reset `error_count` to 0.
+    `due_for_check` excludes rows with error_count >= 5 (back-off after a
+    sustained Etherscan failure streak). If the user re-runs a scan
+    successfully, the contract is once again worth polling — without this
+    reset the watcher would never resume after a transient outage burned
+    through 5 retries.
     """
     address_lower = address.lower() if address.startswith("0x") else address
     async with SessionFactory() as session:
@@ -47,14 +51,18 @@ async def ensure_watched(
                 address=address_lower,
                 network=network,
             )
-            .on_conflict_do_nothing(
+            # ON CONFLICT DO UPDATE so the error_count reset actually runs.
+            # Touching `updated_at` keeps the row's timestamp honest and
+            # gives us a "user-re-ran-scan" signal in the audit log.
+            .on_conflict_do_update(
                 index_elements=["user_id", "address", "network"],
+                set_={"error_count": 0, "updated_at": text("now()")},
             )
             .returning(WatchedContract.id)
         )
         await session.execute(stmt)
         await session.commit()
-        # Always reload via the unique key — `returning` is empty on conflict.
+        # Reload — RETURNING gives id but we want the full row for callers.
         row = (
             await session.execute(
                 select(WatchedContract).where(

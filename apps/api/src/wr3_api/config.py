@@ -26,17 +26,24 @@ class Settings(BaseSettings):
     local_llm_model: str = Field(default="Qwen/Qwen3-Coder-30B-A3B-Instruct")
     gemini_api_key: str = Field(default="")
 
-    solodit_api_key: str = Field(default="")
     etherscan_api_key: str = Field(default="")
     bscscan_api_key: str = Field(default="")
     basescan_api_key: str = Field(default="")
     arbiscan_api_key: str = Field(default="")
     alchemy_api_key: str = Field(default="")
+    # GoPlus Security: optional key for higher rate limit. Public endpoint
+    # works keyless at ~30 req/min which suffices for an MVP.
+    goplus_api_key: str = Field(default="")
 
     nextauth_secret: str = Field(default="dev-secret-do-not-use-in-prod")
 
     telegram_bot_token: str = Field(default="")
     telegram_webhook_secret: str = Field(default="")
+    # Public-facing URL of the Mini App / web (e.g. Cloudflare Workers
+    # deploy). The bot uses this to link users back from chat to the
+    # Mini App; if empty we fall back to the API host (which is wrong —
+    # a /tg/scan/<id> URL on the API host is a 404).
+    next_public_site_url: str = Field(default="")
 
     r2_account_id: str = Field(default="")
     r2_access_key_id: str = Field(default="")

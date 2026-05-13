@@ -54,9 +54,23 @@ settings = get_settings()
 _PROGRESS_KEY = "wr3:scan:progress:{job_id}"
 _PROGRESS_TTL = 3600  # 1h
 
+# Connection pool used across the whole module. Previously each _publish
+# and get_scan_progress call did `from_url(...)` then `aclose()` — that's
+# one TCP+AUTH per Redis op, which scales as O(SSE_clients × poll_freq).
+# With this pool we open at most `max_connections` sockets total.
+_redis_pool: aioredis.Redis | None = None
 
-async def _redis() -> aioredis.Redis:
-    return await aioredis.from_url(settings.redis_url, decode_responses=True)
+
+def _redis() -> aioredis.Redis:
+    """Module-singleton Redis client. Lazy so we don't connect on import."""
+    global _redis_pool
+    if _redis_pool is None:
+        _redis_pool = aioredis.from_url(
+            settings.redis_url,
+            decode_responses=True,
+            max_connections=20,
+        )
+    return _redis_pool
 
 
 async def _user_prefs(user_id: uuid.UUID | None) -> dict[str, Any]:
@@ -88,7 +102,7 @@ async def enqueue_scan(
     """
     scan_id = await repo.create_scan(address=address, network=network, user_id=user_id)
 
-    r = await _redis()
+    r = _redis()
     initial = {
         "stage": "queued",
         "progress": 0,
@@ -97,7 +111,6 @@ async def enqueue_scan(
         "scan_id": str(scan_id),
     }
     await r.setex(_PROGRESS_KEY.format(job_id=job_id), _PROGRESS_TTL, json.dumps(initial))
-    await r.aclose()
 
     prefs = await _user_prefs(user_id)
 
@@ -114,18 +127,18 @@ async def enqueue_scan(
 
 
 async def get_scan_progress(job_id: str) -> dict[str, Any] | None:
-    r = await _redis()
-    raw = await r.get(_PROGRESS_KEY.format(job_id=job_id))
-    await r.aclose()
+    raw = await _redis().get(_PROGRESS_KEY.format(job_id=job_id))
     if raw is None:
         return None
     return json.loads(raw)
 
 
 async def _publish(job_id: str, payload: dict[str, Any]) -> None:
-    r = await _redis()
-    await r.setex(_PROGRESS_KEY.format(job_id=job_id), _PROGRESS_TTL, json.dumps(payload))
-    await r.aclose()
+    await _redis().setex(
+        _PROGRESS_KEY.format(job_id=job_id),
+        _PROGRESS_TTL,
+        json.dumps(payload),
+    )
 
 
 def _event_payload(event: PipelineEvent, *, scan_id: str) -> dict[str, Any]:
@@ -164,73 +177,94 @@ def run_audit_pipeline(
         scan_uuid = uuid.UUID(scan_id)
         from wr3_api.models.user import DEFAULT_PREFERENCES
         p = {**DEFAULT_PREFERENCES, **(prefs or {})}
-        pipeline = AuditPipeline(  # type: ignore[arg-type]
-            network=network,
-            scan_id=scan_id,
-            multi_agent_triage=bool(p.get("multi_agent_triage", True)),
-            poc_enabled=bool(p.get("auto_poc", True)),
-            fuzzing_enabled=bool(p.get("auto_fuzzing", True)),
-        )
         started = time.monotonic()
-
-        async for event in pipeline.run(address=address, source=source):
-            payload = _event_payload(event, scan_id=scan_id)
-            await _publish(job_id, payload)
-            await repo.update_progress(
-                scan_id=scan_uuid,
-                stage=event.stage,
-                progress=event.progress,
-                error_message=event.message if event.stage == "error" else None,
-            )
-            logger.info(
-                "scan.progress",
-                job_id=job_id,
-                scan_id=scan_id,
-                stage=event.stage,
-                progress=event.progress,
-            )
-
-        result = pipeline.result()
-        if result.get("status") == "incomplete":
-            return result
-
-        # Enrich HIGH/CRITICAL findings with similar historical incidents.
-        # One round-trip to api.navy for the whole batch; vector search hits
-        # the IVFFlat index on incidents.embedding. Failures here are
-        # non-fatal — the scan still finalizes without the enrichment.
         try:
-            from audit_engine.llm.router import LLMRouter
-
-            from wr3_api.services import incident_search
-
-            router = LLMRouter()
-            await incident_search.enrich_report_with_similar_incidents(
-                result, embed_batch=router.embed_batch
+            pipeline = AuditPipeline(  # type: ignore[arg-type]
+                network=network,
+                scan_id=scan_id,
+                multi_agent_triage=bool(p.get("multi_agent_triage", True)),
+                poc_enabled=bool(p.get("auto_poc", True)),
+                fuzzing_enabled=bool(p.get("auto_fuzzing", True)),
             )
-        except Exception as e:
-            logger.warning("scan.incident_enrich_failed", error=str(e))
 
-        duration = time.monotonic() - started
-        await repo.finalize_scan(
-            scan_id=scan_uuid,
-            report_dict=result,
-            duration_seconds=duration,
-        )
+            async for event in pipeline.run(address=address, source=source):
+                payload = _event_payload(event, scan_id=scan_id)
+                await _publish(job_id, payload)
+                await repo.update_progress(
+                    scan_id=scan_uuid,
+                    stage=event.stage,
+                    progress=event.progress,
+                    error_message=event.message if event.stage == "error" else None,
+                )
+                logger.info(
+                    "scan.progress",
+                    job_id=job_id,
+                    scan_id=scan_id,
+                    stage=event.stage,
+                    progress=event.progress,
+                )
 
-        # Auto-register for continuous monitoring when the user has it on.
-        # Etherscan can't tell us about Solana, so we skip that network —
-        # the watcher's poller wouldn't have anything to compare against.
-        if user_id and network != "solana" and p.get("continuous_monitoring"):
+            result = pipeline.result()
+            if result.get("status") == "incomplete":
+                return result
+
+            # Enrich HIGH/CRITICAL findings with similar historical incidents.
+            # One round-trip to api.navy for the whole batch; vector search hits
+            # the IVFFlat index on incidents.embedding. Failures here are
+            # non-fatal — the scan still finalizes without the enrichment.
             try:
-                from wr3_api.services import watch_repository as watch_repo
-                await watch_repo.ensure_watched(
-                    user_id=uuid.UUID(user_id),
-                    address=address,
-                    network=network,
+                from audit_engine.llm.router import LLMRouter
+
+                from wr3_api.services import incident_search
+
+                router = LLMRouter()
+                await incident_search.enrich_report_with_similar_incidents(
+                    result, embed_batch=router.embed_batch
                 )
             except Exception as e:
-                logger.warning("scan.watch_register_failed", error=str(e))
+                logger.warning("scan.incident_enrich_failed", error=str(e))
 
-        return result
+            duration = time.monotonic() - started
+            await repo.finalize_scan(
+                scan_id=scan_uuid,
+                report_dict=result,
+                duration_seconds=duration,
+            )
+
+            # Auto-register for continuous monitoring when the user has it on.
+            # Etherscan can't tell us about Solana, so we skip that network —
+            # the watcher's poller wouldn't have anything to compare against.
+            if user_id and network != "solana" and p.get("continuous_monitoring"):
+                try:
+                    from wr3_api.services import watch_repository as watch_repo
+                    await watch_repo.ensure_watched(
+                        user_id=uuid.UUID(user_id),
+                        address=address,
+                        network=network,
+                    )
+                except Exception as e:
+                    logger.warning("scan.watch_register_failed", error=str(e))
+
+            return result
+        except Exception as e:
+            # Without this guard a crash after stage=scoring (incident_search,
+            # report_dict serialization, finalize_scan transaction conflict)
+            # leaves the scan row stuck at whatever progress was last written
+            # — typically 95%, no error_message — and the SSE consumer polls
+            # forever. Mark explicitly failed so the UI can render the error
+            # and the user can retry.
+            logger.exception("scan.unhandled_error", job_id=job_id, scan_id=scan_id, error=str(e))
+            try:
+                await _publish(job_id, {"stage": "error", "progress": 0,
+                                        "message": str(e)[:300], "scan_id": scan_id})
+                await repo.update_progress(
+                    scan_id=scan_uuid,
+                    stage="error",
+                    progress=0,
+                    error_message=str(e)[:500],
+                )
+            except Exception:
+                logger.exception("scan.error_recording_failed")
+            return {"status": "error", "error": str(e)[:300]}
 
     return _run_async(_run())

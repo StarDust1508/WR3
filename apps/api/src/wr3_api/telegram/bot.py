@@ -77,8 +77,8 @@ def _send_stars_invoice(*, chat_id: int, plan: str, stars: int) -> BotAction:
     title, _ = _PLAN_BLURBS.get(plan, ("Подписка", ""))
     description = {
         "hobby": "10 аудитов в месяц · multi-agent триаж · Foundry PoC retry-loop",
-        "team":  "Безлимит аудитов · AI-fuzzing · мониторинг 24/7",
-        "pro":   "Всё из Team + Certora formal verification",
+        "team":  "Безлимит аудитов · AI-fuzzing · мониторинг каждые 6 ч",
+        "pro":   "Всё из Team + расширенный LLM-триаж и кастомные инварианты",
     }.get(plan, "wr3 подписка")
     payload: dict[str, Any] = {
         "chat_id": chat_id,
@@ -279,11 +279,11 @@ _PLAN_BLURBS: dict[str, tuple[str, str]] = {
     ),
     "team": (
         "Team — $99/мес",
-        "безлимит контрактов, AI-fuzzing, мониторинг 24/7",
+        "безлимит контрактов, AI-fuzzing, мониторинг каждые 6 ч",
     ),
     "pro": (
         "Pro — $499/мес",
-        "всё из Team + Certora formal verification",
+        "всё из Team + расширенный LLM-триаж и кастомные инварианты",
     ),
     "enterprise": (
         "Enterprise / кастом",

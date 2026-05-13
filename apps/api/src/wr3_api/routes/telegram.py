@@ -40,12 +40,15 @@ async def telegram_webhook(
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"bad json: {e}") from e
 
-    web_base_url = str(request.base_url).rstrip("/")
-    # Prefer NEXT_PUBLIC_SITE_URL when set — webhook host is the API host,
-    # not the web host.
-    site = (settings.model_extra or {}).get("next_public_site_url")
-    if site:
-        web_base_url = str(site).rstrip("/")
+    # Use the configured public web URL when set (NEXT_PUBLIC_SITE_URL env
+    # → settings.next_public_site_url). The webhook hits the API host
+    # (e.g. api.example.com / serveo tunnel), not the Mini App host, so
+    # without this override every /tg/* link in bot DMs would 404.
+    web_base_url = (
+        settings.next_public_site_url.rstrip("/")
+        if settings.next_public_site_url
+        else str(request.base_url).rstrip("/")
+    )
 
     reply = await handle_update(
         update,

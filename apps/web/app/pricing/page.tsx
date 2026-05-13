@@ -66,9 +66,9 @@ export default function PricingPage() {
           ctaLabel="подписаться"
           features={[
             "Безлимит контрактов",
-            "AI-fuzzing (medusa / forge invariant)",
-            "Мониторинг 24/7",
-            "Slack / Discord вебхуки",
+            "AI-fuzzing (forge invariant)",
+            "Мониторинг каждые 6 часов",
+            "TG-уведомления об изменениях контракта",
           ]}
         />
         <Plan
@@ -79,7 +79,7 @@ export default function PricingPage() {
           ctaLabel="подписаться"
           features={[
             "Всё из team",
-            "Certora Prover (formal verification)",
+            "Расширенный LLM-триаж (бóльшие контексты)",
             "Кастомные инварианты по запросу",
             "Помощь с Safe Harbor onboarding",
           ]}

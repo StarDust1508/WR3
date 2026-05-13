@@ -113,7 +113,16 @@ def render_scan_markdown(scan: Scan, findings: list[Finding]) -> str:
             weight = a.get("weight")
             score = a.get("score")
             rationale = _md_inline(str(a.get("rationale", "")).replace("\n", " "))
-            weight_str = f"{round(float(weight) * 100)}%" if weight is not None else "—"
+            # weight==0 means the axis is currently inactive (e.g. Tokenomics
+            # pending GoPlus integration). Surface that honestly so the user
+            # doesn't think a 0% weight is a typo.
+            weight_str = (
+                "pending"
+                if weight is not None and float(weight) == 0.0
+                else f"{round(float(weight) * 100)}%"
+                if weight is not None
+                else "—"
+            )
             score_str = f"{float(score):.1f}" if score is not None else "—"
             lines.append(f"| {name} | {weight_str} | {score_str} | {rationale} |")
         lines.append("")

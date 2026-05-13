@@ -100,8 +100,8 @@ export default function DocsPage() {
 стадия 5   ai-fuzzing        LLM генерит invariant_* функции
                             → medusa fuzz / forge invariant testing
                             → counter-example analyzer: реальный баг vs артефакт
-стадия 6   formal-verif      Certora Prover (только paid-tier)
-стадия 7   scoring           5 осей, 0–100, светофор-вердикт`}
+стадия 6   scoring           5 осей, 0–100, светофор-вердикт
+                             (formal verification — Y2 roadmap, не в MVP)`}
       </pre>
 
       <h3 style={h3}>стоимость по стадиям</h3>
