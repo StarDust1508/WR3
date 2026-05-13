@@ -79,9 +79,84 @@ export function MiniAppRoot() {
       <Header user={user} />
       <MiniAppScanForm />
       <RecentScans scans={scans} />
+      <RecentIncidents />
       <Footer />
     </main>
   );
+}
+
+type IncidentRow = {
+  id: string;
+  title: string;
+  url: string;
+  source: string;
+  loss_usd: number | null;
+  published_at: string;
+};
+
+function RecentIncidents() {
+  const [items, setItems] = useState<IncidentRow[] | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await fetch("/api/v1/public/incidents?limit=3&days=60");
+        if (!r.ok) return;
+        const data = (await r.json()) as { incidents: IncidentRow[] };
+        if (!cancelled) setItems(data.incidents);
+      } catch {
+        // soft-fail — widget just doesn't render
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  if (!items || items.length === 0) return null;
+
+  return (
+    <section className="mt-6">
+      <h2 className="tg-hint mb-2 flex items-center justify-between">
+        <span>свежие эксплойты</span>
+        <Link href="/incidents" className="text-[10px]" style={{ color: "var(--hb-text-muted)" }}>
+          все →
+        </Link>
+      </h2>
+      <ul className="flex flex-col gap-1.5">
+        {items.map((i) => (
+          <li key={i.id}>
+            <a
+              href={i.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="tg-card-interactive flex items-start gap-2"
+              style={{ padding: 10 }}
+            >
+              <span style={{ color: "var(--hb-text-muted)", fontSize: 10, marginTop: 2 }}>
+                {i.source}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-xs" style={{ color: "var(--hb-text-hi)" }}>
+                  {i.title}
+                </p>
+                {i.loss_usd != null && (
+                  <p className="text-[10px]" style={{ color: "#f87171" }}>
+                    ${formatIncidentLoss(i.loss_usd)}
+                  </p>
+                )}
+              </div>
+            </a>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function formatIncidentLoss(usd: number): string {
+  if (usd >= 1_000_000_000) return `${(usd / 1_000_000_000).toFixed(1)}B`;
+  if (usd >= 1_000_000) return `${(usd / 1_000_000).toFixed(1)}M`;
+  if (usd >= 1_000) return `${(usd / 1_000).toFixed(0)}K`;
+  return usd.toString();
 }
 
 function BootScreen() {

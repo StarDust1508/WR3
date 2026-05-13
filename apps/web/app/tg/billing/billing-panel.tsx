@@ -156,6 +156,18 @@ function CurrentPlan({ sub }: { sub: Subscription }) {
           оплачено {sub.amount} ⭐
         </p>
       )}
+      {sub.provider === "telegram_stars" && (
+        <a
+          href="https://t.me/KitronBot?start=refund"
+          className="mt-3 inline-block text-[11px]"
+          style={{
+            color: "var(--hb-text-muted)",
+            textDecoration: "underline",
+          }}
+        >
+          вернуть Stars (откроет бота)
+        </a>
+      )}
     </div>
   );
 }

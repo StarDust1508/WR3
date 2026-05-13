@@ -15,6 +15,14 @@ interface ScanDetail {
   tier: Tier | null;
   report: {
     axes?: Array<{ name: string; weight: number; score: number; rationale: string }>;
+    chain_metadata?: {
+      address?: string;
+      executable?: boolean;
+      loader?: string | null;
+      upgradeable?: boolean;
+      upgrade_authority?: string | null;
+      last_upgrade_slot?: number | null;
+    };
     disclaimer?: string;
   } | null;
   duration_seconds: number | null;
@@ -32,6 +40,17 @@ interface ScanDetail {
     dismissed: boolean;
     poc_validated?: boolean;
     poc_path?: string | null;
+    metadata?: {
+      similar_incidents?: Array<{
+        incident_id: string;
+        title: string;
+        url: string;
+        source: string;
+        loss_usd: number | null;
+        published_at: string;
+        similarity: number;
+      }>;
+    } | null;
   }>;
 }
 
@@ -82,7 +101,20 @@ export default async function ScanDetailPage({
           Просканировано {new Date(scan.created_at).toLocaleString("ru-RU")}
           {scan.duration_seconds != null && ` · ${scan.duration_seconds.toFixed(1)}с`}
         </p>
+        <p className="mt-2">
+          <a
+            href={`${process.env.NEXT_PUBLIC_API_URL ?? ""}/v1/scan/${scan.id}/report.md`}
+            className="text-xs text-zinc-600 underline hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"
+            download
+          >
+            ↓ скачать отчёт (markdown)
+          </a>
+        </p>
       </header>
+
+      {scan.report?.chain_metadata?.executable !== undefined && (
+        <SolanaMeta meta={scan.report.chain_metadata} />
+      )}
 
       <section
         className="mb-10 grid grid-cols-1 gap-6 rounded-lg border p-6 md:grid-cols-[200px_1fr]"
@@ -155,5 +187,52 @@ export default async function ScanDetailPage({
         )}
       </footer>
     </main>
+  );
+}
+
+function SolanaMeta({
+  meta,
+}: {
+  meta: NonNullable<ScanDetail["report"]>["chain_metadata"];
+}) {
+  if (!meta) return null;
+  return (
+    <section className="mb-10 rounded-lg border border-zinc-200 p-6 dark:border-zinc-800">
+      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-zinc-500">
+        Метаданные программы Solana
+      </h2>
+      <dl className="grid grid-cols-[200px_1fr] gap-y-2 text-sm">
+        <dt className="text-zinc-500">Исполняемая</dt>
+        <dd>{meta.executable ? "да" : "нет"}</dd>
+        {meta.loader && (
+          <>
+            <dt className="text-zinc-500">Loader</dt>
+            <dd className="break-all font-mono text-xs">{meta.loader}</dd>
+          </>
+        )}
+        <dt className="text-zinc-500">Обновляемая</dt>
+        <dd>
+          {meta.upgradeable ? (
+            <span className="text-amber-700 dark:text-amber-300">
+              да ⚠ (риск централизации)
+            </span>
+          ) : (
+            <span>нет — байткод заморожен</span>
+          )}
+        </dd>
+        {meta.upgradeable && meta.upgrade_authority && (
+          <>
+            <dt className="text-zinc-500">Upgrade authority</dt>
+            <dd className="break-all font-mono text-xs">{meta.upgrade_authority}</dd>
+          </>
+        )}
+        {meta.upgradeable && meta.last_upgrade_slot != null && (
+          <>
+            <dt className="text-zinc-500">Последний upgrade slot</dt>
+            <dd className="font-mono">{meta.last_upgrade_slot.toLocaleString("ru-RU")}</dd>
+          </>
+        )}
+      </dl>
+    </section>
   );
 }

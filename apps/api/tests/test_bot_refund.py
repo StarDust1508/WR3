@@ -99,6 +99,38 @@ async def test_refund_stars_calls_telegram_and_db(monkeypatch) -> None:
     assert refund_called["user_id"] == user.id
 
 
+async def test_start_refund_deeplink_triggers_refund(monkeypatch) -> None:
+    """Mini App's billing-panel "вернуть Stars" button opens
+    `t.me/KitronBot?start=refund` → bot must route this to _handle_refund."""
+    user = _user()
+    sub = _sub()
+    refunded = {"v": False}
+
+    async def fake_upsert(*, telegram_user_id: int, **_):
+        return user
+    async def fake_active(_):
+        return sub
+    async def fake_refund(user_id):
+        refunded["v"] = True
+        return sub
+
+    monkeypatch.setattr(bot.user_repo, "upsert_telegram_user", fake_upsert)
+    monkeypatch.setattr(bot.sub_repo, "get_active_for_user", fake_active)
+    monkeypatch.setattr(bot.sub_repo, "refund_active_subscription", fake_refund)
+
+    update = {
+        "message": {
+            "chat": {"id": 999},
+            "from": {"id": 12345},
+            "text": "/start refund",
+        }
+    }
+    reply = await bot.handle_update(update, web_base_url="https://example")
+    methods = [a.method for a in reply.actions]
+    assert "refundStarPayment" in methods
+    assert refunded["v"] is True
+
+
 async def test_refund_rejects_non_stars_provider(monkeypatch) -> None:
     """Refunding a TON/Stripe subscription via this command is misleading."""
     user = _user()

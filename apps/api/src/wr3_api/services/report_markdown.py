@@ -44,6 +44,24 @@ def render_scan_markdown(scan: Scan, findings: list[Finding]) -> str:
         lines.append(f"- **Completed at:** {_fmt(scan.completed_at)}")
     lines.append("")
 
+    # --- On-chain metadata (Solana for now) ---
+    chain_meta = (scan.report or {}).get("chain_metadata") if scan.report else None
+    if chain_meta and isinstance(chain_meta, dict) and chain_meta.get("executable") is not None:
+        lines.append("## On-chain metadata")
+        lines.append("")
+        lines.append(f"- **Executable:** {'yes' if chain_meta.get('executable') else 'no'}")
+        if loader := chain_meta.get("loader"):
+            lines.append(f"- **Loader:** `{loader}`")
+        if chain_meta.get("upgradeable"):
+            lines.append(f"- **Upgradeable:** yes ⚠️ (centralisation risk)")
+            if auth := chain_meta.get("upgrade_authority"):
+                lines.append(f"- **Upgrade authority:** `{auth}`")
+            if slot := chain_meta.get("last_upgrade_slot"):
+                lines.append(f"- **Last upgrade slot:** {slot:,}")
+        else:
+            lines.append("- **Upgradeable:** no (frozen — bytecode cannot change)")
+        lines.append("")
+
     # --- Score breakdown (axes) ---
     axes = ((scan.report or {}).get("axes") or []) if scan.report else []
     if axes:

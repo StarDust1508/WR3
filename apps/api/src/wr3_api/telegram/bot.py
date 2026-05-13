@@ -199,11 +199,14 @@ async def handle_update(update: dict[str, Any], *, web_base_url: str) -> BotRepl
     command, args = parse_command(text)
 
     if command == "/start":
-        # /start may carry a deep-link payload set by /pricing CTAs:
-        #   "/start upgrade_hobby" -> we route to a subscription explainer
-        # (Telegram passes it as the first arg.)
+        # /start may carry a deep-link payload set by Mini App / pricing CTAs:
+        #   "/start upgrade_hobby" -> subscription explainer + Stars invoice
+        #   "/start refund"        -> refund the active Stars subscription
+        # (Telegram passes the payload as the first arg.)
         if args and args[0].startswith("upgrade_"):
             return _handle_upgrade(chat_id=chat_id, plan=args[0][len("upgrade_"):])
+        if args and args[0] == "refund":
+            return await _handle_refund(chat_id=chat_id, tg_user_id=int(tg_user_id))
         return _greet(chat_id=chat_id, web_base_url=web_base_url)
 
     if command == "/help":

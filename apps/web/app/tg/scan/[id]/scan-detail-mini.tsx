@@ -26,6 +26,14 @@ type Finding = {
   metadata?: { similar_incidents?: SimilarIncident[] } | null;
 };
 
+type ChainMetadata = {
+  executable?: boolean;
+  loader?: string | null;
+  upgradeable?: boolean;
+  upgrade_authority?: string | null;
+  last_upgrade_slot?: number | null;
+};
+
 type ScanDetail = {
   id: string;
   address: string;
@@ -36,6 +44,9 @@ type ScanDetail = {
   tier: string | null;
   duration_seconds: number | null;
   findings: Finding[];
+  report?: {
+    chain_metadata?: ChainMetadata;
+  } | null;
 };
 
 export function ScanDetailMini({ scanId }: { scanId: string }) {
@@ -110,6 +121,22 @@ export function ScanDetailMini({ scanId }: { scanId: string }) {
         ? <ProgressCard stage={scan.stage} progress={scan.progress} />
         : <ScoreCard score={scan.score ?? 0} tier={scan.tier ?? "yellow"} counts={counts} duration={scan.duration_seconds} />}
 
+      {scan.report?.chain_metadata?.executable !== undefined && (
+        <SolanaMetaCard meta={scan.report.chain_metadata} />
+      )}
+
+      {scan.stage === "done" && (
+        <p className="mt-3 text-center text-[10px]" style={{ color: "var(--hb-text-muted)" }}>
+          <a
+            href={`/api/v1/scan/${scan.id}/report.md`}
+            style={{ color: "var(--hb-primary)", textDecoration: "none" }}
+            download
+          >
+            ↓ скачать .md
+          </a>
+        </p>
+      )}
+
       {active.length > 0 && (
         <section className="mt-5">
           <h2 className="tg-hint mb-2">находки · {active.length}</h2>
@@ -123,6 +150,44 @@ export function ScanDetailMini({ scanId }: { scanId: string }) {
         ai-аудит · без гарантий · не замена ручному ревью
       </p>
     </main>
+  );
+}
+
+function SolanaMetaCard({ meta }: { meta: ChainMetadata }) {
+  return (
+    <div className="tg-card mt-3" style={{ padding: 12 }}>
+      <p className="tg-hint mb-1">on-chain метаданные</p>
+      <div className="text-[11px]" style={{ color: "var(--hb-text-dim)", lineHeight: 1.6 }}>
+        <div>
+          <span style={{ color: "var(--hb-text-muted)" }}>исполняемая: </span>
+          <span style={{ color: "var(--hb-text-hi)" }}>{meta.executable ? "да" : "нет"}</span>
+        </div>
+        <div>
+          <span style={{ color: "var(--hb-text-muted)" }}>обновляемая: </span>
+          {meta.upgradeable ? (
+            <span style={{ color: "var(--hb-warn, #f59e0b)" }}>да ⚠ риск централизации</span>
+          ) : (
+            <span style={{ color: "var(--hb-text-hi)" }}>нет — байткод заморожен</span>
+          )}
+        </div>
+        {meta.upgradeable && meta.upgrade_authority && (
+          <div className="mt-1">
+            <span style={{ color: "var(--hb-text-muted)" }}>upgrade authority: </span>
+            <span className="break-all" style={{ color: "var(--hb-text-hi)", fontFamily: "monospace", fontSize: 10 }}>
+              {meta.upgrade_authority}
+            </span>
+          </div>
+        )}
+        {meta.upgradeable && meta.last_upgrade_slot != null && (
+          <div>
+            <span style={{ color: "var(--hb-text-muted)" }}>last upgrade slot: </span>
+            <span style={{ color: "var(--hb-text-hi)", fontFamily: "monospace" }}>
+              {meta.last_upgrade_slot.toLocaleString("ru-RU")}
+            </span>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
