@@ -1,0 +1,29 @@
+[Unit]
+Description=wr3 Celery worker (audit pipeline + scrapers + watcher)
+After=network.target postgresql.service redis-server.service
+Wants=postgresql.service redis-server.service
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/wr3/apps/api
+EnvironmentFile=/home/ubuntu/wr3/apps/api/.env
+Environment=PATH=/home/ubuntu/.local/bin:/home/ubuntu/.cargo/bin:/home/ubuntu/.foundry/bin:/usr/local/bin:/usr/bin:/bin
+# --concurrency=2 fits Oracle's 24GB Ampere comfortably for our workload
+# (1 LLM-heavy scan + 1 incident-refresh/watcher concurrently). Each audit
+# spends most wall time blocked on api.navy or Etherscan I/O, so prefork
+# beats threads here.
+ExecStart=/home/ubuntu/.local/bin/uv run --frozen celery -A wr3_api.workers.celery_app worker --loglevel=info --concurrency=2 --queues=wr3.audit,wr3.incidents,wr3.watch,wr3.default
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/home/ubuntu/wr3
+ProtectHome=read-only
+
+[Install]
+WantedBy=multi-user.target

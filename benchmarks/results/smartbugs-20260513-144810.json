@@ -1,0 +1,336 @@
+[
+  {
+    "category": "reentrancy",
+    "contract_path": "dataset/reentrancy/0x01f8c4e3fa3edeb29e514cba738d87ce8c091d3f.sol",
+    "total_findings": 41,
+    "findings_by_engine": {
+      "baseline": 3,
+      "aderyn": 15,
+      "slither": 23
+    },
+    "detected": true,
+    "matching_findings": [
+      {
+        "engine": "slither",
+        "severity": "high",
+        "title": "reentrancy-eth",
+        "line": 47
+      }
+    ],
+    "duration_seconds": 1.5593407080014003,
+    "error": null
+  },
+  {
+    "category": "reentrancy",
+    "contract_path": "dataset/reentrancy/0x23a91059fdc9579a9fbd0edc5f2ea0bfdb70deb4.sol",
+    "total_findings": 28,
+    "findings_by_engine": {
+      "baseline": 2,
+      "aderyn": 8,
+      "slither": 18
+    },
+    "detected": true,
+    "matching_findings": [
+      {
+        "engine": "slither",
+        "severity": "high",
+        "title": "reentrancy-eth",
+        "line": 33
+      }
+    ],
+    "duration_seconds": 0.9829736660030903,
+    "error": null
+  },
+  {
+    "category": "reentrancy",
+    "contract_path": "dataset/reentrancy/0x4320e6f8c05b27ab4707cd1f6d5ce6f3e4b3a5a1.sol",
+    "total_findings": 41,
+    "findings_by_engine": {
+      "baseline": 3,
+      "aderyn": 15,
+      "slither": 23
+    },
+    "detected": true,
+    "matching_findings": [
+      {
+        "engine": "slither",
+        "severity": "high",
+        "title": "reentrancy-eth",
+        "line": 48
+      }
+    ],
+    "duration_seconds": 1.2967695420084056,
+    "error": null
+  },
+  {
+    "category": "reentrancy",
+    "contract_path": "dataset/reentrancy/0x4e73b32ed6c35f570686b89848e5f39f20ecc106.sol",
+    "total_findings": 41,
+    "findings_by_engine": {
+      "baseline": 3,
+      "aderyn": 15,
+      "slither": 23
+    },
+    "detected": true,
+    "matching_findings": [
+      {
+        "engine": "slither",
+        "severity": "high",
+        "title": "reentrancy-eth",
+        "line": 47
+      }
+    ],
+    "duration_seconds": 1.0643500840087654,
+    "error": null
+  },
+  {
+    "category": "reentrancy",
+    "contract_path": "dataset/reentrancy/0x561eac93c92360949ab1f1403323e6db345cbf31.sol",
+    "total_findings": 28,
+    "findings_by_engine": {
+      "baseline": 3,
+      "slither": 25
+    },
+    "detected": true,
+    "matching_findings": [
+      {
+        "engine": "slither",
+        "severity": "high",
+        "title": "reentrancy-eth",
+        "line": 47
+      }
+    ],
+    "duration_seconds": 1.1038214589934796,
+    "error": null
+  },
+  {
+    "category": "access_control",
+    "contract_path": "dataset/access_control/FibonacciBalance.sol",
+    "total_findings": 29,
+    "findings_by_engine": {
+      "baseline": 3,
+      "aderyn": 11,
+      "slither": 15
+    },
+    "detected": true,
+    "matching_findings": [
+      {
+        "engine": "slither",
+        "severity": "high",
+        "title": "arbitrary-send-eth",
+        "line": 26
+      }
+    ],
+    "duration_seconds": 1.0966023329965537,
+    "error": null
+  },
+  {
+    "category": "access_control",
+    "contract_path": "dataset/access_control/arbitrary_location_write_simple.sol",
+    "total_findings": 24,
+    "findings_by_engine": {
+      "baseline": 2,
+      "aderyn": 14,
+      "slither": 8
+    },
+    "detected": true,
+    "matching_findings": [
+      {
+        "engine": "baseline",
+        "severity": "high",
+        "title": "selfdestruct in code path",
+        "line": 38
+      },
+      {
+        "engine": "aderyn",
+        "severity": "high",
+        "title": "Depracated EVM Instruction for `selfdestruct` should not be used.",
+        "line": 38
+      }
+    ],
+    "duration_seconds": 1.7100415419990895,
+    "error": null
+  },
+  {
+    "category": "access_control",
+    "contract_path": "dataset/access_control/incorrect_constructor_name1.sol",
+    "total_findings": 12,
+    "findings_by_engine": {
+      "baseline": 1,
+      "aderyn": 8,
+      "slither": 3
+    },
+    "detected": false,
+    "matching_findings": [],
+    "duration_seconds": 1.2748341249971418,
+    "error": null
+  },
+  {
+    "category": "access_control",
+    "contract_path": "dataset/access_control/incorrect_constructor_name2.sol",
+    "total_findings": 11,
+    "findings_by_engine": {
+      "baseline": 1,
+      "aderyn": 8,
+      "slither": 2
+    },
+    "detected": false,
+    "matching_findings": [],
+    "duration_seconds": 1.0968072499963455,
+    "error": null
+  },
+  {
+    "category": "access_control",
+    "contract_path": "dataset/access_control/incorrect_constructor_name3.sol",
+    "total_findings": 12,
+    "findings_by_engine": {
+      "baseline": 1,
+      "aderyn": 8,
+      "slither": 3
+    },
+    "detected": false,
+    "matching_findings": [],
+    "duration_seconds": 1.0610470839892514,
+    "error": null
+  },
+  {
+    "category": "unchecked_low_level_calls",
+    "contract_path": "dataset/unchecked_low_level_calls/0x07f7ecb66d788ab01dc93b9b71a88401de7d0f2e.sol",
+    "total_findings": 74,
+    "findings_by_engine": {
+      "baseline": 6,
+      "aderyn": 44,
+      "slither": 24
+    },
+    "detected": true,
+    "matching_findings": [
+      {
+        "engine": "aderyn",
+        "severity": "low",
+        "title": "Unsafe ERC20 Operations should not be used",
+        "line": 190
+      },
+      {
+        "engine": "aderyn",
+        "severity": "low",
+        "title": "Unsafe ERC20 Operations should not be used",
+        "line": 289
+      },
+      {
+        "engine": "slither",
+        "severity": "medium",
+        "title": "unchecked-lowlevel",
+        "line": 197
+      }
+    ],
+    "duration_seconds": 1.1378188749949913,
+    "error": null
+  },
+  {
+    "category": "unchecked_low_level_calls",
+    "contract_path": "dataset/unchecked_low_level_calls/0x0cbe050f75bc8f8c2d6c0d249fea125fd6e1acc9.sol",
+    "total_findings": 9,
+    "findings_by_engine": {
+      "baseline": 2,
+      "aderyn": 2,
+      "slither": 5
+    },
+    "detected": true,
+    "matching_findings": [
+      {
+        "engine": "baseline",
+        "severity": "medium",
+        "title": "Unchecked low-level call",
+        "line": 12
+      },
+      {
+        "engine": "slither",
+        "severity": "medium",
+        "title": "unchecked-lowlevel",
+        "line": 10
+      }
+    ],
+    "duration_seconds": 1.1769256659899838,
+    "error": null
+  },
+  {
+    "category": "unchecked_low_level_calls",
+    "contract_path": "dataset/unchecked_low_level_calls/0x19cf8481ea15427a98ba3cdd6d9e14690011ab10.sol",
+    "total_findings": 104,
+    "findings_by_engine": {
+      "baseline": 4,
+      "slither": 100
+    },
+    "detected": true,
+    "matching_findings": [
+      {
+        "engine": "slither",
+        "severity": "high",
+        "title": "unchecked-transfer",
+        "line": 366
+      },
+      {
+        "engine": "slither",
+        "severity": "medium",
+        "title": "unchecked-send",
+        "line": 436
+      },
+      {
+        "engine": "slither",
+        "severity": "medium",
+        "title": "unchecked-send",
+        "line": 457
+      }
+    ],
+    "duration_seconds": 1.0796656669990625,
+    "error": null
+  },
+  {
+    "category": "unchecked_low_level_calls",
+    "contract_path": "dataset/unchecked_low_level_calls/0x2972d548497286d18e92b5fa1f8f9139e5653fd2.sol",
+    "total_findings": 15,
+    "findings_by_engine": {
+      "baseline": 2,
+      "aderyn": 3,
+      "slither": 10
+    },
+    "detected": true,
+    "matching_findings": [
+      {
+        "engine": "baseline",
+        "severity": "medium",
+        "title": "Unchecked low-level call",
+        "line": 14
+      },
+      {
+        "engine": "slither",
+        "severity": "medium",
+        "title": "unchecked-lowlevel",
+        "line": 9
+      }
+    ],
+    "duration_seconds": 1.142573250006535,
+    "error": null
+  },
+  {
+    "category": "unchecked_low_level_calls",
+    "contract_path": "dataset/unchecked_low_level_calls/0x39cfd754c85023648bf003bea2dd498c5612abfa.sol",
+    "total_findings": 43,
+    "findings_by_engine": {
+      "baseline": 5,
+      "aderyn": 16,
+      "slither": 22
+    },
+    "detected": true,
+    "matching_findings": [
+      {
+        "engine": "slither",
+        "severity": "medium",
+        "title": "unchecked-lowlevel",
+        "line": 39
+      }
+    ],
+    "duration_seconds": 1.1383212500077207,
+    "error": null
+  }
+]

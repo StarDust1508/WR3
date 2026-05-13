@@ -1,0 +1,31 @@
+[Unit]
+Description=wr3 Celery beat scheduler (incident refresh + watcher sweep, every 6h)
+After=network.target redis-server.service wr3-worker.service
+Wants=redis-server.service
+# We want beat to come up after the worker so the first tick has somewhere
+# to dispatch to. Not strictly required (Celery beat tolerates a missing
+# worker — tasks queue up) but cleaner.
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/wr3/apps/api
+EnvironmentFile=/home/ubuntu/wr3/apps/api/.env
+Environment=PATH=/home/ubuntu/.local/bin:/home/ubuntu/.cargo/bin:/usr/local/bin:/usr/bin:/bin
+# Beat writes its schedule file to /tmp (PrivateTmp keeps it per-unit, so
+# it won't conflict with anything else and disappears on restart — fine
+# because the schedule is declarative in celery_app.py).
+ExecStart=/home/ubuntu/.local/bin/uv run --frozen celery -A wr3_api.workers.celery_app beat --loglevel=info --schedule=/tmp/celerybeat-schedule
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/home/ubuntu/wr3
+ProtectHome=read-only
+
+[Install]
+WantedBy=multi-user.target

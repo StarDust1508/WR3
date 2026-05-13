@@ -5,7 +5,7 @@ from pathlib import Path
 
 import structlog
 
-from audit_engine.analyzers.base import StaticAnalyzer
+from audit_engine.analyzers.base import StaticAnalyzer, detect_solc_version
 from audit_engine.types import Finding, Severity
 
 logger = structlog.get_logger()
@@ -22,8 +22,25 @@ _SLITHER_IMPACT_MAP = {
 class SlitherAnalyzer(StaticAnalyzer):
     """Slither (Trail of Bits) — AGPL-3, Python.
 
-    Used as fallback for legacy Solidity (<0.5) or when Aderyn fails.
-    Invoked as subprocess (AGPL isolation).
+    Complementary to Aderyn: catches different classes (e.g. arbitrary-send-eth,
+    unchecked-lowlevel as MEDIUM, naming-convention/solc-version). Detector
+    overlap is intentional — when two engines flag the same line that's a
+    consensus signal the multi-agent triage stage uses.
+
+    Prereqs (silently skipped if absent — base class handles
+    FileNotFoundError + non-zero exit):
+        - `slither` on PATH (`uvx slither-analyzer` or `pipx install
+          slither-analyzer`)
+        - `solc` on PATH (`brew install solc-select && solc-select install
+          0.8.20 && solc-select use 0.8.20`)
+
+    crytic-compile (Slither's build layer) auto-selects matching solc when
+    solc-select is installed. We DON'T pin a version here — the contract's
+    pragma drives it.
+
+    Subprocess isolation keeps the AGPL boundary clean: we never import
+    Slither code into wr3's proprietary core. JSON over a tempfile is the
+    only contract.
     """
 
     name = "slither"
@@ -36,6 +53,14 @@ class SlitherAnalyzer(StaticAnalyzer):
             contract_path.write_text(source, encoding="utf-8")
             report_path = workspace / "slither.json"
 
+            # SOLC_VERSION drives crytic-compile's solc-select resolution.
+            # Without this, an old (^0.4.19) contract fails to compile under
+            # the user's default solc (likely 0.8.x from Homebrew).
+            env: dict[str, str] = {}
+            solc_v = detect_solc_version(source)
+            if solc_v:
+                env["SOLC_VERSION"] = solc_v
+
             code, _stdout, stderr = await self._run_cli(
                 args=[
                     str(contract_path),
@@ -45,6 +70,7 @@ class SlitherAnalyzer(StaticAnalyzer):
                 ],
                 cwd=workspace,
                 timeout=180.0,
+                env=env or None,
             )
 
             if not report_path.exists():

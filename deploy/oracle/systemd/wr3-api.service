@@ -1,0 +1,35 @@
+[Unit]
+Description=wr3 FastAPI service
+After=network.target postgresql.service redis-server.service
+Wants=postgresql.service redis-server.service
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/wr3/apps/api
+EnvironmentFile=/home/ubuntu/wr3/apps/api/.env
+# PATH order: ~/.local/bin (uv tool installs — slither, wake, solc-select)
+# then ~/.cargo/bin (aderyn) then ~/.foundry/bin (forge for PoC retry-loop)
+# then system paths. This is critical for subprocess analyzers to find
+# their binaries — systemd otherwise strips PATH to a minimal default.
+Environment=PATH=/home/ubuntu/.local/bin:/home/ubuntu/.cargo/bin:/home/ubuntu/.foundry/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/home/ubuntu/.local/bin/uv run --frozen uvicorn wr3_api.main:app --host 0.0.0.0 --port 8001
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+# Hardening — Oracle VM faces the public internet (or sits behind a CF
+# Tunnel). Lock down the obvious sharp edges without breaking the use of
+# tmp dirs by subprocess analyzers.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/home/ubuntu/wr3
+ProtectHome=read-only
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+
+[Install]
+WantedBy=multi-user.target

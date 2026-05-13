@@ -1,0 +1,74 @@
+[
+  {
+    "detector_name": "unchecked-return-value",
+    "impact": "medium",
+    "confidence": "medium",
+    "uri": "https://ackee.xyz/wake/docs/4.22.1/static-analysis/detectors/unchecked-return-value",
+    "detection": {
+      "message": "Unchecked return value",
+      "location": {
+        "path": "/private/tmp/aderyn-test/src/Vuln.sol",
+        "relative_path": "src/Vuln.sol",
+        "contract": "Vuln",
+        "source_start_line": 24,
+        "source_unit_name": "src/Vuln.sol",
+        "start_offset": 604,
+        "end_offset": 645,
+        "start_line": 27,
+        "start_col": 9,
+        "end_line": 27,
+        "end_col": 50,
+        "source": "\n    // BUG: low-level call, unchecked\n    function withdraw(address payable to) public {\n        to.call{value: address(this).balance}(\"\");\n    }\n}"
+      }
+    },
+    "suppressed": false
+  },
+  {
+    "detector_name": "tx-origin",
+    "impact": "medium",
+    "confidence": "low",
+    "uri": "https://ackee.xyz/wake/docs/4.22.1/static-analysis/detectors/tx-origin#phishing-attacks",
+    "detection": {
+      "message": "Unsafe usage of tx.origin",
+      "location": {
+        "path": "/private/tmp/aderyn-test/src/Vuln.sol",
+        "relative_path": "src/Vuln.sol",
+        "contract": "Vuln",
+        "source_start_line": 14,
+        "source_unit_name": "src/Vuln.sol",
+        "start_offset": 353,
+        "end_offset": 362,
+        "start_line": 17,
+        "start_col": 17,
+        "end_line": 17,
+        "end_col": 26,
+        "source": "\n    // BUG: tx.origin authorization\n    function adminOnly() public {\n        require(tx.origin == owner, \"not owner\");\n    }\n\n    // BUG: missing zero address check"
+      }
+    },
+    "suppressed": false
+  },
+  {
+    "detector_name": "tx-origin",
+    "impact": "warning",
+    "confidence": "low",
+    "uri": "https://ackee.xyz/wake/docs/4.22.1/static-analysis/detectors/tx-origin#account-abstraction",
+    "detection": {
+      "message": "Use of tx.origin may interfere with ERC-4337 account abstraction",
+      "location": {
+        "path": "/private/tmp/aderyn-test/src/Vuln.sol",
+        "relative_path": "src/Vuln.sol",
+        "contract": "Vuln",
+        "source_start_line": 14,
+        "source_unit_name": "src/Vuln.sol",
+        "start_offset": 353,
+        "end_offset": 362,
+        "start_line": 17,
+        "start_col": 17,
+        "end_line": 17,
+        "end_col": 26,
+        "source": "\n    // BUG: tx.origin authorization\n    function adminOnly() public {\n        require(tx.origin == owner, \"not owner\");\n    }\n\n    // BUG: missing zero address check"
+      }
+    },
+    "suppressed": false
+  }
+]
