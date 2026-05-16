@@ -17,10 +17,15 @@ compatibility_flags = ["nodejs_compat"]
 directory = ".open-next/assets"
 binding = "ASSETS"
 
-# Runtime env vars set in the CF Workers dashboard
-# (Settings -> Variables and Secrets) instead of here, so they can rotate
-# without code changes. WR3_API_URL is set by the operator at deploy time;
-# it points at the FastAPI tunnel (e.g. https://xxx.serveousercontent.com).
+# Runtime env vars. WR3_API_URL is also overridable from the dashboard,
+# BUT: `wrangler deploy` replaces dashboard vars with this section by
+# default. So we ship the current tunnel URL here as the canonical
+# source — operator can change either place and the dashboard wins after
+# a no-op redeploy, since dashboard edits don't bump the deploy version.
+# In practice: edit here, deploy = pushes URL; edit dashboard = effective
+# for the live worker but reset on next deploy.
+#
+# Rotate this whenever the serveo tunnel restarts and gets a new URL.
 [vars]
-# placeholder so `wrangler` doesn't complain about an empty section
 WR3_DEPLOYED_AT = "ci"
+WR3_API_URL = "https://544daece18522c3f-72-56-101-252.serveousercontent.com"
