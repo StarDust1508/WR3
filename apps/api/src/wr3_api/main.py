@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from wr3_api.config import get_settings
+from wr3_api.middleware.request_id import RequestIdMiddleware
 from wr3_api.routes import auth, health, public, scan, subscription, telegram
 
 logger = structlog.get_logger()
@@ -36,6 +37,10 @@ app = FastAPI(
 #     name into the API.
 # allow_credentials=True is REQUIRED for our cookie/JWT auth, which means
 # `allow_origins=["*"]` is illegal — the regex covers all valid origins.
+# Middleware execution order is REVERSE of registration. We want
+# RequestId to wrap CORS so the access-log line carries the request_id
+# even when CORS would have rejected the request — that means RequestId
+# is registered LAST and runs FIRST.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000", "https://t.me"],
@@ -50,6 +55,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(RequestIdMiddleware)
 
 app.include_router(health.router, prefix="/v1", tags=["health"])
 app.include_router(scan.router, prefix="/v1/scan", tags=["scan"])

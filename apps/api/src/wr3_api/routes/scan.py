@@ -4,13 +4,14 @@ from typing import Any, Literal
 from uuid import UUID, uuid4
 
 import structlog
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, Field
 from sse_starlette.sse import EventSourceResponse
 
 from wr3_api.auth import current_user_optional, current_user_required
 from wr3_api.models import User
+from wr3_api.services import quota
 from wr3_api.services import report_markdown as md
 from wr3_api.services import scan_repository as repo
 from wr3_api.workers.scan_worker import enqueue_scan, get_scan_progress
@@ -35,10 +36,44 @@ class ScanResponse(BaseModel):
 @router.post("", response_model=ScanResponse)
 async def create_scan(
     req: ScanRequest,
+    request: Request,
     user: User | None = Depends(current_user_optional),
 ) -> ScanResponse:
     if not req.address.strip():
         raise HTTPException(status_code=400, detail="address required")
+
+    # Tier-based quota gate. For authenticated users, the tier comes off
+    # `user.tier` (kept in sync by the Stars subscription path). For
+    # anonymous calls we apply the strictest free-tier limit keyed by IP.
+    # See services/quota.py for the per-tier numbers.
+    tier = user.tier if user else "free"
+    client_ip = _real_client_ip(request)
+    check = await quota.check_and_increment_scan(
+        user_id=user.id if user else None,
+        tier=tier,
+        client_ip=client_ip,
+    )
+    if not check.allowed:
+        # 429 with a Retry-After tells well-behaved clients (including
+        # the Mini App) exactly when to back off. The body has structured
+        # detail so the UI can render a useful upgrade prompt instead of
+        # a generic error.
+        raise HTTPException(
+            status_code=429,
+            detail={
+                "error": "tier_quota_exceeded",
+                "tier": check.tier,
+                "used": check.used,
+                "limit": check.limit,
+                "retry_after_seconds": check.retry_after_seconds,
+                "message": (
+                    f"Лимит тарифа {check.tier!r} исчерпан "
+                    f"({check.used}/{check.limit}). "
+                    "Подождите или обновите тариф в Mini App."
+                ),
+            },
+            headers={"Retry-After": str(check.retry_after_seconds or 60)},
+        )
 
     job_id = str(uuid4())
     await enqueue_scan(
@@ -54,8 +89,29 @@ async def create_scan(
         network=req.network,
         address=req.address,
         user_id=str(user.id) if user else None,
+        tier=tier,
+        quota_used=check.used,
+        quota_limit=check.limit,
     )
     return ScanResponse(job_id=job_id, status="queued")
+
+
+def _real_client_ip(request: Request) -> str:
+    """Best-effort client IP behind CF Workers / serveo / direct.
+
+    CF Workers populates CF-Connecting-IP with the original visitor IP.
+    serveo sets X-Forwarded-For. Falling back to the raw socket peer
+    catches direct localhost dev calls. We DO trust these headers because
+    the only path to our API in production is via CF → serveo, and both
+    strip/overwrite client-supplied versions of these headers.
+    """
+    cf_ip = request.headers.get("CF-Connecting-IP")
+    if cf_ip:
+        return cf_ip.strip()
+    forwarded = request.headers.get("X-Forwarded-For", "")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
 
 
 @router.get("/{job_id}/events")

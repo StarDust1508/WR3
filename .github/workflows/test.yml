@@ -1,0 +1,168 @@
+name: test
+
+# Two jobs, one matrix entry each, kept separate because they have
+# wildly different toolchains:
+#   - audit-engine: pure-Python, fast, no DB
+#   - api: Python + Postgres-with-pgvector + Redis (for quota tests)
+#   - web: Bun + Next.js typecheck
+#
+# We run typecheck across the whole monorepo first as a cheap gate, then
+# the language-specific suites. Anything red blocks merge.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# Cancel older runs on the same ref — saves CI minutes when force-pushing
+# fixups.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit-engine:
+    name: pytest · audit-engine
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.14
+
+      - name: Install audit-engine
+        working-directory: packages/audit-engine
+        run: uv sync --frozen
+
+      - name: pytest
+        working-directory: packages/audit-engine
+        # `-q` keeps the log readable; failed tests show full diff via -v
+        # output on the failing test only.
+        run: uv run pytest -q
+
+  api:
+    name: pytest · api
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+
+    services:
+      # Postgres with pgvector — uv-run alembic migrations need it.
+      # `pgvector/pgvector` is the official upstream image that ships the
+      # extension as a pre-installed plugin, so we don't need to compile.
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: wr3
+          POSTGRES_PASSWORD: wr3
+          POSTGRES_DB: wr3
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U wr3"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql+asyncpg://wr3:wr3@localhost:5432/wr3
+      REDIS_URL: redis://localhost:6379/0
+      # Random per-run secret so JWT tests don't accidentally cross test
+      # runs with leaked tokens.
+      NEXTAUTH_SECRET: ${{ github.run_id }}-${{ github.run_attempt }}
+      # API keys aren't required for the test suite — every external
+      # call is mocked (respx for httpx, monkeypatch for repo functions).
+      WR3_ENV: test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.14
+
+      - name: Enable uuid-ossp + pgvector on the test DB
+        run: |
+          PGPASSWORD=wr3 psql -h localhost -U wr3 -d wr3 -c 'CREATE EXTENSION IF NOT EXISTS "uuid-ossp";'
+          PGPASSWORD=wr3 psql -h localhost -U wr3 -d wr3 -c 'CREATE EXTENSION IF NOT EXISTS "vector";'
+
+      - name: Install audit-engine (workspace dep)
+        working-directory: packages/audit-engine
+        run: uv sync --frozen
+
+      - name: Install api
+        working-directory: apps/api
+        run: uv sync --frozen
+
+      - name: Run alembic migrations
+        working-directory: apps/api
+        run: uv run alembic upgrade head
+
+      - name: pytest
+        working-directory: apps/api
+        run: uv run pytest -q
+
+  web:
+    name: typecheck · web
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          # Pin to the same version the user develops on locally so any
+          # bun-specific behaviour matches.
+          bun-version: 1.2.0
+
+      - name: Install monorepo deps
+        run: bun install --frozen-lockfile
+
+      - name: TypeScript typecheck
+        run: bun run --filter=@wr3/web typecheck
+
+  mcp:
+    name: smoke · wr3-mcp
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.14
+
+      - name: Install wr3-mcp
+        working-directory: packages/wr3-mcp
+        run: uv sync --frozen
+
+      - name: Import smoke test
+        # Just import the server module — catches syntax errors and
+        # broken transitive deps without needing the wr3 API up.
+        working-directory: packages/wr3-mcp
+        run: uv run python -c "from wr3_mcp.server import app; print('mcp server module loaded')"

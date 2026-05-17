@@ -294,3 +294,81 @@ def compute_tokenomics_score(ts: TokenSecurity) -> tuple[float, str]:
         else "GoPlus: no centralization red flags"
     )
     return round(score, 1), rationale
+
+
+def compute_liquidity_score(ts: TokenSecurity) -> tuple[float, str] | None:
+    """Liquidity Risk axis derived from GoPlus holder data.
+
+    Same API call as the Tokenomics axis — no extra cost. Signals:
+        holder_count        — more holders = wider distribution = less
+                              rug-pull leverage by any single party
+        creator_percent     — top-holder concentration
+        cannot_buy / honeypot — terminal red flags (treated as 0)
+
+    Returns None when GoPlus didn't provide holder data (some chains /
+    new tokens), so the axis stays `(pending)` honestly rather than
+    making up a number.
+    """
+    # Honeypot kills any liquidity claim: even if there are holders the
+    # contract won't let them exit.
+    if ts.is_honeypot or ts.cannot_buy or ts.cannot_sell_all:
+        reasons = []
+        if ts.is_honeypot:
+            reasons.append("honeypot")
+        if ts.cannot_buy:
+            reasons.append("cannot buy")
+        if ts.cannot_sell_all:
+            reasons.append("cannot sell all")
+        return 0.0, "GoPlus liquidity: " + ", ".join(reasons)
+
+    # Without holder data we can't reason about liquidity at all.
+    if ts.holder_count is None:
+        return None
+
+    score = 100.0
+    parts: list[str] = []
+
+    def deduct(amount: float, reason: str) -> None:
+        nonlocal score
+        score -= amount
+        parts.append(reason)
+
+    # Holder distribution. Calibrated against well-known tokens:
+    # USDC holder_count ≈ 7M → no deduction; Pepe-tier memecoins ≈ 100K;
+    # a brand-new ape token might have <100. Anyone below 100 holders is
+    # an exit-liquidity trap in practice.
+    h = ts.holder_count
+    if h < 50:
+        deduct(40, f"only {h} holders")
+    elif h < 200:
+        deduct(25, f"only {h} holders")
+    elif h < 1_000:
+        deduct(15, f"{h:,} holders (low)")
+    elif h < 10_000:
+        deduct(5, f"{h:,} holders")
+    # else: 10k+ holders — no deduction
+
+    # Top-creator concentration.
+    if ts.creator_percent is not None:
+        cp = ts.creator_percent
+        if cp >= 0.50:
+            deduct(35, f"creator holds {int(cp * 100)}% of supply")
+        elif cp >= 0.30:
+            deduct(20, f"creator holds {int(cp * 100)}% of supply")
+        elif cp >= 0.10:
+            deduct(10, f"creator holds {int(cp * 100)}% of supply")
+
+    # Tradeability — high taxes effectively reduce exit liquidity even
+    # when holders are otherwise diverse.
+    if ts.sell_tax is not None and ts.sell_tax > 0.15:
+        deduct(15, f"sell tax {int(ts.sell_tax * 100)}% restricts exits")
+    elif ts.sell_tax is not None and ts.sell_tax > 0.05:
+        deduct(5, f"sell tax {int(ts.sell_tax * 100)}%")
+
+    score = max(0.0, min(100.0, score))
+    rationale = (
+        "GoPlus liquidity: " + "; ".join(parts)
+        if parts
+        else "GoPlus liquidity: distributed holder base, low concentration"
+    )
+    return round(score, 1), rationale

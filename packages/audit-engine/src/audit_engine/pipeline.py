@@ -230,6 +230,7 @@ class AuditPipeline:
             # they get their own real signal source.
             try:
                 from audit_engine.enrichment.goplus import (
+                    compute_liquidity_score,
                     compute_tokenomics_score,
                     fetch_token_security,
                 )
@@ -242,21 +243,40 @@ class AuditPipeline:
                         **(self._report.chain_metadata or {}),
                         "token_security": ts.to_dict(),
                     }
-                    # Replace the placeholder Tokenomics axis with real numbers.
-                    score, rationale = compute_tokenomics_score(ts)
-                    for i, axis in enumerate(self._report.axes):
+
+                    from audit_engine.scoring import AXIS_WEIGHTS_TARGET
+                    from audit_engine.types import ScoreAxis
+
+                    # Tokenomics — always activated (only requires the
+                    # owner/proxy/mint flags from GoPlus).
+                    tk_score, tk_rationale = compute_tokenomics_score(ts)
+                    # Liquidity — requires holder_count, which GoPlus may
+                    # omit for non-token contracts. compute_liquidity_score
+                    # returns None in that case → axis stays pending.
+                    liq = compute_liquidity_score(ts)
+
+                    new_axes: list[ScoreAxis] = []
+                    for axis in self._report.axes:
                         if axis.name == "Tokenomics / Centralization":
-                            from audit_engine.scoring import AXIS_WEIGHTS_TARGET
-                            from audit_engine.types import ScoreAxis
-                            self._report.axes[i] = ScoreAxis(
+                            new_axes.append(ScoreAxis(
                                 name=axis.name,
                                 weight=AXIS_WEIGHTS_TARGET[axis.name],
-                                score=score,
-                                rationale=rationale,
-                            )
-                            break
-                    # Re-compute the weighted total since one axis now
-                    # contributes — keep severity overrides intact.
+                                score=tk_score,
+                                rationale=tk_rationale,
+                            ))
+                        elif axis.name == "Liquidity Risk" and liq is not None:
+                            liq_score, liq_rationale = liq
+                            new_axes.append(ScoreAxis(
+                                name=axis.name,
+                                weight=AXIS_WEIGHTS_TARGET[axis.name],
+                                score=liq_score,
+                                rationale=liq_rationale,
+                            ))
+                        else:
+                            new_axes.append(axis)
+                    self._report.axes = new_axes
+                    # Re-compute the weighted total since active axes
+                    # changed — keep severity overrides intact.
                     self._report = _recompute_weighted_score(self._report)
             except Exception as e:
                 log.warning("pipeline.goplus_failed", error=str(e))
@@ -277,20 +297,29 @@ def _recompute_weighted_score(report: AuditReport) -> AuditReport:
     """Re-derive `report.score` + `report.tier` from the current axes.
 
     Called after enrichment promotes an axis from inactive (weight=0) to
-    active. We preserve the severity-override semantics from
-    `scoring.compute_score`: a CRITICAL caps the score at 39.9 (tier=red),
-    a HIGH caps at 69.9.
+    active. The axes carry their TZ-target weights (Code Security 0.35,
+    Tokenomics 0.20, Liquidity 0.15, ...). When only some of those are
+    active their total weight is < 1.0, so we re-normalise across the
+    active set — keeps the final score on a clean 0-100 scale
+    independent of how many enrichers fired this scan.
+
+    Preserves the severity-override semantics from `scoring.compute_score`:
+    a CRITICAL caps the score at 39.9 (tier=red), a HIGH caps at 69.9.
     """
     from typing import Literal
 
     from audit_engine.scoring import _tier
     from audit_engine.types import Severity
 
-    weighted = sum(
-        (a.score or 0.0) * a.weight
-        for a in report.axes
-        if a.weight > 0 and a.score is not None
-    )
+    active = [a for a in report.axes if a.weight > 0 and a.score is not None]
+    total_weight = sum(a.weight for a in active)
+    if total_weight <= 0:
+        # No active axis → fall back to the raw Code Security score.
+        cs = next((a for a in report.axes if a.name == "Code Security"), None)
+        weighted = float(cs.score) if cs and cs.score is not None else 0.0
+    else:
+        # Re-normalise so weights sum to 1.0 across the active set.
+        weighted = sum((a.score or 0.0) * (a.weight / total_weight) for a in active)
     score = round(weighted, 1)
 
     has_critical = any(f.severity == Severity.CRITICAL for f in report.findings)
