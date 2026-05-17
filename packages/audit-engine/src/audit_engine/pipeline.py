@@ -228,58 +228,88 @@ class AuditPipeline:
             # module then promotes the axis from weight=0 to its target
             # weight ON THIS SCAN only — other axes stay pending until
             # they get their own real signal source.
-            try:
-                from audit_engine.enrichment.goplus import (
-                    compute_liquidity_score,
-                    compute_tokenomics_score,
-                    fetch_token_security,
-                )
+            # Run GoPlus (Tokenomics + Liquidity) and Etherscan
+            # creation (On-chain Behavior) in parallel — they're
+            # independent network calls.
+            import asyncio
 
-                ts = await fetch_token_security(
-                    address=address, network=self.network
+            from audit_engine.enrichment.etherscan_meta import (
+                compute_onchain_behavior_score,
+                fetch_contract_creation,
+            )
+            from audit_engine.enrichment.goplus import (
+                compute_liquidity_score,
+                compute_tokenomics_score,
+                fetch_token_security,
+            )
+            from audit_engine.scoring import AXIS_WEIGHTS_TARGET
+            from audit_engine.types import ScoreAxis
+
+            try:
+                ts, creation = await asyncio.gather(
+                    fetch_token_security(address=address, network=self.network),
+                    fetch_contract_creation(address=address, network=self.network),
+                    return_exceptions=True,
                 )
+                # Normalise exceptions: gather with return_exceptions=True
+                # gives the raw exception object on failure — log + treat
+                # as None so one enricher dying doesn't kill the others.
+                if isinstance(ts, BaseException):
+                    log.warning("pipeline.goplus_failed", error=str(ts))
+                    ts = None
+                if isinstance(creation, BaseException):
+                    log.warning("pipeline.etherscan_meta_failed", error=str(creation))
+                    creation = None
+
+                chain_meta_updates: dict = {}
                 if ts is not None:
+                    chain_meta_updates["token_security"] = ts.to_dict()
+                if creation is not None:
+                    chain_meta_updates["contract_creation"] = creation.to_dict()
+                if chain_meta_updates:
                     self._report.chain_metadata = {
                         **(self._report.chain_metadata or {}),
-                        "token_security": ts.to_dict(),
+                        **chain_meta_updates,
                     }
 
-                    from audit_engine.scoring import AXIS_WEIGHTS_TARGET
-                    from audit_engine.types import ScoreAxis
+                # Per-axis activation. Each axis depends on its own
+                # enricher; missing input → axis stays pending honestly.
+                tk = compute_tokenomics_score(ts) if ts else None
+                liq = compute_liquidity_score(ts) if ts else None
+                onchain = (
+                    compute_onchain_behavior_score(creation) if creation else None
+                )
 
-                    # Tokenomics — always activated (only requires the
-                    # owner/proxy/mint flags from GoPlus).
-                    tk_score, tk_rationale = compute_tokenomics_score(ts)
-                    # Liquidity — requires holder_count, which GoPlus may
-                    # omit for non-token contracts. compute_liquidity_score
-                    # returns None in that case → axis stays pending.
-                    liq = compute_liquidity_score(ts)
+                def _activate(axis: ScoreAxis, result: tuple[float, str] | None) -> ScoreAxis:
+                    if result is None:
+                        return axis
+                    score, rationale = result
+                    return ScoreAxis(
+                        name=axis.name,
+                        weight=AXIS_WEIGHTS_TARGET[axis.name],
+                        score=score,
+                        rationale=rationale,
+                    )
 
-                    new_axes: list[ScoreAxis] = []
-                    for axis in self._report.axes:
-                        if axis.name == "Tokenomics / Centralization":
-                            new_axes.append(ScoreAxis(
-                                name=axis.name,
-                                weight=AXIS_WEIGHTS_TARGET[axis.name],
-                                score=tk_score,
-                                rationale=tk_rationale,
-                            ))
-                        elif axis.name == "Liquidity Risk" and liq is not None:
-                            liq_score, liq_rationale = liq
-                            new_axes.append(ScoreAxis(
-                                name=axis.name,
-                                weight=AXIS_WEIGHTS_TARGET[axis.name],
-                                score=liq_score,
-                                rationale=liq_rationale,
-                            ))
-                        else:
-                            new_axes.append(axis)
-                    self._report.axes = new_axes
-                    # Re-compute the weighted total since active axes
-                    # changed — keep severity overrides intact.
+                new_axes: list[ScoreAxis] = []
+                for axis in self._report.axes:
+                    if axis.name == "Tokenomics / Centralization":
+                        new_axes.append(_activate(axis, tk))
+                    elif axis.name == "Liquidity Risk":
+                        new_axes.append(_activate(axis, liq))
+                    elif axis.name == "On-chain Behavior":
+                        new_axes.append(_activate(axis, onchain))
+                    else:
+                        new_axes.append(axis)
+                self._report.axes = new_axes
+
+                if any((tk, liq, onchain)):
+                    # Re-normalise + re-tier only if at least one axis
+                    # actually activated — saves the trip in the
+                    # nothing-came-back case.
                     self._report = _recompute_weighted_score(self._report)
             except Exception as e:
-                log.warning("pipeline.goplus_failed", error=str(e))
+                log.warning("pipeline.enrichment_failed", error=str(e))
 
         yield PipelineEvent(
             stage="done",

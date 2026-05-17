@@ -14,6 +14,7 @@ celery_app = Celery(
         "wr3_api.workers.scan_worker",
         "wr3_api.workers.incident_worker",
         "wr3_api.workers.watcher_worker",
+        "wr3_api.workers.subscription_worker",
     ],
 )
 
@@ -35,6 +36,9 @@ celery_app.conf.update(
         "wr3_api.workers.scan_worker.run_audit_pipeline": {"queue": "wr3.audit"},
         "wr3_api.workers.incident_worker.refresh_incidents": {"queue": "wr3.incidents"},
         "wr3_api.workers.watcher_worker.refresh_watched_contracts": {"queue": "wr3.watch"},
+        "wr3_api.workers.subscription_worker.sweep_expired_subscriptions": {
+            "queue": "wr3.default"
+        },
     },
     task_always_eager=_eager,
     task_eager_propagates=_eager,
@@ -48,6 +52,13 @@ celery_app.conf.update(
         "refresh-watched-contracts-every-6h": {
             "task": "wr3_api.workers.watcher_worker.refresh_watched_contracts",
             "schedule": 6 * 60 * 60,
+        },
+        # Hourly cadence — subscription periods are 30 days, we want the
+        # downgrade to land within ~an hour of expiry. Cost is one small
+        # SELECT + at most a handful of UPDATEs per tick.
+        "sweep-expired-subscriptions-hourly": {
+            "task": "wr3_api.workers.subscription_worker.sweep_expired_subscriptions",
+            "schedule": 60 * 60,
         },
     },
 )

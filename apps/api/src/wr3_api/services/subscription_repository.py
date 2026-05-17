@@ -174,3 +174,83 @@ def subscription_to_dict(sub: Subscription | None) -> dict[str, Any]:
         "amount": sub.amount,
         "currency": sub.currency,
     }
+
+
+async def sweep_expired_subscriptions() -> dict[str, int]:
+    """Downgrade users whose last paid subscription has expired.
+
+    Run periodically (every hour via Celery beat) to keep `user.tier` in
+    sync with reality. Without this, a user who paid for hobby 30 days
+    ago still has `user.tier="hobby"` in the DB even though the period
+    ended — they'd keep hitting the 10/month hobby quota despite their
+    subscription being over.
+
+    Logic:
+        For each user whose tier != "free":
+          - Find their MAX(period_end) across all subscriptions.
+          - If max_end < now → downgrade to free.
+          - If max_end >= now → keep current tier (subscription extended
+            via renewal purchase before expiry).
+
+    Returns counters dict for telemetry / beat-log inspection.
+
+    Idempotent — safe to run on a schedule; users already at "free" or
+    with active periods are not touched.
+    """
+    from sqlalchemy import func, select, update
+
+    from wr3_api.models import User
+
+    now = datetime.now(UTC)
+    stats = {"checked": 0, "downgraded": 0, "still_active": 0, "no_subs": 0}
+
+    async with SessionFactory() as session:
+        # Find every paid user. "free" users have nothing to sweep, and
+        # there's typically <1% of users in that bucket, so this is a
+        # cheap selective scan.
+        paid_users = (
+            await session.execute(select(User).where(User.tier != "free"))
+        ).scalars().all()
+
+        stats["checked"] = len(paid_users)
+
+        for user in paid_users:
+            # MAX(period_end) for this user across all their subscriptions.
+            # Could be None if they never had any (shouldn't happen — paid
+            # tier without subs means data drift — but defensive).
+            row = (
+                await session.execute(
+                    select(func.max(Subscription.period_end)).where(
+                        Subscription.user_id == user.id
+                    )
+                )
+            ).first()
+            max_end: datetime | None = row[0] if row else None
+
+            if max_end is None:
+                # Paid tier but no subscription rows — likely manual data
+                # entry or a bug. Downgrade so it self-corrects.
+                stats["no_subs"] += 1
+                user.tier = "free"
+                logger.warning(
+                    "sub.sweep.no_subs_paid_tier_drift", user_id=str(user.id)
+                )
+                continue
+
+            if max_end < now:
+                stats["downgraded"] += 1
+                logger.info(
+                    "sub.sweep.expired",
+                    user_id=str(user.id),
+                    prev_tier=user.tier,
+                    period_end=max_end.isoformat(),
+                )
+                user.tier = "free"
+            else:
+                stats["still_active"] += 1
+
+        if stats["downgraded"] or stats["no_subs"]:
+            await session.commit()
+
+    logger.info("sub.sweep.done", **stats)
+    return stats
