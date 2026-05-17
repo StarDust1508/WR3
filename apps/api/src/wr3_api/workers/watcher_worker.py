@@ -170,5 +170,5 @@ async def _run_tick(
     name="wr3_api.workers.watcher_worker.refresh_watched_contracts",
     max_retries=1,
 )
-def refresh_watched_contracts(self) -> dict[str, int]:  # noqa: ARG001
+def refresh_watched_contracts(self) -> dict[str, int]:
     return asyncio.run(_run_tick())

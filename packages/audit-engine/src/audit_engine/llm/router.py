@@ -31,7 +31,7 @@ from typing import Any
 
 import httpx
 import structlog
-from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
+from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
 
 logger = structlog.get_logger()
 
@@ -58,6 +58,14 @@ def _get_embed_client() -> httpx.AsyncClient:
     if _embed_client is None:
         _embed_client = httpx.AsyncClient(timeout=60.0)
     return _embed_client
+
+
+def _is_retryable_http_error(exc: BaseException) -> bool:
+    """Only retry server errors (5xx). Client errors like 402/429 should
+    propagate immediately so the fallback chain can try another provider."""
+    if isinstance(exc, httpx.HTTPStatusError):
+        return exc.response.status_code >= 500
+    return isinstance(exc, httpx.HTTPError)
 
 
 class Sensitivity(StrEnum):
@@ -92,6 +100,10 @@ class ProviderDecision:
 
 class LocalLLMUnavailableError(RuntimeError):
     """Raised when Sensitivity.SECRET is requested but no local LLM is configured."""
+
+
+class AllProvidersExhaustedError(RuntimeError):
+    """Raised when every provider in the fallback chain has failed."""
 
 
 class LLMRouter:
@@ -133,70 +145,145 @@ class LLMRouter:
         self.last_provider: ProviderDecision | None = None
 
     async def complete(self, req: LLMRequest) -> str:
-        decision = self._select(req)
-        self.last_provider = decision
+        """Try the primary provider; on payment/quota failure, fall through
+        the chain: Navy → OpenRouter → raise AllProvidersExhaustedError.
 
-        logger.info(
-            "llm.dispatch",
-            provider=decision.name,
-            model=decision.model,
-            sensitivity=req.sensitivity.value,
-            zdr=decision.zdr_claimed,
-        )
+        HTTP 402 (Payment Required) and 429 (Too Many Requests) trigger
+        fallback — these indicate exhausted tokens/quota, not a transient
+        network blip (which tenacity retries handle internally).
+        """
+        candidates = self._select_chain(req)
+        last_error: Exception | None = None
 
-        return await self._call_openai_compatible(
-            base_url=decision.base_url,
-            key=self._key_for(decision),
-            model=decision.model,
-            messages=req.messages,
-            temperature=req.temperature,
-            max_tokens=req.max_tokens,
-            extra=decision.extra,
+        for decision in candidates:
+            self.last_provider = decision
+            logger.info(
+                "llm.dispatch",
+                provider=decision.name,
+                model=decision.model,
+                sensitivity=req.sensitivity.value,
+                zdr=decision.zdr_claimed,
+            )
+            try:
+                return await self._call_openai_compatible(
+                    base_url=decision.base_url,
+                    key=self._key_for(decision),
+                    model=decision.model,
+                    messages=req.messages,
+                    temperature=req.temperature,
+                    max_tokens=req.max_tokens,
+                    extra=decision.extra,
+                )
+            except httpx.HTTPStatusError as e:
+                if e.response.status_code in (402, 429):
+                    logger.warning(
+                        "llm.provider_exhausted",
+                        provider=decision.name,
+                        status=e.response.status_code,
+                    )
+                    last_error = e
+                    continue
+                raise
+
+        raise AllProvidersExhaustedError(
+            f"All LLM providers exhausted for sensitivity={req.sensitivity.value}. "
+            f"Last error: {last_error}"
         )
 
     # --- selection ----------------------------------------------------------
 
-    def _select(self, req: LLMRequest) -> ProviderDecision:
+    def _select_chain(self, req: LLMRequest) -> list[ProviderDecision]:
+        """Return an ordered fallback chain of providers for this request.
+
+        SECRET → local only (no fallback — security boundary).
+        HIGH   → OpenRouter (ZDR) → NavyAI (no ZDR, but better than nothing).
+        MEDIUM → NavyAI → OpenRouter fallback.
+        LOW    → NavyAI cheap → OpenRouter fallback.
+        """
         if req.sensitivity == Sensitivity.SECRET:
             if not self.local_url:
                 raise LocalLLMUnavailableError(
                     "Sensitivity.SECRET requires LOCAL_LLM_URL. Refusing to "
                     "route private client data through a third-party proxy."
                 )
-            return ProviderDecision(
-                name="local-vllm",
-                model=req.model_hint or self.local_model,
-                base_url=self.local_url,
-                zdr_claimed=True,
-            )
+            return [
+                ProviderDecision(
+                    name="local-vllm",
+                    model=req.model_hint or self.local_model,
+                    base_url=self.local_url,
+                    zdr_claimed=True,
+                )
+            ]
 
-        if req.sensitivity == Sensitivity.HIGH and self.openrouter_key:
-            # OpenRouter documents a `data_collection: "deny"` provider preference
-            # for zero retention. See https://openrouter.ai/docs/features/privacy
-            return ProviderDecision(
-                name="openrouter",
-                model=req.model_hint or "anthropic/claude-sonnet-4.6",
-                base_url=self.openrouter_base_url,
-                zdr_claimed=True,
-                extra={"provider": {"data_collection": "deny"}},
-            )
+        chain: list[ProviderDecision] = []
 
-        if req.sensitivity in (Sensitivity.HIGH, Sensitivity.MEDIUM):
-            return ProviderDecision(
-                name="navyai",
-                model=req.model_hint or self.navyai_default_model,
-                base_url=self.navyai_base_url,
-                # NavyAI does NOT confirm zero-retention. We do not claim it.
-                zdr_claimed=False,
-            )
+        if req.sensitivity == Sensitivity.HIGH:
+            if self.openrouter_key:
+                chain.append(
+                    ProviderDecision(
+                        name="openrouter",
+                        model=req.model_hint or "anthropic/claude-sonnet-4-6",
+                        base_url=self.openrouter_base_url,
+                        zdr_claimed=True,
+                        extra={"provider": {"data_collection": "deny"}},
+                    )
+                )
+            if self.navyai_key:
+                chain.append(
+                    ProviderDecision(
+                        name="navyai",
+                        model=req.model_hint or self.navyai_default_model,
+                        base_url=self.navyai_base_url,
+                        zdr_claimed=False,
+                    )
+                )
+        elif req.sensitivity == Sensitivity.MEDIUM:
+            if self.navyai_key:
+                chain.append(
+                    ProviderDecision(
+                        name="navyai",
+                        model=req.model_hint or self.navyai_default_model,
+                        base_url=self.navyai_base_url,
+                        zdr_claimed=False,
+                    )
+                )
+            if self.openrouter_key:
+                chain.append(
+                    ProviderDecision(
+                        name="openrouter",
+                        model=req.model_hint or "anthropic/claude-sonnet-4-6",
+                        base_url=self.openrouter_base_url,
+                        zdr_claimed=False,
+                        extra={"provider": {"data_collection": "deny"}},
+                    )
+                )
+        else:
+            # LOW
+            if self.navyai_key:
+                chain.append(
+                    ProviderDecision(
+                        name="navyai",
+                        model=req.model_hint or self.navyai_cheap_model,
+                        base_url=self.navyai_base_url,
+                        zdr_claimed=False,
+                    )
+                )
+            if self.openrouter_key:
+                chain.append(
+                    ProviderDecision(
+                        name="openrouter",
+                        model=req.model_hint or "openai/gpt-4o-mini",
+                        base_url=self.openrouter_base_url,
+                        zdr_claimed=False,
+                        extra={},
+                    )
+                )
 
-        # LOW
-        return ProviderDecision(
-            name="navyai",
-            model=req.model_hint or self.navyai_cheap_model,
-            base_url=self.navyai_base_url,
-            zdr_claimed=False,
-        )
+        if not chain:
+            raise AllProvidersExhaustedError(
+                "No LLM provider configured. Set NAVYAI_API_KEY or OPENROUTER_API_KEY."
+            )
+        return chain
 
     def _key_for(self, decision: ProviderDecision) -> str | None:
         if decision.name == "navyai":
@@ -210,7 +297,7 @@ class LLMRouter:
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=10),
-        retry=retry_if_exception_type((httpx.HTTPError, httpx.TimeoutException)),
+        retry=retry_if_exception(_is_retryable_http_error),
         reraise=True,
     )
     async def _call_openai_compatible(
@@ -247,7 +334,7 @@ class LLMRouter:
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=10),
-        retry=retry_if_exception_type((httpx.HTTPError, httpx.TimeoutException)),
+        retry=retry_if_exception(_is_retryable_http_error),
         reraise=True,
     )
     async def embed(
@@ -268,7 +355,7 @@ class LLMRouter:
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=10),
-        retry=retry_if_exception_type((httpx.HTTPError, httpx.TimeoutException)),
+        retry=retry_if_exception(_is_retryable_http_error),
         reraise=True,
     )
     async def embed_batch(

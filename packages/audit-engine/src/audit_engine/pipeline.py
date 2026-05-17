@@ -22,6 +22,7 @@ from audit_engine.agents import MultiAgentTriage, TriageOrchestrator
 from audit_engine.analyzers import StaticAnalyzerRegistry
 from audit_engine.fuzzing import FuzzingOrchestrator
 from audit_engine.ingestion import SourceBundle, fetch_source
+from audit_engine.llm.router import AllProvidersExhaustedError
 from audit_engine.poc import PoCGenerator
 from audit_engine.scoring import compute_score
 from audit_engine.types import AuditReport, Finding, Network
@@ -115,88 +116,110 @@ class AuditPipeline:
 
         # Stage 3 — LLM triage (multi-agent, single-call for cost)
         yield PipelineEvent(stage="triage", progress=40, message="LLM triage filtering FP")
+        llm_available = True
         if self._triage is not None and self.findings:
-            self.findings = await self._triage.run(self.findings, source=source_code)
-            log.info(
-                "pipeline.triage.done",
-                count=len(self.findings),
-                dismissed=sum(1 for f in self.findings if f.dismissed),
-            )
+            try:
+                self.findings = await self._triage.run(self.findings, source=source_code)
+                log.info(
+                    "pipeline.triage.done",
+                    count=len(self.findings),
+                    dismissed=sum(1 for f in self.findings if f.dismissed),
+                )
+            except AllProvidersExhaustedError:
+                llm_available = False
+                log.warning("pipeline.triage.skipped_no_llm")
+                yield PipelineEvent(
+                    stage="triage", progress=42,
+                    message="LLM unavailable — triage skipped, raw findings preserved",
+                )
 
         # Stage 4 — Foundry PoC generation for HIGH/CRITICAL findings.
         yield PipelineEvent(stage="poc", progress=60, message="Generating PoCs for high-severity")
-        if self._poc is not None:
-            # Skip PoC for LLM-proposed findings — they're abstract claims
-            # (e.g. "this contract might have business-logic flaw X") with
-            # no concrete file/line for forge test to target. Attempting
-            # them burns LLM tokens producing unprovable PoCs.
-            targets = [
-                f for f in self.findings
-                if self._poc.should_attempt(f)
-                and not f.source_engine.startswith("llm-")
-                and f.line is not None
-            ]
-            log.info("pipeline.poc.targets", count=len(targets))
-            # Index findings by id ONCE; per-finding update is now O(1)
-            # instead of rewalking the whole findings list each iteration.
-            # On a scan with 20 findings and 5 PoC targets the old code
-            # did 100 model_copy() calls; this does 5.
-            findings_by_id = {f.id: f for f in self.findings}
-            for idx, finding in enumerate(targets):
-                outcome = await self._poc.generate(
-                    scan_id=self.scan_id or "ad-hoc",
-                    finding=finding,
-                    target_source=source_code,
-                )
-                original = findings_by_id.get(finding.id)
-                if original is not None:
-                    findings_by_id[finding.id] = original.model_copy(
-                        update={
-                            "poc_path": outcome.artifact_path,
-                            "poc_validated": outcome.validated,
-                            "metadata": {
-                                **original.metadata,
-                                "poc_attempts": outcome.attempts,
-                                "poc_diagnostic": outcome.diagnostic,
-                            },
-                        }
+        if self._poc is not None and llm_available:
+            try:
+                targets = [
+                    f for f in self.findings
+                    if self._poc.should_attempt(f)
+                    and not f.source_engine.startswith("llm-")
+                    and f.line is not None
+                ]
+                log.info("pipeline.poc.targets", count=len(targets))
+                findings_by_id = {f.id: f for f in self.findings}
+                for idx, finding in enumerate(targets):
+                    outcome = await self._poc.generate(
+                        scan_id=self.scan_id or "ad-hoc",
+                        finding=finding,
+                        target_source=source_code,
                     )
-                # Mid-stage progress nudges so UI doesn't sit still on long PoCs.
+                    original = findings_by_id.get(finding.id)
+                    if original is not None:
+                        findings_by_id[finding.id] = original.model_copy(
+                            update={
+                                "poc_path": outcome.artifact_path,
+                                "poc_validated": outcome.validated,
+                                "metadata": {
+                                    **original.metadata,
+                                    "poc_attempts": outcome.attempts,
+                                    "poc_diagnostic": outcome.diagnostic,
+                                },
+                            }
+                        )
+                    yield PipelineEvent(
+                        stage="poc",
+                        progress=60 + int(20 * (idx + 1) / max(len(targets), 1)),
+                        message=f"PoC {idx + 1}/{len(targets)}: {finding.title[:60]}",
+                    )
+                self.findings = list(findings_by_id.values())
+            except AllProvidersExhaustedError:
+                llm_available = False
+                log.warning("pipeline.poc.skipped_no_llm")
                 yield PipelineEvent(
-                    stage="poc",
-                    progress=60 + int(20 * (idx + 1) / max(len(targets), 1)),
-                    message=f"PoC {idx + 1}/{len(targets)}: {finding.title[:60]}",
+                    stage="poc", progress=78,
+                    message="LLM unavailable — PoC generation skipped",
                 )
-            # Materialize back into a list — preserves the original ordering
-            # because dict insertion order is guaranteed in Python 3.7+ and
-            # we built findings_by_id from the original list.
-            self.findings = list(findings_by_id.values())
+        elif self._poc is not None and not llm_available:
+            yield PipelineEvent(
+                stage="poc", progress=78,
+                message="LLM unavailable — PoC generation skipped",
+            )
 
         # Stage 5 — AI-fuzzing with LLM-generated invariants.
         yield PipelineEvent(stage="fuzzing", progress=80, message="AI-fuzzing invariants")
-        if self._fuzzing is not None:
-            outcome = await self._fuzzing.run(
-                scan_id=self.scan_id or "ad-hoc",
-                source=source_code,
-            )
-            if outcome.new_findings:
-                self.findings.extend(outcome.new_findings)
-                log.info(
-                    "pipeline.fuzzing.added",
-                    count=len(outcome.new_findings),
-                    invariants=len(outcome.invariants),
-                    engine=outcome.fuzz_result.engine,
+        if self._fuzzing is not None and llm_available:
+            try:
+                outcome = await self._fuzzing.run(
+                    scan_id=self.scan_id or "ad-hoc",
+                    source=source_code,
                 )
-            else:
-                log.info(
-                    "pipeline.fuzzing.no_findings",
-                    diagnostic=outcome.diagnostic,
-                    invariants=len(outcome.invariants),
+                if outcome.new_findings:
+                    self.findings.extend(outcome.new_findings)
+                    log.info(
+                        "pipeline.fuzzing.added",
+                        count=len(outcome.new_findings),
+                        invariants=len(outcome.invariants),
+                        engine=outcome.fuzz_result.engine,
+                    )
+                else:
+                    log.info(
+                        "pipeline.fuzzing.no_findings",
+                        diagnostic=outcome.diagnostic,
+                        invariants=len(outcome.invariants),
+                    )
+                yield PipelineEvent(
+                    stage="fuzzing",
+                    progress=88,
+                    message=outcome.diagnostic,
                 )
+            except AllProvidersExhaustedError:
+                log.warning("pipeline.fuzzing.skipped_no_llm")
+                yield PipelineEvent(
+                    stage="fuzzing", progress=88,
+                    message="LLM unavailable — fuzzing skipped",
+                )
+        elif self._fuzzing is not None and not llm_available:
             yield PipelineEvent(
-                stage="fuzzing",
-                progress=88,
-                message=outcome.diagnostic,
+                stage="fuzzing", progress=88,
+                message="LLM unavailable — fuzzing skipped",
             )
 
         # Stage 6 — Formal verification — premium only, skip in MVP
@@ -242,42 +265,69 @@ class AuditPipeline:
                 compute_tokenomics_score,
                 fetch_token_security,
             )
+            from audit_engine.enrichment.team_kyc import (
+                compute_team_kyc_score,
+                fetch_team_kyc_signals,
+            )
             from audit_engine.scoring import AXIS_WEIGHTS_TARGET
             from audit_engine.types import ScoreAxis
 
             try:
-                ts, creation = await asyncio.gather(
+                # All enrichers are independent network calls — run in parallel.
+                ts, creation, team_signals = await asyncio.gather(
                     fetch_token_security(address=address, network=self.network),
                     fetch_contract_creation(address=address, network=self.network),
+                    fetch_team_kyc_signals(
+                        address=address,
+                        network=self.network,
+                        deployer=None,
+                        source_verified=bundle is not None,
+                    ),
                     return_exceptions=True,
                 )
-                # Normalise exceptions: gather with return_exceptions=True
-                # gives the raw exception object on failure — log + treat
-                # as None so one enricher dying doesn't kill the others.
                 if isinstance(ts, BaseException):
                     log.warning("pipeline.goplus_failed", error=str(ts))
                     ts = None
                 if isinstance(creation, BaseException):
                     log.warning("pipeline.etherscan_meta_failed", error=str(creation))
                     creation = None
+                if isinstance(team_signals, BaseException):
+                    log.warning("pipeline.team_kyc_failed", error=str(team_signals))
+                    team_signals = None
+
+                # If we got the deployer from etherscan_meta, re-run team_kyc
+                # with deployer info (the parallel call above couldn't know it).
+                if creation is not None and creation.creator:
+                    try:
+                        team_signals = await fetch_team_kyc_signals(
+                            address=address,
+                            network=self.network,
+                            deployer=creation.creator,
+                            source_verified=bundle is not None,
+                        )
+                    except Exception as e:
+                        log.warning("pipeline.team_kyc_retry_failed", error=str(e))
 
                 chain_meta_updates: dict = {}
                 if ts is not None:
                     chain_meta_updates["token_security"] = ts.to_dict()
                 if creation is not None:
                     chain_meta_updates["contract_creation"] = creation.to_dict()
+                if team_signals is not None:
+                    chain_meta_updates["team_kyc"] = team_signals.to_dict()
                 if chain_meta_updates:
                     self._report.chain_metadata = {
                         **(self._report.chain_metadata or {}),
                         **chain_meta_updates,
                     }
 
-                # Per-axis activation. Each axis depends on its own
-                # enricher; missing input → axis stays pending honestly.
                 tk = compute_tokenomics_score(ts) if ts else None
                 liq = compute_liquidity_score(ts) if ts else None
                 onchain = (
                     compute_onchain_behavior_score(creation) if creation else None
+                )
+                team = (
+                    compute_team_kyc_score(team_signals) if team_signals else None
                 )
 
                 def _activate(axis: ScoreAxis, result: tuple[float, str] | None) -> ScoreAxis:
@@ -299,14 +349,13 @@ class AuditPipeline:
                         new_axes.append(_activate(axis, liq))
                     elif axis.name == "On-chain Behavior":
                         new_axes.append(_activate(axis, onchain))
+                    elif axis.name == "Team / KYC":
+                        new_axes.append(_activate(axis, team))
                     else:
                         new_axes.append(axis)
                 self._report.axes = new_axes
 
-                if any((tk, liq, onchain)):
-                    # Re-normalise + re-tier only if at least one axis
-                    # actually activated — saves the trip in the
-                    # nothing-came-back case.
+                if any((tk, liq, onchain, team)):
                     self._report = _recompute_weighted_score(self._report)
             except Exception as e:
                 log.warning("pipeline.enrichment_failed", error=str(e))

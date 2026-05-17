@@ -21,7 +21,6 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from wr3_api.models.base import Base, TimestampMixin
 
-
 # Plan → tier mapping. Keep aligned with apps/web/app/pricing/page.tsx.
 PLAN_TO_TIER: dict[str, str] = {
     "hobby": "hobby",

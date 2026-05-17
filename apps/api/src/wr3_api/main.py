@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
 
+import sentry_sdk
 import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -9,6 +10,16 @@ from wr3_api.middleware.request_id import RequestIdMiddleware
 from wr3_api.routes import auth, health, public, scan, subscription, telegram
 
 logger = structlog.get_logger()
+
+_settings = get_settings()
+if _settings.sentry_dsn:
+    sentry_sdk.init(
+        dsn=_settings.sentry_dsn,
+        environment=_settings.wr3_env,
+        traces_sample_rate=0.2 if _settings.wr3_env == "production" else 1.0,
+        profiles_sample_rate=0.1,
+        send_default_pii=False,
+    )
 
 
 @asynccontextmanager

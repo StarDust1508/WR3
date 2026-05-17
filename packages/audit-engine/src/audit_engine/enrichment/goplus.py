@@ -29,6 +29,15 @@ from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_ex
 
 logger = structlog.get_logger()
 
+_goplus_client: httpx.AsyncClient | None = None
+
+
+def _get_client() -> httpx.AsyncClient:
+    global _goplus_client
+    if _goplus_client is None:
+        _goplus_client = httpx.AsyncClient(timeout=15.0)
+    return _goplus_client
+
 
 # Chain ID mapping for GoPlus's URL path component. Their `1` = Ethereum
 # mainnet, matching EIP-155. We only emit chains wr3 already audits.
@@ -152,7 +161,7 @@ def _to_int(value) -> int | None:
     reraise=True,
 )
 async def fetch_token_security(
-    *, address: str, network: str, timeout: float = 15.0
+    *, address: str, network: str
 ) -> TokenSecurity | None:
     """Return GoPlus's risk profile for an EVM contract, or None if:
       - the network isn't supported by GoPlus (Solana — different endpoint)
@@ -176,10 +185,10 @@ async def fetch_token_security(
         headers["Authorization"] = api_key
 
     try:
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            r = await client.get(url, params=params, headers=headers)
-            r.raise_for_status()
-            payload = r.json()
+        client = _get_client()
+        r = await client.get(url, params=params, headers=headers)
+        r.raise_for_status()
+        payload = r.json()
     except httpx.HTTPError as e:
         logger.warning("goplus.http_error", network=network, error=str(e))
         return None

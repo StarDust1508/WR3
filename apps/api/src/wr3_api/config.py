@@ -1,7 +1,24 @@
 from functools import lru_cache
+from pathlib import Path
 
+from dotenv import load_dotenv
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Push .env into os.environ at import time. Pydantic Settings reads
+# .env on its own but only into its own model — that's fine for our
+# FastAPI code, but the audit-engine subpackages (and any library that
+# calls `os.getenv` directly: GoPlus, Etherscan, OpenRouter, Alchemy)
+# wouldn't see the keys. Doing it here means a single import path
+# (`from wr3_api.config import …`) primes os.environ for the whole
+# process, including the in-process scan worker.
+#
+# `override=False` keeps real environment variables winning over .env
+# values — important so `CELERY_TASK_ALWAYS_EAGER=0 uvicorn …` and
+# similar one-off overrides still work as expected.
+_ENV_PATH = Path(__file__).resolve().parents[2] / ".env"
+if _ENV_PATH.exists():
+    load_dotenv(_ENV_PATH, override=False)
 
 
 class Settings(BaseSettings):

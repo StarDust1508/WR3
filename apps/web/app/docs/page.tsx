@@ -159,9 +159,10 @@ export default function DocsPage() {
       <h2 id="scoring" style={h2}>Оценка — 5 осей</h2>
       <p>
         Финальный score 0–100 — взвешенное среднее по 5 осям с{" "}
-        <b style={{ color: HI }}>публичными весами</b>. В MVP активны две оси
-        (Code Security и Tokenomics через GoPlus), остальные помечены как
-        pending — они не дают накрутки до интеграции реальных сигналов.
+        <b style={{ color: HI }}>публичными весами</b>. Все 5 осей активны
+        и получают реальные сигналы от независимых источников. Каждая ось
+        активируется только при наличии данных — если enricher не ответил,
+        вес перераспределяется по оставшимся осям честно.
       </p>
       <div style={{ overflowX: "auto" }}>
         <table style={tableBase}>
@@ -173,11 +174,11 @@ export default function DocsPage() {
             </tr>
           </thead>
           <tbody style={{ color: FG }}>
-            <tr><td style={td}>Code Security</td><td style={{ ...td, textAlign: "right" }}>35%</td><td style={td}>находки (штраф по severity)</td></tr>
-            <tr><td style={td}>Tokenomics / Centralization</td><td style={{ ...td, textAlign: "right" }}>20%</td><td style={td}>GoPlus: owner-привилегии, mint authority, proxy</td></tr>
-            <tr><td style={td}>Liquidity Risk</td><td style={{ ...td, textAlign: "right" }}>15%</td><td style={td}>LP-lock %, top-holder concentration <i style={{ color: MUTED }}>(pending)</i></td></tr>
-            <tr><td style={td}>Team / KYC</td><td style={{ ...td, textAlign: "right" }}>15%</td><td style={td}>MetaMask phishing list, GitHub-сигналы <i style={{ color: MUTED }}>(pending)</i></td></tr>
-            <tr><td style={td}>On-chain Behavior</td><td style={{ ...td, textAlign: "right" }}>15%</td><td style={td}>TVL trend, volume, age, anomaly score <i style={{ color: MUTED }}>(pending)</i></td></tr>
+            <tr><td style={td}>Code Security</td><td style={{ ...td, textAlign: "right" }}>35%</td><td style={td}>Aderyn + Wake + Slither + baseline regex → штраф по severity</td></tr>
+            <tr><td style={td}>Tokenomics / Centralization</td><td style={{ ...td, textAlign: "right" }}>20%</td><td style={td}>GoPlus: owner-привилегии, mint authority, proxy, honeypot</td></tr>
+            <tr><td style={td}>Liquidity Risk</td><td style={{ ...td, textAlign: "right" }}>15%</td><td style={td}>GoPlus: holder count, creator %, sell tax, exit barriers</td></tr>
+            <tr><td style={td}>Team / KYC</td><td style={{ ...td, textAlign: "right" }}>15%</td><td style={td}>MetaMask phishing list + deployer nonce + source verification</td></tr>
+            <tr><td style={td}>On-chain Behavior</td><td style={{ ...td, textAlign: "right" }}>15%</td><td style={td}>Etherscan: возраст контракта (дата деплоя vs. rug-статистика)</td></tr>
           </tbody>
         </table>
       </div>
@@ -229,6 +230,7 @@ info          0`}
 GET  /v1/public/stats
 GET  /v1/public/incidents?limit=30&days=120
 GET  /v1/scan/{scan_id}/report.md          markdown-экспорт отчёта
+GET  /v1/scan/{job_id}/progress            JSON-snapshot прогресса (polling)
 GET  /v1/health
 GET  /v1/version`}
       </pre>

@@ -22,12 +22,11 @@ isn't lost; a refresh job can backfill later.
 
 from __future__ import annotations
 
-import uuid
 from collections.abc import Awaitable, Callable
 from typing import Any
 
 import structlog
-from sqlalchemy import select, update
+from sqlalchemy import select
 
 from wr3_api.db import SessionFactory
 from wr3_api.models import Incident
@@ -165,9 +164,7 @@ def _merge_into_canonical(canonical: Incident, scraped: ScrapedIncident) -> None
     if scraped.source not in canonical.extra_sources and scraped.source != canonical.source:
         canonical.extra_sources = [*canonical.extra_sources, scraped.source]
     # DefiLlama loss is structured; trust it over a Rekt regex guess.
-    if scraped.source == "defillama" and scraped.loss_usd is not None:
-        canonical.loss_usd = scraped.loss_usd
-    elif canonical.loss_usd is None and scraped.loss_usd is not None:
+    if (scraped.source == "defillama" and scraped.loss_usd is not None) or (canonical.loss_usd is None and scraped.loss_usd is not None):
         canonical.loss_usd = scraped.loss_usd
     # Keep the EARLIEST published_at — the "first observed" date.
     if scraped.published_at < canonical.published_at:

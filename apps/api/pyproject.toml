@@ -8,6 +8,7 @@ dependencies = [
     "uvicorn[standard]>=0.32.0",
     "pydantic>=2.10.0",
     "pydantic-settings>=2.7.0",
+    "python-dotenv>=1.0.0",
     "sqlalchemy>=2.0.36",
     "asyncpg>=0.30.0",
     "psycopg[binary]>=3.2.0",
@@ -21,6 +22,7 @@ dependencies = [
     "structlog>=24.4.0",
     "pgvector>=0.3.6",
     "feedparser>=6.0.11",
+    "sentry-sdk[fastapi]>=2.0.0",
     "wr3-audit-engine",
 ]
 
@@ -55,7 +57,7 @@ target-version = "py313"
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP", "B", "SIM", "RUF"]
 # B008 — FastAPI's Depends(...) idiom is intentionally placed in defaults
-ignore = ["E501", "B008"]
+ignore = ["E501", "B008", "RUF001", "RUF003", "SIM108"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

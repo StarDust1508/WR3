@@ -197,7 +197,7 @@ async def sweep_expired_subscriptions() -> dict[str, int]:
     Idempotent — safe to run on a schedule; users already at "free" or
     with active periods are not touched.
     """
-    from sqlalchemy import func, select, update
+    from sqlalchemy import func, select
 
     from wr3_api.models import User
 

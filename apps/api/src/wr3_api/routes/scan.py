@@ -114,6 +114,24 @@ def _real_client_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
+@router.get("/{job_id}/progress")
+async def scan_progress(job_id: str) -> dict[str, Any]:
+    """One-shot JSON snapshot of a scan's progress.
+
+    Same data as the SSE stream but polled, not streamed. Useful for
+    callers that don't speak text/event-stream (the MCP server, smoke
+    scripts, anything that just wants `is it done yet?`). The SSE
+    endpoint stays for the Mini App where progress animation matters.
+
+    Returns 404 once the underlying Redis progress key has expired
+    (TTL = 1 hour after the last update).
+    """
+    progress = await get_scan_progress(job_id)
+    if progress is None:
+        raise HTTPException(status_code=404, detail="job not found or expired")
+    return progress
+
+
 @router.get("/{job_id}/events")
 async def scan_events(job_id: str) -> EventSourceResponse:
     async def event_stream():
@@ -134,26 +152,13 @@ async def scan_events(job_id: str) -> EventSourceResponse:
 
 
 # IMPORTANT: declare /me before /{scan_id} so it isn't shadowed by UUID parsing.
+# Kept as an alias for backwards compatibility — Mini App may reference it.
 @router.get("/me")
 async def list_my_scans(
     limit: int = 20,
     user: User = Depends(current_user_required),
 ) -> list[dict[str, Any]]:
-    rows = await repo.recent_scans(limit=min(max(limit, 1), 100), user_id=user.id)
-    return [
-        {
-            "id": str(s.id),
-            "address": s.address,
-            "network": s.network,
-            "stage": s.stage,
-            "progress": s.progress,
-            "score": s.score,
-            "tier": s.tier,
-            "created_at": s.created_at.isoformat(),
-            "completed_at": s.completed_at.isoformat() if s.completed_at else None,
-        }
-        for s in rows
-    ]
+    return await _user_scans(user=user, limit=limit)
 
 
 @router.get("/{scan_id}/report.md", response_class=PlainTextResponse)
@@ -224,13 +229,11 @@ async def list_my_recent_scans(
     limit: int = 20,
     user: User = Depends(current_user_required),
 ) -> list[dict[str, Any]]:
-    """Caller's own recent scans. Authenticated only.
+    """Caller's own recent scans. Authenticated only."""
+    return await _user_scans(user=user, limit=limit)
 
-    There is intentionally no public "global recent scans" listing here —
-    that role belongs to /v1/public/scans which respects each user's
-    `anonymous_in_public` toggle. Exposing an un-anonymised listing on the
-    /v1/scan path would silently bypass that opt-out.
-    """
+
+async def _user_scans(*, user: User, limit: int) -> list[dict[str, Any]]:
     rows = await repo.recent_scans(limit=min(max(limit, 1), 100), user_id=user.id)
     return [
         {
@@ -238,9 +241,11 @@ async def list_my_recent_scans(
             "address": s.address,
             "network": s.network,
             "stage": s.stage,
+            "progress": s.progress,
             "score": s.score,
             "tier": s.tier,
             "created_at": s.created_at.isoformat(),
+            "completed_at": s.completed_at.isoformat() if s.completed_at else None,
         }
         for s in rows
     ]

@@ -15,8 +15,8 @@ import asyncio
 from collections.abc import Iterable
 
 import structlog
-
 from audit_engine.llm.router import LLMRouter
+
 from wr3_api.scrapers import (
     ScrapedIncident,
     scrape_defillama_hacks,
@@ -94,6 +94,6 @@ def _chain(*iters: Iterable[ScrapedIncident]) -> Iterable[ScrapedIncident]:
     name="wr3_api.workers.incident_worker.refresh_incidents",
     max_retries=1,
 )
-def refresh_incidents(self) -> dict[str, int]:  # noqa: ARG001 - bound task
+def refresh_incidents(self) -> dict[str, int]:
     """Celery entry point. Returns counters dict for the result backend."""
     return asyncio.run(_run_refresh())

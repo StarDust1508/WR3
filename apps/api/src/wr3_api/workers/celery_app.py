@@ -6,6 +6,31 @@ from wr3_api.config import get_settings
 
 settings = get_settings()
 
+
+def _resolve_eager() -> bool:
+    """Decide whether Celery should run tasks inline (no worker process).
+
+    Resolution order (first match wins):
+      1. Explicit env var `CELERY_TASK_ALWAYS_EAGER=1|true|yes` — set by
+         tests, by `verify.sh --full`, or by anyone running a one-shot
+         from a shell that bypassed the .env file.
+      2. `WR3_ENV=local` (the default in `apps/api/.env`) — keeps the
+         dev experience zero-config: `uv run uvicorn …` is enough to
+         enqueue and execute a scan in the same process, no separate
+         `celery -A … worker` needed.
+      3. Otherwise off — prod must spawn real workers.
+
+    The reason for keeping the env-var path is that uvicorn's `--reload`
+    sometimes spawns child processes whose env doesn't carry pydantic-
+    loaded settings cleanly; `os.getenv` is the robust escape hatch.
+    """
+    raw = os.getenv("CELERY_TASK_ALWAYS_EAGER", "").lower()
+    if raw in ("1", "true", "yes"):
+        return True
+    if raw in ("0", "false", "no"):
+        return False
+    return settings.is_local
+
 celery_app = Celery(
     "wr3",
     broker=settings.redis_url,
@@ -20,7 +45,7 @@ celery_app = Celery(
 
 # Eager mode for dev/test: runs tasks inline in the calling process, so we
 # don't need a separate Celery worker for a smoke run. NEVER enable in prod.
-_eager = os.getenv("CELERY_TASK_ALWAYS_EAGER", "").lower() in ("1", "true", "yes")
+_eager = _resolve_eager()
 
 celery_app.conf.update(
     task_serializer="json",

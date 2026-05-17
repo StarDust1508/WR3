@@ -65,7 +65,7 @@ def render_scan_markdown(scan: Scan, findings: list[Finding]) -> str:
     lines: list[str] = []
 
     # --- Header ---
-    lines.append(f"# wr3 audit report")
+    lines.append("# wr3 audit report")
     lines.append("")
     lines.append(f"- **Contract:** `{scan.address}`")
     lines.append(f"- **Network:** `{scan.network}`")
@@ -88,7 +88,7 @@ def render_scan_markdown(scan: Scan, findings: list[Finding]) -> str:
         if loader := chain_meta.get("loader"):
             lines.append(f"- **Loader:** `{loader}`")
         if chain_meta.get("upgradeable"):
-            lines.append(f"- **Upgradeable:** yes ⚠️ (centralisation risk)")
+            lines.append("- **Upgradeable:** yes ⚠️ (centralisation risk)")
             if auth := chain_meta.get("upgrade_authority"):
                 lines.append(f"- **Upgrade authority:** `{auth}`")
             if slot := chain_meta.get("last_upgrade_slot"):

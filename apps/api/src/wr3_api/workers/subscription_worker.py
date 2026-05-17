@@ -39,5 +39,5 @@ async def _run_sweep() -> dict[str, int]:
     name="wr3_api.workers.subscription_worker.sweep_expired_subscriptions",
     max_retries=1,
 )
-def sweep_expired_subscriptions(self) -> dict[str, int]:  # noqa: ARG001
+def sweep_expired_subscriptions(self) -> dict[str, int]:
     return asyncio.run(_run_sweep())

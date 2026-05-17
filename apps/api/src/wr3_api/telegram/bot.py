@@ -449,7 +449,7 @@ async def _execute_refund_now(
 
     try:
         body = r.json()
-    except Exception:  # noqa: BLE001 - we don't know what shape Telegram returned
+    except Exception:
         return False, f"HTTP {r.status_code}: non-JSON body"
 
     if r.status_code != 200 or not body.get("ok"):

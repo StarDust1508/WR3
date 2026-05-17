@@ -26,6 +26,15 @@ from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_ex
 
 logger = structlog.get_logger()
 
+_etherscan_client: httpx.AsyncClient | None = None
+
+
+def _get_client() -> httpx.AsyncClient:
+    global _etherscan_client
+    if _etherscan_client is None:
+        _etherscan_client = httpx.AsyncClient(timeout=15.0)
+    return _etherscan_client
+
 
 _ETHERSCAN_V2 = "https://api.etherscan.io/v2/api"
 
@@ -72,7 +81,7 @@ class ContractCreation:
     reraise=True,
 )
 async def fetch_contract_creation(
-    *, address: str, network: str, timeout: float = 10.0
+    *, address: str, network: str
 ) -> ContractCreation | None:
     """Return the creation tx + timestamp for an EVM contract.
 
@@ -98,10 +107,10 @@ async def fetch_contract_creation(
         "apikey": api_key,
     }
     try:
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            r = await client.get(_ETHERSCAN_V2, params=params)
-            r.raise_for_status()
-            data = r.json()
+        client = _get_client()
+        r = await client.get(_ETHERSCAN_V2, params=params)
+        r.raise_for_status()
+        data = r.json()
     except httpx.HTTPError as e:
         logger.warning("etherscan_meta.http_error", error=str(e))
         return None

@@ -79,6 +79,29 @@ See [docs/ONBOARDING.md](docs/ONBOARDING.md). Short version:
 6. Telegram bot token via [@BotFather](https://t.me/BotFather)
 7. (Optional, month 4+) New Mexico LLC + Mercury bank for fiat payments
 
+## Verifying it works (`scripts/verify.sh`)
+
+One command, end-to-end smoke test of every layer — modeled after
+`daniel3303/Equibles`. Run from the repo root:
+
+```bash
+./scripts/verify.sh            # 7 fast checks (Postgres, Redis, FastAPI,
+                                # serveo tunnel, CF Workers, public stats,
+                                # MCP server). Takes <5s.
+./scripts/verify.sh --full     # adds a real audit on USDC. Takes ~10s
+                                # and prints score / tier / findings.
+```
+
+Output is one line per check with a `✓ PASS` or `✗ FAIL` and the actual
+data it observed (user count, scan count, score, tier, etc) — not a
+generic green-checkmark.
+
+You don't need a separate Celery worker for `--full`: in local mode the
+scan task is dispatched as an asyncio background coroutine inside the
+FastAPI process. Switching to a real worker (`celery -A
+wr3_api.workers.celery_app worker`) is transparent — `WR3_ENV=production`
+flips the dispatch back to `.delay()`.
+
 ## Roadmap
 
 W1–W14 closed beta, W15–W20 public launch. Detailed weekly plan in [TZ.md §11](TZ.md#11-план-mvp-по-неделям-14-недель-до-closed-beta--6-недель-до-public).
