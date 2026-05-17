@@ -9,19 +9,45 @@ const HI = "#d4ffd4";
 const MUTED = "#8bb88b";
 const DIM = "#547654";
 
-export default function HomePage() {
+// Live stats from the API. SSR — no fetch in the browser.
+type PublicStats = {
+  total_scans: number;
+  avg_score: number | null;
+  critical_findings: number;
+  high_findings: number;
+  networks_count: number;
+};
+
+async function fetchStats(): Promise<PublicStats | null> {
+  const apiUrl = process.env.WR3_API_URL ?? "http://localhost:8001";
+  try {
+    const r = await fetch(`${apiUrl}/v1/public/stats`, {
+      next: { revalidate: 60 }, // 1-minute ISR cache
+    });
+    if (!r.ok) return null;
+    return r.json();
+  } catch {
+    return null;
+  }
+}
+
+export const revalidate = 60;
+
+export default async function HomePage() {
+  const stats = await fetchStats();
   return (
     <main
       style={{
         minHeight: "100vh",
-        background: BG,
+        // Background now comes from globals.css — radial gradient + scanlines
+        // baked into <body>. Page is transparent so the gradient shows through.
         color: FG,
-        fontFamily:
-          'ui-monospace, "SF Mono", Menlo, "JetBrains Mono", Consolas, monospace',
+        // Body switches to sans (set in globals.css). Mono is reserved for
+        // <code> and the small terminal-accent chips in header/eyebrow.
         padding: "32px 24px 64px",
       }}
     >
-      <div style={{ margin: "0 auto", maxWidth: 880 }}>
+      <div style={{ margin: "0 auto", maxWidth: 980 }}>
         <header
           style={{
             display: "flex",
@@ -42,6 +68,9 @@ export default function HomePage() {
               padding: "5px 10px",
               borderRadius: 4,
               textDecoration: "none",
+              fontFamily: "var(--font-mono)",
+              boxShadow: "0 0 0 0 rgba(74,222,128,0)",
+              transition: "box-shadow 200ms ease",
             }}
           >
             wr3
@@ -126,23 +155,61 @@ export default function HomePage() {
           </p>
         </section>
 
+        {/* Live metrics strip — pulled from /v1/public/stats, ISR-cached
+            for a minute. Pure SSR, no client-side fetch jank. */}
+        {stats && (
+          <section
+            style={{
+              marginTop: 56,
+              padding: "16px 20px",
+              background: "rgba(15, 26, 15, 0.6)",
+              backdropFilter: "blur(10px)",
+              border: `1px solid ${DIM}`,
+              borderRadius: 8,
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+              gap: 24,
+            }}
+          >
+            <Stat label="Сканов завершено" value={String(stats.total_scans)} />
+            <Stat
+              label="Средний score"
+              value={stats.avg_score != null ? stats.avg_score.toFixed(1) : "—"}
+            />
+            <Stat
+              label="Critical"
+              value={String(stats.critical_findings)}
+              accent="#f87171"
+            />
+            <Stat
+              label="High"
+              value={String(stats.high_findings)}
+              accent="#fbbf24"
+            />
+            <Stat label="Сетей" value={String(stats.networks_count)} />
+          </section>
+        )}
+
         <section
           style={{
             marginTop: 96,
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-            gap: 16,
+            gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+            gap: 20,
           }}
         >
           <Feature
+            badge="03"
             title="Multi-engine консенсус"
-            body="Aderyn, Slither, Wake и собственный baseline-анализатор работают параллельно. Кросс-проверенные находки получают больший вес на триаже."
+            body="Aderyn, Slither, Wake и собственный baseline-анализатор работают параллельно. Находки, попадающие в несколько движков, получают больший вес на триаже."
           />
           <Feature
+            badge="05"
             title="Прозрачная оценка"
-            body="Шкала 0–100 по 5 осям с открытыми весами. Никаких чёрных ящиков, никаких pay-to-play — методология опубликована."
+            body="Шкала 0–100 по 5 осям с открытыми весами. Никаких чёрных ящиков и pay-to-play — методология опубликована в репозитории."
           />
           <Feature
+            badge="13"
             title="Solana — первого класса"
             body="Полная таксономия Sealevel-attacks, метаданные программы через JSON-RPC. Большинство AI-аудиторов пропускают Solana — wr3 нет."
           />
@@ -182,29 +249,95 @@ export default function HomePage() {
   );
 }
 
-function Feature({ title, body }: { title: string; body: string }) {
+function Stat({
+  label,
+  value,
+  accent,
+}: {
+  label: string;
+  value: string;
+  accent?: string;
+}) {
+  return (
+    <div>
+      <p
+        style={{
+          color: MUTED,
+          fontSize: 11,
+          margin: 0,
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+        }}
+      >
+        {label}
+      </p>
+      <p
+        style={{
+          color: accent ?? HI,
+          fontSize: 28,
+          fontWeight: 800,
+          margin: "6px 0 0",
+          lineHeight: 1,
+          fontVariantNumeric: "tabular-nums",
+          letterSpacing: "-0.02em",
+        }}
+      >
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function Feature({
+  title,
+  body,
+  badge,
+}: {
+  title: string;
+  body: string;
+  badge?: string;
+}) {
   return (
     <div
       style={{
-        background: "#0f1a0f",
+        background:
+          "linear-gradient(180deg, rgba(15,26,15,0.95) 0%, rgba(15,26,15,0.7) 100%)",
         border: `1px solid ${DIM}`,
-        borderRadius: 6,
-        padding: 20,
-        transition: "border-color 150ms ease, transform 150ms ease",
+        borderRadius: 10,
+        padding: 24,
+        position: "relative",
+        overflow: "hidden",
       }}
     >
+      {badge && (
+        <span
+          style={{
+            position: "absolute",
+            top: 16,
+            right: 16,
+            fontFamily: "var(--font-mono)",
+            fontSize: 11,
+            color: DIM,
+            letterSpacing: "0.08em",
+          }}
+        >
+          //  {badge}
+        </span>
+      )}
       <h3
         style={{
           color: HI,
-          fontSize: 14,
+          fontSize: 16,
           fontWeight: 700,
           margin: 0,
-          letterSpacing: "-0.01em",
+          letterSpacing: "-0.015em",
         }}
       >
         {title}
       </h3>
-      <p style={{ color: MUTED, fontSize: 13, marginTop: 10, lineHeight: 1.65 }}>{body}</p>
+      <p style={{ color: MUTED, fontSize: 13.5, marginTop: 12, lineHeight: 1.65 }}>
+        {body}
+      </p>
     </div>
   );
 }
