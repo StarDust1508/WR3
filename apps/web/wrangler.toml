@@ -28,4 +28,4 @@ binding = "ASSETS"
 # Rotate this whenever the serveo tunnel restarts and gets a new URL.
 [vars]
 WR3_DEPLOYED_AT = "ci"
-WR3_API_URL = "https://544daece18522c3f-72-56-101-252.serveousercontent.com"
+WR3_API_URL = "https://9356a84a5a0a4e0a-72-56-101-252.serveousercontent.com"
