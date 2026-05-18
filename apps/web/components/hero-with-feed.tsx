@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 
 import { LiveFeed } from "@/components/live-feed";
@@ -13,98 +12,81 @@ export function HeroWithFeed() {
   function handleSelectToken(address: string, network: string) {
     setSelectedAddress(address);
     setSelectedNetwork(network);
-    // Scroll to scan input on mobile
-    document.getElementById("scan-section")?.scrollIntoView({ behavior: "smooth" });
   }
 
   return (
-    <section className="pt-12 pb-20 animate-fade-in-up">
-      <div className="grid lg:grid-cols-[1fr,380px] gap-8 items-start">
-        {/* Left — Hero + Scan Input */}
-        <div id="scan-section" className="pt-4">
-          <p className="font-mono text-xs text-[#547654] uppercase tracking-[0.2em] mb-6">
-            AI Security Audit Engine
+    <div className="grid h-full lg:grid-cols-[minmax(360px,480px)_1fr] gap-4">
+      {/* ─── Left: Scan Panel ─── */}
+      <div className="flex flex-col gap-4 overflow-y-auto scrollbar-none">
+        {/* Scan Input */}
+        <ScanInput
+          initialAddress={selectedAddress}
+          initialNetwork={selectedNetwork}
+        />
+
+        {/* How it works — compact */}
+        <div className="glass-card p-4">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-[#547654] mb-3">
+            Как это работает
           </p>
-
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold leading-[1.05] tracking-tight mb-6">
-            <span className="text-gradient">Найдите уязвимости</span>
-            <br />
-            <span className="text-[#d4ffd4]">до того, как их найдёт</span>
-            <br />
-            <span className="text-[#4ade80]">атакующий.</span>
-          </h1>
-
-          <p className="text-[#8bb88b] text-base md:text-lg leading-relaxed max-w-xl mb-8">
-            От адреса контракта до полного отчёта за минуту.
-            Или выберите токен из live-ленты справа.
-          </p>
-
-          <div className="max-w-xl">
-            <ScanInput
-              initialAddress={selectedAddress}
-              initialNetwork={selectedNetwork}
-            />
+          <div className="grid grid-cols-3 gap-3">
+            <StepMini num="1" text="Выберите токен из ленты или вставьте адрес" />
+            <StepMini num="2" text="AI анализ: статика + LLM + on-chain данные" />
+            <StepMini num="3" text="Отчёт с уязвимостями, score и PoC" />
           </div>
-
-          <p className="text-[#547654] text-xs mt-5">
-            Free — 1 контракт в сутки.{" "}
-            <Link
-              href="/pricing"
-              className="text-[#4ade80] underline underline-offset-2 hover:text-[#d4ffd4]"
-            >
-              Тарифы
-            </Link>
-          </p>
         </div>
 
-        {/* Right — Live Blockchain Feed */}
-        <div className="hidden lg:block h-[600px] sticky top-24">
-          <LiveFeed onSelectToken={handleSelectToken} />
+        {/* Engine badges */}
+        <div className="flex flex-wrap gap-1.5">
+          {["Slither", "Aderyn", "Wake", "LLM Triage", "GoPlus", "DeFiLlama", "DexScreener"].map(
+            (engine) => (
+              <span
+                key={engine}
+                className="rounded-md border border-[#547654]/30 bg-[rgba(10,14,10,0.6)] px-2 py-1 font-mono text-[9px] text-[#547654]"
+              >
+                {engine}
+              </span>
+            )
+          )}
         </div>
 
-        {/* Mobile: collapsible feed below scan input */}
-        <div className="lg:hidden">
-          <MobileFeedToggle onSelectToken={handleSelectToken} />
+        {/* Supported networks */}
+        <div className="flex items-center gap-2">
+          <span className="text-[9px] text-[#547654] uppercase tracking-wider">Сети:</span>
+          <div className="flex gap-1.5">
+            {["ETH", "Base", "ARB", "BSC", "SOL"].map((n) => (
+              <span
+                key={n}
+                className="flex items-center gap-1 rounded-md border border-[rgba(74,222,128,0.15)] bg-[rgba(74,222,128,0.04)] px-2 py-0.5 text-[10px] text-[#8bb88b]"
+              >
+                <span className="h-1.5 w-1.5 rounded-full bg-[#4ade80]" />
+                {n}
+              </span>
+            ))}
+          </div>
         </div>
       </div>
-    </section>
+
+      {/* ─── Right: Live Feed (full height) ─── */}
+      <div className="min-h-0 hidden lg:block">
+        <LiveFeed onSelectToken={handleSelectToken} />
+      </div>
+
+      {/* ─── Mobile: Feed below ─── */}
+      <div className="lg:hidden min-h-[300px]">
+        <LiveFeed onSelectToken={handleSelectToken} />
+      </div>
+    </div>
   );
 }
 
-function MobileFeedToggle({
-  onSelectToken,
-}: {
-  onSelectToken: (address: string, network: string) => void;
-}) {
-  const [open, setOpen] = useState(false);
-
+function StepMini({ num, text }: { num: string; text: string }) {
   return (
-    <div className="mt-4">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-center gap-2 rounded-xl border border-[rgba(74,222,128,0.15)] bg-[rgba(10,14,10,0.6)] px-4 py-3 text-xs font-medium text-[#4ade80] transition-all hover:bg-[rgba(74,222,128,0.05)]"
-      >
-        <span className="relative flex h-2 w-2">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#4ade80] opacity-75" />
-          <span className="relative inline-flex h-2 w-2 rounded-full bg-[#4ade80]" />
-        </span>
-        {open ? "Скрыть Live Feed" : "Показать Live Feed — токены в реальном времени"}
-        <svg
-          className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`}
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={2}
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
-      {open && (
-        <div className="mt-3 h-[400px]">
-          <LiveFeed onSelectToken={onSelectToken} />
-        </div>
-      )}
+    <div className="flex flex-col items-center text-center gap-1.5">
+      <span className="flex h-6 w-6 items-center justify-center rounded-full border border-[rgba(74,222,128,0.25)] bg-[rgba(74,222,128,0.06)] font-mono text-[10px] font-bold text-[#4ade80]">
+        {num}
+      </span>
+      <span className="text-[10px] leading-tight text-[#547654]">{text}</span>
     </div>
   );
 }
