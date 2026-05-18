@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { HeroWithFeed } from "@/components/hero-with-feed";
 
-// Live stats from the API. SSR — no fetch in the browser.
 type PublicStats = {
   total_scans: number;
   avg_score: number | null;
@@ -29,79 +28,70 @@ export default async function HomePage() {
   const stats = await fetchStats();
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden">
-      {/* ─── Compact Header ─── */}
-      <header className="flex-shrink-0 z-50 backdrop-blur-xl bg-[#0a0e0a]/80 border-b border-[rgba(74,222,128,0.1)]">
-        <div className="max-w-[1600px] mx-auto px-4 lg:px-6 h-12 flex items-center justify-between">
-          <Link
-            href="/"
-            className="font-mono text-[#4ade80] font-bold text-base tracking-tight hover:opacity-80 transition-opacity"
-          >
-            wr3
-            <span className="ml-2 text-[10px] text-[#547654] font-normal">audit engine</span>
+    <div className="flex h-screen flex-col overflow-hidden bg-[#060a06]">
+      {/* ─── Header ─── */}
+      <header className="flex-shrink-0 z-50 border-b border-[#1a2e1a]/60 bg-[#080c08]/90 backdrop-blur-md">
+        <div className="mx-auto max-w-[1440px] px-5 lg:px-8 h-14 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-3">
+            <span className="font-mono text-xl font-black text-[#4ade80] tracking-tight">
+              wr3
+            </span>
+            <span className="hidden sm:block h-4 w-px bg-[#1a2e1a]" />
+            <span className="hidden sm:block text-xs text-[#547654]">
+              AI Audit Engine
+            </span>
           </Link>
 
-          <nav className="flex items-center gap-5 text-xs">
-            <Link href="/incidents" className="text-[#547654] hover:text-[#8bb88b] transition-colors">
-              Инциденты
-            </Link>
-            <Link href="/leaderboard" className="text-[#547654] hover:text-[#8bb88b] transition-colors">
+          <nav className="flex items-center gap-6">
+            <Link href="/leaderboard" className="text-sm text-[#6b8f6b] hover:text-[#a8e6a8] transition-colors">
               Лидерборд
             </Link>
-            <Link href="/pricing" className="text-[#547654] hover:text-[#8bb88b] transition-colors">
+            <Link href="/incidents" className="text-sm text-[#6b8f6b] hover:text-[#a8e6a8] transition-colors hidden sm:block">
+              Инциденты
+            </Link>
+            <Link href="/pricing" className="text-sm text-[#6b8f6b] hover:text-[#a8e6a8] transition-colors hidden sm:block">
               Тарифы
             </Link>
             <a
               href="https://t.me/KitronBot"
-              className="px-3 py-1.5 bg-[#4ade80] text-[#0a0e0a] text-[11px] font-bold rounded-md hover:bg-[#6ee7a0] transition-colors"
+              className="px-4 py-2 bg-[#4ade80] text-[#060a06] text-sm font-bold rounded-lg hover:bg-[#6ee7a0] transition-all hover:shadow-[0_0_20px_rgba(74,222,128,0.3)]"
             >
-              TG Bot
+              Telegram Bot
             </a>
           </nav>
         </div>
       </header>
 
-      {/* ─── Main: full remaining height, no scroll ─── */}
-      <main className="flex-1 min-h-0 overflow-hidden">
-        <div className="h-full max-w-[1600px] mx-auto px-4 lg:px-6 py-4 flex flex-col gap-3">
-
-          {/* ─── Stats Strip ─── */}
-          {stats && (
-            <div className="flex-shrink-0 flex items-center gap-6 px-4 py-2.5 rounded-xl border border-[rgba(74,222,128,0.08)] bg-[rgba(10,14,10,0.5)]">
-              <MiniStat label="Сканов" value={String(stats.total_scans)} />
-              <div className="w-px h-5 bg-[#547654]/30" />
-              <MiniStat
-                label="Score"
-                value={stats.avg_score != null ? stats.avg_score.toFixed(1) : "—"}
-              />
-              <div className="w-px h-5 bg-[#547654]/30" />
-              <MiniStat label="Critical" value={String(stats.critical_findings)} color="#f87171" />
-              <div className="w-px h-5 bg-[#547654]/30" />
-              <MiniStat label="High" value={String(stats.high_findings)} color="#fbbf24" />
-              <div className="w-px h-5 bg-[#547654]/30" />
-              <MiniStat label="Сетей" value={String(stats.networks_count)} />
-              <div className="flex-1" />
-              <span className="text-[9px] text-[#547654] font-mono">
-                Free: 1/day
-              </span>
-            </div>
-          )}
-
-          {/* ─── Dashboard Grid: Scan + Feed ─── */}
-          <div className="flex-1 min-h-0">
-            <HeroWithFeed />
+      {/* ─── Stats Bar ─── */}
+      {stats && (
+        <div className="flex-shrink-0 border-b border-[#1a2e1a]/40 bg-[#080c08]/60">
+          <div className="mx-auto max-w-[1440px] px-5 lg:px-8 py-2.5 flex items-center gap-8 overflow-x-auto">
+            <StatPill label="Сканов" value={String(stats.total_scans)} />
+            <StatPill
+              label="Avg Score"
+              value={stats.avg_score != null ? stats.avg_score.toFixed(1) : "—"}
+            />
+            <StatPill label="Critical" value={String(stats.critical_findings)} color="#f87171" />
+            <StatPill label="High" value={String(stats.high_findings)} color="#fbbf24" />
+            <StatPill label="Сетей" value={String(stats.networks_count)} />
           </div>
+        </div>
+      )}
 
+      {/* ─── Main Dashboard ─── */}
+      <main className="flex-1 min-h-0">
+        <div className="h-full mx-auto max-w-[1440px] px-5 lg:px-8 py-5">
+          <HeroWithFeed />
         </div>
       </main>
 
-      {/* ─── Minimal footer ─── */}
-      <footer className="flex-shrink-0 border-t border-[rgba(74,222,128,0.06)] px-4 py-2">
-        <div className="max-w-[1600px] mx-auto flex items-center justify-between text-[10px] text-[#547654]">
+      {/* ─── Footer ─── */}
+      <footer className="flex-shrink-0 border-t border-[#1a2e1a]/30 bg-[#060a06] px-5 py-2">
+        <div className="mx-auto max-w-[1440px] flex items-center justify-between text-xs text-[#3d5c3d]">
           <span>2026 wr3 · AI-аудит best-effort</span>
           <div className="flex gap-4">
-            <a href="https://github.com/StarDust1508/WR3" className="hover:text-[#8bb88b]">GitHub</a>
-            <Link href="/legal/tos" className="hover:text-[#8bb88b]">Условия</Link>
+            <a href="https://github.com/StarDust1508/WR3" className="hover:text-[#6b8f6b] transition-colors">GitHub</a>
+            <Link href="/legal/tos" className="hover:text-[#6b8f6b] transition-colors">Условия</Link>
           </div>
         </div>
       </footer>
@@ -109,14 +99,11 @@ export default async function HomePage() {
   );
 }
 
-function MiniStat({ label, value, color }: { label: string; value: string; color?: string }) {
+function StatPill({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
-    <div className="flex items-center gap-2">
-      <span className="text-[10px] text-[#547654] uppercase tracking-wider">{label}</span>
-      <span
-        className="text-sm font-bold tabular-nums"
-        style={{ color: color ?? "#d4ffd4" }}
-      >
+    <div className="flex items-center gap-2 whitespace-nowrap">
+      <span className="text-xs text-[#3d5c3d] uppercase tracking-wide">{label}</span>
+      <span className="text-base font-bold tabular-nums" style={{ color: color ?? "#a8e6a8" }}>
         {value}
       </span>
     </div>

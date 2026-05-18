@@ -15,78 +15,81 @@ export function HeroWithFeed() {
   }
 
   return (
-    <div className="grid h-full lg:grid-cols-[minmax(360px,480px)_1fr] gap-4">
-      {/* ─── Left: Scan Panel ─── */}
-      <div className="flex flex-col gap-4 overflow-y-auto scrollbar-none">
+    <div className="grid h-full lg:grid-cols-[1fr_420px] xl:grid-cols-[1fr_480px] gap-6">
+      {/* ═══ Left Panel: Scan ═══ */}
+      <div className="flex flex-col gap-5 overflow-y-auto scrollbar-none py-1">
+        {/* Headline */}
+        <div>
+          <h1 className="text-3xl lg:text-4xl font-extrabold leading-tight tracking-tight mb-3">
+            <span className="text-[#e2ffe2]">Аудит смарт-контрактов</span>
+            <br />
+            <span className="text-[#4ade80]">за 60 секунд</span>
+          </h1>
+          <p className="text-[#6b8f6b] text-base leading-relaxed max-w-lg">
+            Выберите токен из live-ленты или вставьте адрес.
+            AI проанализирует контракт по 5 осям безопасности.
+          </p>
+        </div>
+
         {/* Scan Input */}
         <ScanInput
           initialAddress={selectedAddress}
           initialNetwork={selectedNetwork}
         />
 
-        {/* How it works — compact */}
-        <div className="glass-card p-4">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-[#547654] mb-3">
-            Как это работает
-          </p>
-          <div className="grid grid-cols-3 gap-3">
-            <StepMini num="1" text="Выберите токен из ленты или вставьте адрес" />
-            <StepMini num="2" text="AI анализ: статика + LLM + on-chain данные" />
-            <StepMini num="3" text="Отчёт с уязвимостями, score и PoC" />
-          </div>
+        {/* Info cards row */}
+        <div className="grid grid-cols-3 gap-3">
+          <InfoCard
+            num="01"
+            title="Статический анализ"
+            desc="Slither + Aderyn + Wake параллельно"
+          />
+          <InfoCard
+            num="02"
+            title="AI-триаж"
+            desc="4 LLM-агента фильтруют ложные срабатывания"
+          />
+          <InfoCard
+            num="03"
+            title="On-chain обогащение"
+            desc="GoPlus · DeFiLlama · DexScreener · Etherscan"
+          />
         </div>
 
-        {/* Engine badges */}
-        <div className="flex flex-wrap gap-1.5">
-          {["Slither", "Aderyn", "Wake", "LLM Triage", "GoPlus", "DeFiLlama", "DexScreener"].map(
-            (engine) => (
-              <span
-                key={engine}
-                className="rounded-md border border-[#547654]/30 bg-[rgba(10,14,10,0.6)] px-2 py-1 font-mono text-[9px] text-[#547654]"
-              >
-                {engine}
-              </span>
-            )
-          )}
-        </div>
-
-        {/* Supported networks */}
-        <div className="flex items-center gap-2">
-          <span className="text-[9px] text-[#547654] uppercase tracking-wider">Сети:</span>
-          <div className="flex gap-1.5">
-            {["ETH", "Base", "ARB", "BSC", "SOL"].map((n) => (
-              <span
-                key={n}
-                className="flex items-center gap-1 rounded-md border border-[rgba(74,222,128,0.15)] bg-[rgba(74,222,128,0.04)] px-2 py-0.5 text-[10px] text-[#8bb88b]"
-              >
-                <span className="h-1.5 w-1.5 rounded-full bg-[#4ade80]" />
-                {n}
-              </span>
-            ))}
-          </div>
+        {/* Networks */}
+        <div className="flex items-center gap-3 flex-wrap">
+          <span className="text-xs text-[#3d5c3d] font-medium uppercase tracking-wider">Сети:</span>
+          {["Ethereum", "Base", "Arbitrum", "BSC", "Solana"].map((n) => (
+            <span
+              key={n}
+              className="flex items-center gap-1.5 rounded-full border border-[#1a2e1a] bg-[#0a0e0a] px-3 py-1 text-xs text-[#6b8f6b]"
+            >
+              <span className="h-1.5 w-1.5 rounded-full bg-[#4ade80] shadow-[0_0_4px_rgba(74,222,128,0.5)]" />
+              {n}
+            </span>
+          ))}
         </div>
       </div>
 
-      {/* ─── Right: Live Feed (full height) ─── */}
+      {/* ═══ Right Panel: Live Feed ═══ */}
       <div className="min-h-0 hidden lg:block">
         <LiveFeed onSelectToken={handleSelectToken} />
       </div>
 
-      {/* ─── Mobile: Feed below ─── */}
-      <div className="lg:hidden min-h-[300px]">
+      {/* Mobile feed */}
+      <div className="lg:hidden min-h-[350px]">
         <LiveFeed onSelectToken={handleSelectToken} />
       </div>
     </div>
   );
 }
 
-function StepMini({ num, text }: { num: string; text: string }) {
+function InfoCard({ num, title, desc }: { num: string; title: string; desc: string }) {
   return (
-    <div className="flex flex-col items-center text-center gap-1.5">
-      <span className="flex h-6 w-6 items-center justify-center rounded-full border border-[rgba(74,222,128,0.25)] bg-[rgba(74,222,128,0.06)] font-mono text-[10px] font-bold text-[#4ade80]">
-        {num}
-      </span>
-      <span className="text-[10px] leading-tight text-[#547654]">{text}</span>
+    <div className="rounded-xl border border-[#1a2e1a]/60 bg-[#0a0e0a]/80 p-4 transition-all hover:border-[#4ade80]/20 hover:bg-[#0a0e0a]">
+      <span className="font-mono text-lg font-black text-[#4ade80]/30">{num}</span>
+      <p className="text-sm font-semibold text-[#c4f0c4] mt-1">{title}</p>
+      <p className="text-xs text-[#547654] mt-1 leading-relaxed">{desc}</p>
     </div>
   );
 }
