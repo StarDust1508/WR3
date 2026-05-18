@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ScanInput } from "@/components/scan-input";
+import { HeroWithFeed } from "@/components/hero-with-feed";
 
 // Live stats from the API. SSR — no fetch in the browser.
 type PublicStats = {
@@ -65,37 +66,8 @@ export default async function HomePage() {
 
       <main className="min-h-screen pt-24 pb-16 px-6">
         <div className="max-w-7xl mx-auto">
-          {/* ─── Hero Section ─── */}
-          <section className="max-w-4xl mx-auto text-center pt-16 pb-20 animate-fade-in-up">
-            <p className="font-mono text-xs text-[#547654] uppercase tracking-[0.2em] mb-6">
-              AI Security Audit Engine
-            </p>
-
-            <h1 className="text-5xl md:text-6xl lg:text-7xl font-extrabold leading-[1.05] tracking-tight mb-6">
-              <span className="text-gradient">Найдите уязвимости</span>
-              <br />
-              <span className="text-[#d4ffd4]">до того, как их найдёт</span>
-              <br />
-              <span className="text-[#4ade80]">атакующий.</span>
-            </h1>
-
-            <p className="text-[#8bb88b] text-lg md:text-xl leading-relaxed max-w-2xl mx-auto mb-10">
-              От адреса контракта до полного отчёта за минуту. Multi-engine статика,
-              LLM-триаж в 4 параллельных агента, Foundry PoC retry-loop и AI-fuzzing.
-              EVM и Solana — в одном пайплайне.
-            </p>
-
-            <div className="max-w-xl mx-auto">
-              <ScanInput />
-            </div>
-
-            <p className="text-[#547654] text-xs mt-5">
-              Free — 1 контракт в сутки. Платно от $29/мес: безлимит + полный Foundry PoC.{" "}
-              <Link href="/pricing" className="text-[#4ade80] underline underline-offset-2 hover:text-[#d4ffd4]">
-                Тарифы
-              </Link>
-            </p>
-          </section>
+          {/* ─── Hero + Live Feed ─── */}
+          <HeroWithFeed />
 
           {/* ─── Live Stats Strip ─── */}
           {stats && (

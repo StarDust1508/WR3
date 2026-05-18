@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 
 const NETWORKS = [
   { id: "ethereum", label: "Ethereum" },
@@ -20,14 +20,29 @@ function isLikelyAddress(s: string): boolean {
   return false;
 }
 
-export function ScanInput() {
-  const [address, setAddress] = useState("");
-  const [network, setNetwork] = useState<NetworkId>("ethereum");
+interface ScanInputProps {
+  initialAddress?: string;
+  initialNetwork?: string;
+}
+
+export function ScanInput({ initialAddress, initialNetwork }: ScanInputProps = {}) {
+  const [address, setAddress] = useState(initialAddress ?? "");
+  const [network, setNetwork] = useState<NetworkId>(
+    (initialNetwork as NetworkId) ?? "ethereum"
+  );
   const [error, setError] = useState<string | null>(null);
   const [isFocused, setFocused] = useState(false);
   const [shake, setShake] = useState(false);
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
+
+  // Update from external selection (e.g. LiveFeed click)
+  useEffect(() => {
+    if (initialAddress) setAddress(initialAddress);
+  }, [initialAddress]);
+  useEffect(() => {
+    if (initialNetwork) setNetwork(initialNetwork as NetworkId);
+  }, [initialNetwork]);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
