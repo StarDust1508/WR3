@@ -256,14 +256,30 @@ class AuditPipeline:
             # independent network calls.
             import asyncio
 
+            from audit_engine.enrichment.defillama import (
+                compute_tvl_score,
+                fetch_tvl_signals,
+            )
+            from audit_engine.enrichment.dexscreener import (
+                compute_liquidity_score as compute_dex_liquidity_score,
+            )
+            from audit_engine.enrichment.dexscreener import (
+                fetch_liquidity_signals,
+            )
             from audit_engine.enrichment.etherscan_meta import (
                 compute_onchain_behavior_score,
                 fetch_contract_creation,
             )
             from audit_engine.enrichment.goplus import (
-                compute_liquidity_score,
+                compute_liquidity_score as compute_goplus_liquidity_score,
+            )
+            from audit_engine.enrichment.goplus import (
                 compute_tokenomics_score,
                 fetch_token_security,
+            )
+            from audit_engine.enrichment.holder_concentration import (
+                compute_concentration_score,
+                fetch_holder_signals,
             )
             from audit_engine.enrichment.team_kyc import (
                 compute_team_kyc_score,
@@ -274,7 +290,17 @@ class AuditPipeline:
 
             try:
                 # All enrichers are independent network calls — run in parallel.
-                ts, creation, team_signals = await asyncio.gather(
+                # 6 fetchers fire concurrently: GoPlus, Etherscan creation,
+                # Team KYC, DeFiLlama TVL, DexScreener liquidity, holder
+                # concentration.
+                (
+                    ts,
+                    creation,
+                    team_signals,
+                    tvl_signals,
+                    dex_signals,
+                    holder_signals,
+                ) = await asyncio.gather(
                     fetch_token_security(address=address, network=self.network),
                     fetch_contract_creation(address=address, network=self.network),
                     fetch_team_kyc_signals(
@@ -283,6 +309,9 @@ class AuditPipeline:
                         deployer=None,
                         source_verified=bundle is not None,
                     ),
+                    fetch_tvl_signals(address=address, network=self.network),
+                    fetch_liquidity_signals(address=address, network=self.network),
+                    fetch_holder_signals(address=address, network=self.network),
                     return_exceptions=True,
                 )
                 if isinstance(ts, BaseException):
@@ -294,9 +323,19 @@ class AuditPipeline:
                 if isinstance(team_signals, BaseException):
                     log.warning("pipeline.team_kyc_failed", error=str(team_signals))
                     team_signals = None
+                if isinstance(tvl_signals, BaseException):
+                    log.warning("pipeline.defillama_failed", error=str(tvl_signals))
+                    tvl_signals = None
+                if isinstance(dex_signals, BaseException):
+                    log.warning("pipeline.dexscreener_failed", error=str(dex_signals))
+                    dex_signals = None
+                if isinstance(holder_signals, BaseException):
+                    log.warning("pipeline.holder_concentration_failed", error=str(holder_signals))
+                    holder_signals = None
 
                 # If we got the deployer from etherscan_meta, re-run team_kyc
-                # with deployer info (the parallel call above couldn't know it).
+                # and holder_concentration with deployer info (the parallel
+                # call above couldn't know it).
                 if creation is not None and creation.creator:
                     try:
                         team_signals = await fetch_team_kyc_signals(
@@ -307,7 +346,16 @@ class AuditPipeline:
                         )
                     except Exception as e:
                         log.warning("pipeline.team_kyc_retry_failed", error=str(e))
+                    try:
+                        holder_signals = await fetch_holder_signals(
+                            address=address,
+                            network=self.network,
+                            deployer_address=creation.creator,
+                        )
+                    except Exception as e:
+                        log.warning("pipeline.holder_retry_failed", error=str(e))
 
+                # --- store raw signals in chain_metadata -----------------
                 chain_meta_updates: dict = {}
                 if ts is not None:
                     chain_meta_updates["token_security"] = ts.to_dict()
@@ -315,14 +363,37 @@ class AuditPipeline:
                     chain_meta_updates["contract_creation"] = creation.to_dict()
                 if team_signals is not None:
                     chain_meta_updates["team_kyc"] = team_signals.to_dict()
+                if tvl_signals is not None:
+                    chain_meta_updates["tvl"] = tvl_signals
+                if dex_signals is not None:
+                    chain_meta_updates["dex_liquidity"] = dex_signals
+                if holder_signals is not None:
+                    chain_meta_updates["holder_concentration"] = holder_signals
                 if chain_meta_updates:
                     self._report.chain_metadata = {
                         **(self._report.chain_metadata or {}),
                         **chain_meta_updates,
                     }
 
+                # --- compute axis scores ---------------------------------
                 tk = compute_tokenomics_score(ts) if ts else None
-                liq = compute_liquidity_score(ts) if ts else None
+
+                # Liquidity axis: composite of GoPlus + DexScreener + TVL.
+                # Average available sub-scores for a richer signal.
+                goplus_liq = compute_goplus_liquidity_score(ts) if ts else None
+                dex_liq = await compute_dex_liquidity_score(dex_signals) if dex_signals else None
+                tvl_sc = compute_tvl_score(tvl_signals) if tvl_signals else None
+                liq = _composite_liquidity(goplus_liq, dex_liq, tvl_sc)
+
+                # Tokenomics axis: composite GoPlus + holder concentration.
+                holder_sc = compute_concentration_score(holder_signals) if holder_signals else None
+                if tk is not None and holder_sc is not None:
+                    # Weighted blend: GoPlus 60%, holder conc 40%.
+                    tk_score = tk[0] * 0.6 + holder_sc[0] * 0.4
+                    tk = (round(tk_score, 1), f"{tk[1]}; Holders: {holder_sc[1]}")
+                elif holder_sc is not None:
+                    tk = holder_sc
+
                 onchain = (
                     compute_onchain_behavior_score(creation) if creation else None
                 )
@@ -370,6 +441,30 @@ class AuditPipeline:
         if self._report is None:
             return {"status": "incomplete"}
         return self._report.model_dump(mode="json")
+
+
+def _composite_liquidity(
+    goplus: tuple[float, str] | None,
+    dex: tuple[float, str] | None,
+    tvl: tuple[float, str] | None,
+) -> tuple[float, str] | None:
+    """Merge up to 3 liquidity sub-scores into one axis score.
+
+    Each enricher returns (score, rationale).  We average the available
+    scores and concatenate rationales so the user sees the full picture.
+    """
+    parts: list[tuple[float, str]] = []
+    if goplus is not None:
+        parts.append(goplus)
+    if dex is not None:
+        parts.append(dex)
+    if tvl is not None:
+        parts.append(tvl)
+    if not parts:
+        return None
+    avg = round(sum(p[0] for p in parts) / len(parts), 1)
+    rationale = "; ".join(p[1] for p in parts)
+    return (avg, rationale)
 
 
 def _recompute_weighted_score(report: AuditReport) -> AuditReport:
