@@ -25,7 +25,7 @@ export default function MiniAppLayout({ children }: { children: React.ReactNode 
         strategy="beforeInteractive"
       />
       <TelegramThemeBridge />
-      <div className="tg-scroll">{children}</div>
+      <div className="tg-scroll tg-animate-in">{children}</div>
     </>
   );
 }

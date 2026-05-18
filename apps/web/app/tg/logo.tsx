@@ -1,6 +1,6 @@
 /**
  * Terminal-style wr3 mark. Pure CSS/text — no SVG fetch, no images.
- * Looks like an ASCII prompt with a blinking cursor.
+ * Looks like an ASCII prompt with a blinking cursor and a subtle green glow.
  */
 export function Logo({ size = 40 }: { size?: number }) {
   return (
@@ -20,6 +20,9 @@ export function Logo({ size = 40 }: { size?: number }) {
         borderRadius: 4,
         letterSpacing: "-0.04em",
         textTransform: "lowercase",
+        boxShadow:
+          "0 0 12px rgba(74, 222, 128, 0.15), 0 0 4px rgba(74, 222, 128, 0.1)",
+        animation: "pulse-glow 3s ease-in-out infinite",
       }}
       aria-label="wr3"
     >

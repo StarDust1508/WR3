@@ -65,8 +65,16 @@ export function MiniAppScanForm() {
     });
   }
 
+  const isReady = !!address.trim() && !pending;
+
   return (
-    <form onSubmit={submit} className="tg-card flex flex-col gap-3">
+    <form
+      onSubmit={submit}
+      className="tg-card flex flex-col gap-3"
+      style={{
+        transition: "border-color 200ms ease, box-shadow 200ms ease",
+      }}
+    >
       <h2 className="tg-hint">Новый аудит</h2>
 
       <input
@@ -96,7 +104,7 @@ export function MiniAppScanForm() {
               key={n.id}
               type="button"
               onClick={() => setNetwork(n.id)}
-              className="tg-chip"
+              className={`tg-chip ${active ? "tg-ping" : ""}`}
               style={{
                 background: active ? "var(--hb-primary)" : "transparent",
                 color: active ? "var(--hb-bg)" : "var(--hb-text-dim)",
@@ -109,6 +117,10 @@ export function MiniAppScanForm() {
                 whiteSpace: "nowrap",
                 cursor: "pointer",
                 fontWeight: active ? 700 : 500,
+                boxShadow: active
+                  ? "0 0 12px rgba(74, 222, 128, 0.25)"
+                  : "none",
+                transition: "all 150ms ease",
               }}
             >
               {n.label}
@@ -120,26 +132,41 @@ export function MiniAppScanForm() {
       <button
         type="submit"
         disabled={pending || !address.trim()}
-        className="tg-button tg-button-primary"
-        style={{ marginTop: 4 }}
+        className={`tg-button tg-button-primary ${isReady ? "tg-btn-pulse" : ""}`}
+        style={{
+          marginTop: 4,
+          position: "relative",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 8,
+        }}
       >
+        {pending && <span className="tg-spinner" />}
         {pending ? "Запускаем…" : "Запустить аудит"}
       </button>
 
       {error && (
-        <p
+        <div
           role="alert"
-          className="text-[11px] leading-relaxed"
+          className="tg-shake"
           style={{
-            color: "var(--hb-error)",
-            background: "rgba(248,113,113,0.08)",
-            border: "1px solid rgba(248,113,113,0.30)",
-            padding: "8px 10px",
-            borderRadius: 4,
+            background: "rgba(248, 113, 113, 0.06)",
+            backdropFilter: "blur(8px)",
+            WebkitBackdropFilter: "blur(8px)",
+            border: "1px solid rgba(248, 113, 113, 0.25)",
+            borderRadius: 6,
+            padding: "10px 12px",
+            boxShadow: "0 0 12px rgba(248, 113, 113, 0.06)",
           }}
         >
-          {error}
-        </p>
+          <p
+            className="text-[11px] leading-relaxed"
+            style={{ color: "var(--hb-error)" }}
+          >
+            {error}
+          </p>
+        </div>
       )}
     </form>
   );

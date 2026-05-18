@@ -66,22 +66,16 @@ export function BillingPanel() {
 
   return (
     <main className="mx-auto max-w-xl px-4 pb-32 pt-4">
-      <Link
-        href="/tg"
-        className="text-xs"
-        style={{ color: "var(--hb-text-dim)", textDecoration: "none" }}
-      >
-        ‹ Назад
-      </Link>
+      <BackLink />
 
       <h1
-        className="mt-4 text-lg font-bold"
+        className="tg-animate-in tg-delay-1 mt-4 text-lg font-bold"
         style={{ color: "var(--hb-text-hi)" }}
       >
         Тариф
       </h1>
       <p
-        className="mt-1 text-[12px] leading-relaxed"
+        className="tg-animate-in tg-delay-2 mt-1 text-[12px] leading-relaxed"
         style={{ color: "var(--hb-text-dim)" }}
       >
         Оплата через Telegram Stars прямо в боте. Без карт, без KYC.
@@ -89,13 +83,10 @@ export function BillingPanel() {
 
       {error && (
         <p
-          className="mt-3 text-xs leading-relaxed"
+          className="tg-glass tg-animate-in mt-3 text-xs leading-relaxed"
           style={{
             color: "var(--hb-error)",
-            background: "rgba(248,113,113,0.08)",
-            border: "1px solid rgba(248,113,113,0.30)",
-            padding: "8px 10px",
-            borderRadius: 4,
+            borderColor: "rgba(248,113,113,0.30)",
           }}
         >
           {error}
@@ -110,10 +101,12 @@ export function BillingPanel() {
           Загрузка
         </p>
       ) : sub ? (
-        <CurrentPlan sub={sub} />
+        <div className="tg-animate-in tg-delay-3">
+          <CurrentPlan sub={sub} />
+        </div>
       ) : null}
 
-      <section className="mt-6">
+      <section className="tg-animate-in tg-delay-4 mt-6">
         <h2 className="tg-hint mb-2">Купить или продлить</h2>
         <div className="flex flex-col gap-2">
           {plans.length === 0 ? (
@@ -121,20 +114,25 @@ export function BillingPanel() {
               Каталог временно недоступен.
             </p>
           ) : (
-            plans.map((p) => (
-              <PlanRow
+            plans.map((p, i) => (
+              <div
                 key={p.plan}
-                plan={p.plan}
-                stars={p.stars}
-                isCurrent={sub?.active && sub.plan === p.plan}
-              />
+                className="tg-animate-in"
+                style={{ animationDelay: `${0.24 + i * 0.08}s` }}
+              >
+                <PlanRow
+                  plan={p.plan}
+                  stars={p.stars}
+                  isCurrent={sub?.active && sub.plan === p.plan}
+                />
+              </div>
             ))
           )}
         </div>
       </section>
 
       <p
-        className="mt-8 text-center text-[10px] leading-relaxed"
+        className="tg-animate-in tg-delay-7 mt-8 text-center text-[10px] leading-relaxed"
         style={{ color: "var(--hb-text-dim)" }}
       >
         Возврат Stars — командой <code>/refund</code> в боте, в течение 14 дней.
@@ -143,10 +141,29 @@ export function BillingPanel() {
   );
 }
 
+function BackLink() {
+  return (
+    <Link
+      href="/tg"
+      className="inline-flex items-center gap-1 text-xs"
+      style={{
+        color: "var(--hb-text-dim)",
+        textDecoration: "none",
+        transition: "color 0.2s ease",
+      }}
+      onMouseEnter={(e) => (e.currentTarget.style.color = "var(--hb-primary)")}
+      onMouseLeave={(e) => (e.currentTarget.style.color = "var(--hb-text-dim)")}
+    >
+      <span style={{ fontSize: 16, lineHeight: 1 }}>‹</span>
+      {" "}Назад
+    </Link>
+  );
+}
+
 function CurrentPlan({ sub }: { sub: Subscription }) {
   if (!sub.active) {
     return (
-      <div className="tg-card mt-4">
+      <div className="tg-glass tg-glow mt-4">
         <p className="tg-hint mb-1">Текущий тариф</p>
         <p
           className="text-base font-bold"
@@ -171,7 +188,7 @@ function CurrentPlan({ sub }: { sub: Subscription }) {
       })
     : "—";
   return (
-    <div className="tg-card mt-4">
+    <div className="tg-glass tg-glow mt-4">
       <p className="tg-hint mb-1">Текущий тариф</p>
       <p
         className="text-base font-bold capitalize"
@@ -193,17 +210,18 @@ function CurrentPlan({ sub }: { sub: Subscription }) {
       </p>
       {sub.amount && sub.currency === "XTR" && (
         <p className="mt-2 text-[10px]" style={{ color: "var(--hb-text-dim)" }}>
-          Оплачено: {sub.amount} ⭐
+          Оплачено:{" "}
+          <span style={{ color: "#fbbf24", fontWeight: 700 }}>{sub.amount}</span>
+          {" "}
+          <span style={{ color: "#fbbf24" }}>&#11088;</span>
         </p>
       )}
       {sub.provider === "telegram_stars" && (
         <a
           href="https://t.me/KitronBot?start=refund"
-          className="mt-3 inline-block text-[11px]"
+          className="tg-underline-anim mt-3 inline-block text-[11px]"
           style={{
             color: "var(--hb-text-dim)",
-            textDecoration: "underline",
-            textUnderlineOffset: 3,
           }}
         >
           Вернуть Stars (открыть бота)
@@ -220,7 +238,22 @@ function PlanRow({ plan, stars, isCurrent }: { plan: string; stars: number; isCu
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className="tg-card-interactive flex items-center gap-3"
+      className="tg-glass flex items-center gap-3"
+      style={{
+        textDecoration: "none",
+        transition: "border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease",
+        cursor: "pointer",
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.borderColor = "rgba(74, 222, 128, 0.3)";
+        e.currentTarget.style.boxShadow = "0 0 20px rgba(74, 222, 128, 0.08)";
+        e.currentTarget.style.background = "rgba(15, 26, 15, 0.8)";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.borderColor = "rgba(74, 222, 128, 0.12)";
+        e.currentTarget.style.boxShadow = "none";
+        e.currentTarget.style.background = "rgba(15, 26, 15, 0.6)";
+      }}
     >
       <div className="min-w-0 flex-1">
         <p
@@ -229,7 +262,12 @@ function PlanRow({ plan, stars, isCurrent }: { plan: string; stars: number; isCu
         >
           {plan}
           {isCurrent && (
-            <span className="ml-2 tg-chip sev-chip-good">Активен</span>
+            <span
+              className="ml-2 tg-chip sev-chip-good"
+              style={{ animation: "green-pulse 2s ease-in-out infinite" }}
+            >
+              Активен
+            </span>
           )}
         </p>
         <p
@@ -239,8 +277,11 @@ function PlanRow({ plan, stars, isCurrent }: { plan: string; stars: number; isCu
           {PLAN_BLURB[plan] ?? ""}
         </p>
       </div>
-      <span className="text-xs font-bold" style={{ color: "var(--hb-primary)" }}>
-        {stars} ⭐
+      <span
+        className="text-xs font-bold"
+        style={{ color: "#fbbf24", whiteSpace: "nowrap" }}
+      >
+        {stars} &#11088;
       </span>
     </a>
   );

@@ -56,22 +56,16 @@ export function OwnerPanel() {
 
   return (
     <main className="mx-auto max-w-xl px-4 pb-32 pt-4">
-      <Link
-        href="/tg"
-        className="text-xs"
-        style={{ color: "var(--hb-text-dim)", textDecoration: "none" }}
-      >
-        ‹ Назад
-      </Link>
+      <BackLink />
 
       <h1
-        className="mt-4 text-lg font-bold"
+        className="tg-animate-in tg-delay-1 mt-4 text-lg font-bold"
         style={{ color: "var(--hb-text-hi)" }}
       >
         Настройки пайплайна
       </h1>
       <p
-        className="mt-1 text-[12px] leading-relaxed"
+        className="tg-animate-in tg-delay-2 mt-1 text-[12px] leading-relaxed"
         style={{ color: "var(--hb-text-dim)" }}
       >
         Изменения применяются со следующего скана. По умолчанию все стадии включены.
@@ -79,13 +73,10 @@ export function OwnerPanel() {
 
       {error && (
         <p
-          className="mt-3 text-xs leading-relaxed"
+          className="tg-glass tg-animate-in mt-3 text-xs leading-relaxed"
           style={{
             color: "var(--hb-error)",
-            background: "rgba(248,113,113,0.08)",
-            border: "1px solid rgba(248,113,113,0.30)",
-            padding: "8px 10px",
-            borderRadius: 4,
+            borderColor: "rgba(248,113,113,0.30)",
           }}
         >
           {error}
@@ -101,49 +92,59 @@ export function OwnerPanel() {
         </p>
       ) : (
         <section className="mt-5 flex flex-col gap-2">
-          <Toggle
-            label="Foundry PoC retry-loop"
-            help="Пытается воспроизвести HIGH/CRITICAL находки реальным Foundry-тестом. Расход: 1–3 LLM-вызова на находку + forge run."
-            value={prefs.auto_poc}
-            saving={savingKey === "auto_poc"}
-            onClick={() => toggle("auto_poc")}
-          />
-          <Toggle
-            label="AI-fuzzing"
-            help="Генерирует инварианты и прогоняет forge invariant testing. Самая дорогая стадия — отключайте на ранних драфтах."
-            value={prefs.auto_fuzzing}
-            saving={savingKey === "auto_fuzzing"}
-            onClick={() => toggle("auto_fuzzing")}
-          />
-          <Toggle
-            label="Multi-agent триаж"
-            help="4 параллельных Claude-агента (severity / FP / business-logic / cross-contract). Off — один LLM-вызов с худшей точностью, но в 3–4 раза дешевле."
-            value={prefs.multi_agent_triage}
-            saving={savingKey === "multi_agent_triage"}
-            onClick={() => toggle("multi_agent_triage")}
-          />
-          <Toggle
-            label="Мониторинг контрактов"
-            help="Каждые 6 часов проверяем ваши контракты через Etherscan и присылаем алерт при смене source code, владельца или impl. Без LLM-расхода."
-            value={prefs.continuous_monitoring}
-            saving={savingKey === "continuous_monitoring"}
-            onClick={() => toggle("continuous_monitoring")}
-          />
-          <Toggle
-            label="Анонимность в публичном"
-            help="Скрывает ваш профиль и сканы из публичного лидерборда и общего индекса."
-            value={prefs.anonymous_in_public}
-            saving={savingKey === "anonymous_in_public"}
-            onClick={() => toggle("anonymous_in_public")}
-          />
+          <div className="tg-animate-in tg-delay-3">
+            <Toggle
+              label="Foundry PoC retry-loop"
+              help="Пытается воспроизвести HIGH/CRITICAL находки реальным Foundry-тестом. Расход: 1–3 LLM-вызова на находку + forge run."
+              value={prefs.auto_poc}
+              saving={savingKey === "auto_poc"}
+              onClick={() => toggle("auto_poc")}
+            />
+          </div>
+          <div className="tg-animate-in tg-delay-4">
+            <Toggle
+              label="AI-fuzzing"
+              help="Генерирует инварианты и прогоняет forge invariant testing. Самая дорогая стадия — отключайте на ранних драфтах."
+              value={prefs.auto_fuzzing}
+              saving={savingKey === "auto_fuzzing"}
+              onClick={() => toggle("auto_fuzzing")}
+            />
+          </div>
+          <div className="tg-animate-in tg-delay-5">
+            <Toggle
+              label="Multi-agent триаж"
+              help="4 параллельных Claude-агента (severity / FP / business-logic / cross-contract). Off — один LLM-вызов с худшей точностью, но в 3–4 раза дешевле."
+              value={prefs.multi_agent_triage}
+              saving={savingKey === "multi_agent_triage"}
+              onClick={() => toggle("multi_agent_triage")}
+            />
+          </div>
+          <div className="tg-animate-in tg-delay-6">
+            <Toggle
+              label="Мониторинг контрактов"
+              help="Каждые 6 часов проверяем ваши контракты через Etherscan и присылаем алерт при смене source code, владельца или impl. Без LLM-расхода."
+              value={prefs.continuous_monitoring}
+              saving={savingKey === "continuous_monitoring"}
+              onClick={() => toggle("continuous_monitoring")}
+            />
+          </div>
+          <div className="tg-animate-in tg-delay-7">
+            <Toggle
+              label="Анонимность в публичном"
+              help="Скрывает ваш профиль и сканы из публичного лидерборда и общего индекса."
+              value={prefs.anonymous_in_public}
+              saving={savingKey === "anonymous_in_public"}
+              onClick={() => toggle("anonymous_in_public")}
+            />
+          </div>
         </section>
       )}
 
       {prefs && (
-        <section className="mt-8">
+        <section className="tg-animate-in tg-delay-8 mt-8">
           <h2 className="tg-hint mb-2">Прогноз для следующего скана</h2>
           <div
-            className="tg-card text-[11px] leading-relaxed"
+            className="tg-glass tg-glow text-[11px] leading-relaxed"
             style={{ color: "var(--hb-text-dim)" }}
           >
             <p>
@@ -159,6 +160,25 @@ export function OwnerPanel() {
         </section>
       )}
     </main>
+  );
+}
+
+function BackLink() {
+  return (
+    <Link
+      href="/tg"
+      className="inline-flex items-center gap-1 text-xs"
+      style={{
+        color: "var(--hb-text-dim)",
+        textDecoration: "none",
+        transition: "color 0.2s ease",
+      }}
+      onMouseEnter={(e) => (e.currentTarget.style.color = "var(--hb-primary)")}
+      onMouseLeave={(e) => (e.currentTarget.style.color = "var(--hb-text-dim)")}
+    >
+      <span style={{ fontSize: 16, lineHeight: 1 }}>‹</span>
+      {" "}Назад
+    </Link>
   );
 }
 
@@ -195,7 +215,14 @@ function Toggle({
   onClick: () => void;
 }) {
   return (
-    <div className="tg-card flex items-start gap-3">
+    <div
+      className="tg-glass flex items-start gap-3"
+      style={{
+        transition: "border-color 0.2s ease, box-shadow 0.2s ease",
+        borderColor: value ? "rgba(74, 222, 128, 0.2)" : undefined,
+        boxShadow: value ? "0 0 16px rgba(74, 222, 128, 0.05)" : "none",
+      }}
+    >
       <div className="min-w-0 flex-1">
         <p
           className="text-sm font-bold"
@@ -204,8 +231,8 @@ function Toggle({
           {label}
           {saving && (
             <span
-              className="ml-2 text-[10px]"
-              style={{ color: "var(--hb-text-dim)" }}
+              className="tg-saving ml-2 text-[10px]"
+              style={{ color: "var(--hb-primary)" }}
             >
               Сохранение…
             </span>
@@ -232,4 +259,3 @@ function Toggle({
     </div>
   );
 }
-

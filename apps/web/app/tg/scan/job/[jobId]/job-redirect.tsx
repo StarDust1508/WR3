@@ -1,6 +1,5 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Logo } from "../../../logo";
@@ -47,7 +46,7 @@ export function JobRedirect({ jobId }: { jobId: string }) {
       // If the SSE connection cannot be established (TG proxy buffering, CORS,
       // etc.), fall back to polling Redis-backed progress JSON via a regular
       // GET. We don't have a dedicated GET-by-job_id endpoint yet, so we
-      // bail out gracefully after the message stays "Preparing…" for >8s.
+      // bail out gracefully after the message stays "Preparing..." for >8s.
     };
 
     return () => {
@@ -58,14 +57,44 @@ export function JobRedirect({ jobId }: { jobId: string }) {
   }, [jobId, router]);
 
   return (
-    <main className="flex min-h-[80vh] flex-col items-center justify-center gap-4 px-6 text-center">
-      <Logo size={48} />
-      <div
-        className="flex items-center gap-2 text-sm"
-        style={{ color: "var(--tg-hint)" }}
-      >
-        <Loader2 className="animate-spin" size={14} />
-        {message}
+    <main className="flex min-h-[80vh] flex-col items-center justify-center gap-6 px-6 text-center">
+      <div className="tg-animate-in" style={{ animation: "tg-fade-in-up 0.5s ease-out both" }}>
+        <div
+          className="tg-logo-pulse"
+          style={{
+            display: "inline-flex",
+            padding: 4,
+            borderRadius: 10,
+          }}
+        >
+          <Logo size={48} />
+        </div>
+      </div>
+
+      <div className="tg-animate-in tg-delay-2 tg-animated-border" style={{ minWidth: 260 }}>
+        <div className="tg-animated-border-inner flex flex-col items-center gap-5">
+          <div
+            className="tg-progress-dots"
+            aria-label="Loading"
+          >
+            <span />
+            <span />
+            <span />
+          </div>
+
+          <p
+            className="tg-shimmer text-sm font-medium"
+          >
+            {message}
+          </p>
+
+          <p
+            className="text-[10px]"
+            style={{ color: "var(--hb-text-muted)" }}
+          >
+            Обычно занимает 20-60 секунд
+          </p>
+        </div>
       </div>
     </main>
   );

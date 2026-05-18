@@ -59,30 +59,143 @@ html, body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* === Animation keyframes === */
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 8px rgba(74, 222, 128, 0.1);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(74, 222, 128, 0.25);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes glow-pulse {
+  0%, 100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes hb-blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+/* === Utility classes === */
+
+.tg-glass {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  background: rgba(16, 24, 16, 0.7);
+  border: 1px solid rgba(74, 222, 128, 0.12);
+  border-radius: 6px;
+}
+
+.tg-glow {
+  box-shadow: 0 0 20px rgba(74, 222, 128, 0.1);
+}
+
+.tg-animate-in {
+  animation: fadeInUp 0.4s ease-out both;
+}
+
+/* === Scroll container === */
+
 .tg-scroll {
   min-height: 100vh;
   min-height: 100dvh;
   padding-top: max(env(safe-area-inset-top), 0px);
   padding-bottom: max(env(safe-area-inset-bottom), 16px);
+  animation: fadeInUp 0.35s ease-out;
+}
+
+/* === Scrollbar styling === */
+
+.tg-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+.tg-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.tg-scroll::-webkit-scrollbar-thumb {
+  background: var(--hb-border);
+  border-radius: 2px;
+}
+.tg-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--hb-border-hi);
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--hb-border) transparent;
 }
 
 /* === Cards === */
 .tg-card {
-  background: var(--hb-surface);
+  background: rgba(15, 26, 15, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   border: 1px solid var(--hb-border);
   border-radius: 6px;
   padding: 14px;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+.tg-card:hover {
+  border-color: rgba(74, 222, 128, 0.15);
 }
 
 .tg-card-interactive {
-  background: var(--hb-surface);
+  background: rgba(15, 26, 15, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   border: 1px solid var(--hb-border);
   border-radius: 6px;
   padding: 14px;
-  transition: border-color 80ms, background 80ms;
+  transition: border-color 150ms ease, background 150ms ease, box-shadow 200ms ease, transform 150ms ease;
 }
-.tg-card-interactive:hover { border-color: var(--hb-border-hi); }
-.tg-card-interactive:active { background: var(--hb-surface-hi); }
+.tg-card-interactive:hover {
+  border-color: var(--hb-border-hi);
+  box-shadow: 0 0 16px rgba(74, 222, 128, 0.08);
+}
+.tg-card-interactive:active {
+  background: var(--hb-surface-hi);
+  transform: scale(0.985);
+}
 
 /* === Section headers ===
  * Single uppercase rank; no `//` auto-prefix. Use plain dim instead of
@@ -112,6 +225,7 @@ html, body {
   min-height: 44px;
   outline: none;
   caret-color: var(--hb-primary);
+  transition: border-color 150ms ease, box-shadow 200ms ease;
 }
 .tg-input::placeholder {
   color: var(--hb-text-muted);
@@ -119,7 +233,8 @@ html, body {
 }
 .tg-input:focus {
   border-color: var(--hb-primary);
-  box-shadow: 0 0 0 1px var(--hb-primary);
+  box-shadow: 0 0 0 1px var(--hb-primary), 0 0 12px rgba(74, 222, 128, 0.15);
+  animation: glow-pulse 2s ease-in-out infinite;
 }
 
 /* === Buttons === */
@@ -146,8 +261,16 @@ html, body {
 .tg-button-primary {
   background: var(--hb-primary);
   color: var(--hb-bg);
+  box-shadow: 0 0 16px rgba(74, 222, 128, 0.2);
+  transition: all 150ms ease, box-shadow 200ms ease;
 }
-.tg-button-primary:hover { background: var(--hb-primary-hi); }
+.tg-button-primary:hover {
+  background: var(--hb-primary-hi);
+  box-shadow: 0 0 24px rgba(74, 222, 128, 0.3);
+}
+.tg-button-primary:disabled {
+  box-shadow: none;
+}
 
 .tg-button-ghost {
   background: transparent;
@@ -259,4 +382,240 @@ html, body {
  * (we are removing them); will be deleted once usages are gone. */
 .hb-cursor::after {
   content: "";
+}
+
+/* === Boot logo pulse === */
+@keyframes tg-logo-pulse {
+  0%, 100% { box-shadow: 0 0 8px rgba(74, 222, 128, 0.2); }
+  50%      { box-shadow: 0 0 28px rgba(74, 222, 128, 0.5), 0 0 56px rgba(74, 222, 128, 0.15); }
+}
+.tg-logo-pulse {
+  animation: tg-logo-pulse 2s ease-in-out infinite;
+  border-radius: 6px;
+}
+
+/* === Shake animation (form errors) === */
+@keyframes tg-shake {
+  0%, 100% { transform: translateX(0); }
+  15%, 55%, 85% { transform: translateX(-3px); }
+  35%, 70% { transform: translateX(3px); }
+}
+.tg-shake {
+  animation: tg-shake 0.4s ease-in-out;
+}
+
+/* === Ping animation (active chip) === */
+@keyframes tg-ping {
+  0% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.35); }
+  70% { box-shadow: 0 0 0 6px rgba(74, 222, 128, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0); }
+}
+.tg-ping {
+  animation: tg-ping 1.5s ease-in-out infinite;
+}
+
+/* === Button pulse (ready state) === */
+@keyframes tg-btn-pulse {
+  0%, 100% { box-shadow: 0 0 16px rgba(74, 222, 128, 0.2); }
+  50%      { box-shadow: 0 0 20px 4px rgba(74, 222, 128, 0.35); }
+}
+.tg-btn-pulse {
+  animation: tg-btn-pulse 2s ease-in-out infinite;
+}
+
+/* === Spinner === */
+@keyframes tg-spin {
+  to { transform: rotate(360deg); }
+}
+.tg-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(10, 14, 10, 0.3);
+  border-top-color: var(--hb-bg);
+  border-radius: 50%;
+  animation: tg-spin 0.6s linear infinite;
+}
+
+/* === Score glow per tier === */
+.tier-red-glow    { text-shadow: 0 0 8px rgba(248, 113, 113, 0.6); }
+.tier-yellow-glow { text-shadow: 0 0 8px rgba(251, 191, 36, 0.6); }
+.tier-green-glow  { text-shadow: 0 0 8px rgba(74, 222, 128, 0.6); }
+.tier-blue-glow   { text-shadow: 0 0 8px rgba(96, 165, 250, 0.6); }
+
+/* === Source badge colors (incidents) === */
+.source-rekt      { border-color: var(--sev-critical) !important; color: var(--sev-critical); }
+.source-slowmist  { border-color: var(--sev-high) !important; color: var(--sev-high); }
+.source-defillama { border-color: var(--sev-medium) !important; color: var(--sev-medium); }
+
+/* === Glassmorphism card === */
+.tg-glass {
+  background: rgba(15, 26, 15, 0.6);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(74, 222, 128, 0.12);
+  border-radius: 10px;
+  padding: 14px;
+}
+
+/* === Subtle green glow === */
+.tg-glow {
+  box-shadow: 0 0 20px rgba(74, 222, 128, 0.08), 0 0 60px rgba(74, 222, 128, 0.04);
+}
+
+/* === Fade-in-up entrance animation === */
+.tg-animate-in {
+  animation: tg-fade-in-up 0.45s ease-out both;
+}
+@keyframes tg-fade-in-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Stagger delays */
+.tg-delay-1 { animation-delay: 0.06s; }
+.tg-delay-2 { animation-delay: 0.12s; }
+.tg-delay-3 { animation-delay: 0.18s; }
+.tg-delay-4 { animation-delay: 0.24s; }
+.tg-delay-5 { animation-delay: 0.30s; }
+.tg-delay-6 { animation-delay: 0.36s; }
+.tg-delay-7 { animation-delay: 0.42s; }
+.tg-delay-8 { animation-delay: 0.48s; }
+
+/* === Progress bar glow trail === */
+@keyframes progress-glow {
+  0%, 100% { box-shadow: 0 0 6px rgba(74, 222, 128, 0.4), 0 0 16px rgba(74, 222, 128, 0.15); }
+  50%      { box-shadow: 0 0 12px rgba(74, 222, 128, 0.6), 0 0 28px rgba(74, 222, 128, 0.25); }
+}
+
+/* === Pulsing ring for progress % === */
+@keyframes pulse-ring {
+  0%   { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.3); }
+  70%  { box-shadow: 0 0 0 6px rgba(74, 222, 128, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0); }
+}
+
+/* === Severity glow on critical/high chips === */
+.sev-glow-critical {
+  box-shadow: 0 0 8px rgba(248, 113, 113, 0.4), 0 0 20px rgba(248, 113, 113, 0.15);
+}
+.sev-glow-high {
+  box-shadow: 0 0 8px rgba(251, 146, 60, 0.35), 0 0 20px rgba(251, 146, 60, 0.12);
+}
+
+/* === Shimmer text === */
+@keyframes shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+.tg-shimmer {
+  background: linear-gradient(90deg, var(--hb-text-dim) 0%, var(--hb-text-hi) 50%, var(--hb-text-dim) 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmer 2.5s linear infinite;
+}
+
+/* === Animated border (rotating conic gradient) === */
+@property --border-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+@keyframes border-rotate {
+  to { --border-angle: 360deg; }
+}
+.tg-animated-border {
+  border-radius: 14px;
+  padding: 1.5px;
+  background: conic-gradient(
+    from var(--border-angle),
+    rgba(74, 222, 128, 0.04) 0%,
+    rgba(74, 222, 128, 0.35) 25%,
+    rgba(74, 222, 128, 0.04) 50%,
+    rgba(74, 222, 128, 0.35) 75%,
+    rgba(74, 222, 128, 0.04) 100%
+  );
+  animation: border-rotate 4s linear infinite;
+}
+.tg-animated-border-inner {
+  background: rgba(10, 14, 10, 0.92);
+  border-radius: 13px;
+  padding: 32px 24px;
+}
+
+/* === Bouncing loading dots === */
+.tg-progress-dots {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+.tg-progress-dots span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--hb-primary);
+  animation: dot-bounce 1.4s ease-in-out infinite both;
+}
+.tg-progress-dots span:nth-child(1) { animation-delay: 0s; }
+.tg-progress-dots span:nth-child(2) { animation-delay: 0.16s; }
+.tg-progress-dots span:nth-child(3) { animation-delay: 0.32s; }
+@keyframes dot-bounce {
+  0%, 80%, 100% { transform: scale(0.4); opacity: 0.3; }
+  40%           { transform: scale(1); opacity: 1; }
+}
+
+/* === Green pulse badge === */
+@keyframes green-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.4); }
+  50%      { box-shadow: 0 0 0 4px rgba(74, 222, 128, 0); }
+}
+
+/* === Underline slide animation === */
+.tg-underline-anim {
+  position: relative;
+  text-decoration: none !important;
+}
+.tg-underline-anim::after {
+  content: "";
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 0;
+  height: 1px;
+  background: currentColor;
+  transition: width 0.25s ease;
+}
+.tg-underline-anim:hover::after {
+  width: 100%;
+}
+
+/* === Toggle glow when checked === */
+.hb-toggle input:checked + .hb-toggle-track {
+  box-shadow: 0 0 10px rgba(74, 222, 128, 0.3), 0 0 24px rgba(74, 222, 128, 0.1);
+}
+
+/* === Saving pulse indicator === */
+@keyframes saving-pulse {
+  0%, 100% { opacity: 0.5; }
+  50%      { opacity: 1; }
+}
+.tg-saving {
+  animation: saving-pulse 1s ease-in-out infinite;
+}
+
+/* === Score bar gradient === */
+@keyframes score-bar-shine {
+  0%   { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+
+/* === Reduced motion === */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
