@@ -2,12 +2,6 @@ import { TerminalPageShell } from "@/components/terminal-page-shell";
 
 export const metadata = { title: "wr3 — тарифы" };
 
-const PRIMARY = "#4ade80";
-const HI = "#d4ffd4";
-const MUTED = "#8bb88b";
-const DIM = "#547654";
-const BG = "#0a0e0a";
-
 // Deep-link to the Telegram bot — `upgrade_<plan>` payload triggers the
 // Stars invoice flow on /start with that arg.
 function tgUpgradeLink(plan: string): string {
@@ -17,19 +11,13 @@ function tgUpgradeLink(plan: string): string {
 export default function PricingPage() {
   return (
     <TerminalPageShell title="Тарифы" eyebrow="// pricing">
-      <p style={{ color: MUTED, fontSize: 14, lineHeight: 1.6 }}>
+      <p className="text-[#8bb88b] text-sm leading-relaxed">
         Платные тарифы — Telegram Stars прямо в боте. Без карт и KYC. Free
         навсегда.
       </p>
 
-      <div
-        style={{
-          marginTop: 28,
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-          gap: 16,
-        }}
-      >
+      {/* ─── Plan Grid ─── */}
+      <div className="mt-7 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Plan
           name="Free"
           price="$0"
@@ -85,76 +73,43 @@ export default function PricingPage() {
         />
       </div>
 
-      <section style={{ marginTop: 48 }}>
-        <h2
-          style={{
-            color: HI,
-            fontSize: 18,
-            margin: 0,
-            fontWeight: 700,
-            letterSpacing: "-0.01em",
-          }}
-        >
+      {/* ─── Payment Section ─── */}
+      <section className="mt-12 glass-card p-6 animate-fade-in-up" style={{ animationDelay: "0.1s" }}>
+        <h2 className="text-[#d4ffd4] text-lg font-bold tracking-tight m-0">
           Оплата
         </h2>
-        <ul
-          style={{
-            color: MUTED,
-            fontSize: 14,
-            lineHeight: 1.7,
-            marginTop: 12,
-            paddingLeft: 20,
-          }}
-        >
+        <ul className="text-[#8bb88b] text-sm leading-relaxed mt-3 pl-5 list-disc">
           <li>
-            <span style={{ color: HI, fontWeight: 600 }}>Telegram Stars.</span>{" "}
+            <span className="text-[#d4ffd4] font-semibold">Telegram Stars.</span>{" "}
             Единственный способ оплаты на старте. Hobby — 2200 ⭐, Team — 7500 ⭐,
             Pro — 38 000 ⭐. Период — 30 дней, продление новой покупкой.
           </li>
           <li>
-            <span style={{ color: HI, fontWeight: 600 }}>Возврат.</span> Команда{" "}
+            <span className="text-[#d4ffd4] font-semibold">Возврат.</span> Команда{" "}
             <code>/refund</code> в @KitronBot — Telegram возвращает Stars на
             ваш баланс мгновенно. Тариф откатывается к free.
           </li>
         </ul>
       </section>
 
-      <section style={{ marginTop: 40 }}>
-        <h2
-          style={{
-            color: HI,
-            fontSize: 18,
-            margin: 0,
-            fontWeight: 700,
-            letterSpacing: "-0.01em",
-          }}
-        >
+      {/* ─── Enterprise Section ─── */}
+      <section className="mt-10 glass-card p-6 animate-fade-in-up" style={{ animationDelay: "0.2s" }}>
+        <h2 className="text-[#d4ffd4] text-lg font-bold tracking-tight m-0">
           Enterprise и кастом
         </h2>
-        <p style={{ color: MUTED, fontSize: 14, marginTop: 10, lineHeight: 1.6 }}>
+        <p className="text-[#8bb88b] text-sm mt-2.5 leading-relaxed">
           Per-engagement аудит, white-label или объёмные скидки — обсудим
           индивидуально.
         </p>
-        <a href="https://t.me/KitronBot?start=upgrade_enterprise" style={cta()}>
+        <a
+          href="https://t.me/KitronBot?start=upgrade_enterprise"
+          className="inline-block mt-3.5 text-[var(--color-primary)] border border-[var(--color-primary)] px-4.5 py-2.5 rounded text-[13px] font-bold no-underline hover:bg-[var(--color-primary)] hover:text-[var(--color-bg)] hover:shadow-[0_0_20px_rgba(74,222,128,0.3)] transition-all"
+        >
           Написать в Telegram
         </a>
       </section>
     </TerminalPageShell>
   );
-
-  function cta(): React.CSSProperties {
-    return {
-      display: "inline-block",
-      marginTop: 14,
-      color: PRIMARY,
-      border: `1px solid ${PRIMARY}`,
-      padding: "10px 18px",
-      borderRadius: 4,
-      textDecoration: "none",
-      fontSize: 13,
-      fontWeight: 700,
-    };
-  }
 }
 
 function Plan({
@@ -176,95 +131,54 @@ function Plan({
 }) {
   return (
     <article
-      style={{
-        border: `1px solid ${highlighted ? PRIMARY : DIM}`,
-        borderRadius: 8,
-        padding: 22,
-        background: highlighted ? "rgba(74, 222, 128, 0.05)" : BG,
-        display: "flex",
-        flexDirection: "column",
-        gap: 14,
-        transition: "border-color 150ms ease, transform 150ms ease",
-        position: "relative",
-      }}
+      className={`
+        glass-card hover-lift p-5.5 flex flex-col gap-3.5
+        ${highlighted ? "glow-border animate-pulse-glow" : ""}
+      `}
     >
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
-        <span style={{ color: HI, fontWeight: 700, fontSize: 16 }}>{name}</span>
+      {/* Plan name + badge */}
+      <div className="flex items-center justify-between">
+        <span className="text-[#d4ffd4] font-bold text-base">{name}</span>
         {highlighted && (
-          <span
-            style={{
-              color: BG,
-              background: PRIMARY,
-              fontSize: 10,
-              padding: "3px 8px",
-              borderRadius: 3,
-              fontWeight: 700,
-              letterSpacing: "0.04em",
-              textTransform: "uppercase",
-            }}
-          >
+          <span className="bg-[var(--color-primary)] text-[var(--color-bg)] text-[10px] px-2 py-0.5 rounded font-bold tracking-wide uppercase animate-pulse-glow">
             Рекомендуем
           </span>
         )}
       </div>
 
+      {/* Price */}
       <div>
-        <span
-          style={{
-            color: HI,
-            fontSize: 30,
-            fontWeight: 800,
-            lineHeight: 1,
-            fontVariantNumeric: "tabular-nums",
-          }}
-        >
+        <span className="text-gradient text-[30px] font-extrabold leading-none tabular-nums">
           {price}
         </span>
-        <span style={{ color: MUTED, fontSize: 12, marginLeft: 6 }}>{period}</span>
+        <span className="text-[#8bb88b] text-xs ml-1.5">{period}</span>
       </div>
 
-      <ul
-        style={{
-          listStyle: "none",
-          padding: 0,
-          margin: 0,
-          fontSize: 13,
-          color: MUTED,
-          lineHeight: 1.55,
-        }}
-      >
-        {features.map((f) => (
+      {/* Features */}
+      <ul className="list-none p-0 m-0 text-[13px] text-[#8bb88b] leading-snug">
+        {features.map((f, i) => (
           <li
             key={f}
-            style={{ padding: "4px 0", display: "flex", gap: 8, alignItems: "start" }}
+            className="py-1 flex gap-2 items-start animate-fade-in-up"
+            style={{ animationDelay: `${i * 0.08}s` }}
           >
-            <span style={{ color: PRIMARY, flexShrink: 0 }}>+</span>
+            <span className="text-[var(--color-primary)] shrink-0">+</span>
             <span>{f}</span>
           </li>
         ))}
       </ul>
 
+      {/* CTA Button */}
       <a
         href={tgUpgradeLink(plan)}
-        style={{
-          marginTop: "auto",
-          display: "inline-block",
-          textAlign: "center",
-          textDecoration: "none",
-          background: highlighted ? PRIMARY : "transparent",
-          color: highlighted ? BG : PRIMARY,
-          border: `1px solid ${PRIMARY}`,
-          padding: "11px 16px",
-          borderRadius: 4,
-          fontSize: 13,
-          fontWeight: 700,
-        }}
+        className={`
+          mt-auto block text-center no-underline px-4 py-2.5 rounded text-[13px] font-bold transition-all
+          ${
+            highlighted
+              ? "bg-[var(--color-primary)] text-[var(--color-bg)] hover:shadow-[0_0_24px_rgba(74,222,128,0.4)] hover:scale-105"
+              : "bg-transparent text-[var(--color-primary)] border border-[var(--color-primary)] hover:bg-[var(--color-primary)] hover:text-[var(--color-bg)] hover:shadow-[0_0_20px_rgba(74,222,128,0.3)]"
+          }
+        `}
       >
         {ctaLabel}
       </a>

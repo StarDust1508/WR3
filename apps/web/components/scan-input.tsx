@@ -13,13 +13,6 @@ const NETWORKS = [
 
 type NetworkId = (typeof NETWORKS)[number]["id"];
 
-const PRIMARY = "#4ade80";
-const BG = "#0a0e0a";
-const HI = "#d4ffd4";
-const MUTED = "#8bb88b";
-const DIM = "#547654";
-const ERR = "#f87171";
-
 function isLikelyAddress(s: string): boolean {
   const t = s.trim();
   if (/^0x[a-fA-F0-9]{40}$/.test(t)) return true;
@@ -32,6 +25,7 @@ export function ScanInput() {
   const [network, setNetwork] = useState<NetworkId>("ethereum");
   const [error, setError] = useState<string | null>(null);
   const [isFocused, setFocused] = useState(false);
+  const [shake, setShake] = useState(false);
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
 
@@ -39,9 +33,11 @@ export function ScanInput() {
     e.preventDefault();
     setError(null);
     const trimmed = address.trim();
-    if (!trimmed) return; // button is disabled when empty — defence in depth
+    if (!trimmed) return;
     if (!isLikelyAddress(trimmed)) {
       setError("Неверный формат. Ожидается 0x… (40 hex) для EVM или base58 для Solana.");
+      setShake(true);
+      setTimeout(() => setShake(false), 600);
       return;
     }
     startTransition(() => {
@@ -49,37 +45,39 @@ export function ScanInput() {
     });
   }
 
+  const ready = address.trim().length > 0 && !isPending;
+
   return (
     <form
       onSubmit={handleSubmit}
-      style={{
-        background:
-          "linear-gradient(180deg, rgba(15,26,15,0.95) 0%, rgba(15,26,15,0.7) 100%)",
-        border: `1px solid ${isFocused ? PRIMARY : DIM}`,
-        borderRadius: 10,
-        padding: 20,
-        display: "flex",
-        flexDirection: "column",
-        gap: 16,
-        // Focus halo — subtle outer glow when the input is active.
-        boxShadow: isFocused
-          ? "0 0 0 4px rgba(74, 222, 128, 0.08), 0 8px 32px -8px rgba(74, 222, 128, 0.20)"
-          : "0 4px 24px -12px rgba(0, 0, 0, 0.6)",
-        transition: "box-shadow 200ms ease, border-color 200ms ease",
-      }}
+      className={[
+        "relative flex flex-col gap-4 rounded-2xl p-5 md:p-6",
+        "bg-[rgba(16,24,16,0.6)] backdrop-blur-xl saturate-[1.4]",
+        "border transition-all duration-300 ease-out",
+        "shadow-[0_4px_24px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(74,222,128,0.05)]",
+        isFocused
+          ? "border-[var(--color-primary)] shadow-[0_0_0_4px_rgba(74,222,128,0.08),0_8px_32px_-8px_rgba(74,222,128,0.2)]"
+          : "border-[var(--color-border)]",
+        shake ? "animate-[shake_0.5s_ease-in-out]" : "",
+      ].join(" ")}
     >
+      {/* Animated gradient border glow overlay */}
+      <div
+        className={[
+          "pointer-events-none absolute -inset-px rounded-2xl transition-opacity duration-300",
+          "bg-[conic-gradient(from_var(--angle,0deg),transparent_60%,rgba(74,222,128,0.4)_80%,transparent_100%)]",
+          isFocused ? "opacity-100 animate-[spin_3s_linear_infinite]" : "opacity-0",
+        ].join(" ")}
+        style={{ mask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)", maskComposite: "exclude", padding: "1px", borderRadius: "16px" }}
+      />
+
       <label
         htmlFor="scan-address"
-        style={{
-          color: MUTED,
-          fontSize: 11,
-          letterSpacing: "0.08em",
-          textTransform: "uppercase",
-          fontWeight: 600,
-        }}
+        className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#8bb88b]"
       >
         Адрес контракта
       </label>
+
       <input
         id="scan-address"
         type="text"
@@ -91,35 +89,22 @@ export function ScanInput() {
         aria-label="Адрес контракта"
         autoComplete="off"
         spellCheck={false}
-        style={{
-          background: BG,
-          border: `1px solid ${DIM}`,
-          borderRadius: 6,
-          padding: "12px 14px",
-          // 16px on mobile prevents iOS zoom-on-focus.
-          fontSize: 16,
-          fontFamily: "var(--font-mono)",
-          color: HI,
-          outline: "none",
-          minHeight: 48,
-          caretColor: PRIMARY,
-        }}
+        className={[
+          "w-full rounded-lg border bg-[var(--color-bg)] px-3.5 py-3",
+          "font-mono text-base text-[#d4ffd4] placeholder:text-[#547654]",
+          "outline-none transition-all duration-200",
+          "caret-[var(--color-primary)]",
+          isFocused
+            ? "border-[var(--color-primary)]/40 shadow-[0_0_12px_rgba(74,222,128,0.1)]"
+            : "border-[#547654]/50",
+        ].join(" ")}
       />
 
       <div>
-        <p
-          style={{
-            color: MUTED,
-            fontSize: 11,
-            letterSpacing: "0.08em",
-            textTransform: "uppercase",
-            fontWeight: 600,
-            margin: "0 0 8px",
-          }}
-        >
+        <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#8bb88b]">
           Сеть
         </p>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <div className="flex flex-wrap gap-2">
           {NETWORKS.map((n) => {
             const active = network === n.id;
             return (
@@ -128,21 +113,18 @@ export function ScanInput() {
                 type="button"
                 onClick={() => setNetwork(n.id)}
                 aria-pressed={active}
-                style={{
-                  background: active ? PRIMARY : "transparent",
-                  color: active ? BG : MUTED,
-                  border: `1px solid ${active ? PRIMARY : DIM}`,
-                  borderRadius: 6,
-                  padding: "8px 14px",
-                  fontSize: 13,
-                  fontWeight: active ? 700 : 500,
-                  fontFamily: "var(--font-sans)",
-                  cursor: "pointer",
-                  minHeight: 36,
-                  transition: "background 120ms ease, color 120ms ease",
-                }}
+                className={[
+                  "relative min-h-[36px] rounded-lg border px-3.5 py-2 text-[13px] font-medium",
+                  "transition-all duration-200 ease-out cursor-pointer",
+                  active
+                    ? "border-[var(--color-primary)] bg-[var(--color-primary)] text-[#0a0e0a] font-bold shadow-[0_0_12px_rgba(74,222,128,0.3)]"
+                    : "border-[#547654]/60 bg-transparent text-[#8bb88b] hover:border-[var(--color-primary)]/50 hover:text-[#d4ffd4]",
+                ].join(" ")}
               >
-                {n.label}
+                {active && (
+                  <span className="absolute inset-0 rounded-lg bg-[var(--color-primary)]/20 animate-ping" />
+                )}
+                <span className="relative">{n.label}</span>
               </button>
             );
           })}
@@ -152,37 +134,35 @@ export function ScanInput() {
       <button
         type="submit"
         disabled={isPending || !address.trim()}
-        style={{
-          background: PRIMARY,
-          color: BG,
-          border: "none",
-          borderRadius: 6,
-          padding: "12px 18px",
-          fontSize: 14,
-          fontWeight: 700,
-          fontFamily: "var(--font-sans)",
-          cursor: isPending || !address.trim() ? "not-allowed" : "pointer",
-          opacity: !address.trim() ? 0.4 : isPending ? 0.7 : 1,
-          minHeight: 48,
-          transition: "opacity 150ms ease, transform 80ms ease",
-        }}
+        className={[
+          "relative min-h-[48px] rounded-lg px-5 py-3 text-sm font-bold",
+          "transition-all duration-200 ease-out",
+          "disabled:cursor-not-allowed",
+          !address.trim()
+            ? "bg-[var(--color-primary)]/30 text-[#0a0e0a]/60 opacity-40"
+            : isPending
+              ? "bg-[var(--color-primary)]/70 text-[#0a0e0a] opacity-70"
+              : "bg-[var(--color-primary)] text-[#0a0e0a] hover:brightness-110 active:scale-[0.98]",
+          ready ? "animate-pulse-glow shadow-[0_0_20px_rgba(74,222,128,0.3)]" : "",
+        ].join(" ")}
       >
-        {isPending ? "Запускаем…" : "Запустить аудит"}
+        {isPending ? (
+          <span className="flex items-center justify-center gap-2">
+            <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+            Запускаем...
+          </span>
+        ) : (
+          "Запустить аудит"
+        )}
       </button>
 
       {error && (
         <p
           role="alert"
-          style={{
-            color: ERR,
-            fontSize: 12,
-            margin: 0,
-            padding: "8px 10px",
-            background: "rgba(248,113,113,0.08)",
-            border: "1px solid rgba(248,113,113,0.30)",
-            borderRadius: 4,
-            lineHeight: 1.5,
-          }}
+          className="rounded-md border border-red-500/30 bg-red-500/8 px-3 py-2 text-xs leading-relaxed text-red-400"
         >
           {error}
         </p>

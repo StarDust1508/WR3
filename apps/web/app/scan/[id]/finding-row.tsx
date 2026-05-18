@@ -29,44 +29,100 @@ interface FindingRowProps {
   };
 }
 
-const SEVERITY_STYLE: Record<string, { label: string; bg: string; text: string }> = {
-  critical: { label: "CRITICAL", bg: "bg-red-600", text: "text-white" },
-  high: { label: "HIGH", bg: "bg-red-100 dark:bg-red-950", text: "text-red-800 dark:text-red-200" },
-  medium: { label: "MED", bg: "bg-amber-100 dark:bg-amber-950", text: "text-amber-800 dark:text-amber-200" },
-  low: { label: "LOW", bg: "bg-blue-100 dark:bg-blue-950", text: "text-blue-800 dark:text-blue-200" },
-  info: { label: "INFO", bg: "bg-zinc-100 dark:bg-zinc-800", text: "text-zinc-600 dark:text-zinc-400" },
+const SEVERITY_STYLE: Record<
+  string,
+  { label: string; color: string; glow: string }
+> = {
+  critical: {
+    label: "CRITICAL",
+    color: "#ef4444",
+    glow: "shadow-[0_0_8px_rgba(239,68,68,0.4)]",
+  },
+  high: {
+    label: "HIGH",
+    color: "#f97316",
+    glow: "shadow-[0_0_8px_rgba(249,115,22,0.3)]",
+  },
+  medium: {
+    label: "MEDIUM",
+    color: "#facc15",
+    glow: "shadow-[0_0_8px_rgba(250,204,21,0.3)]",
+  },
+  low: {
+    label: "LOW",
+    color: "#4ade80",
+    glow: "shadow-[0_0_8px_rgba(74,222,128,0.3)]",
+  },
+  info: {
+    label: "INFO",
+    color: "#8bb88b",
+    glow: "",
+  },
 };
 
 export function FindingRow({ finding }: FindingRowProps) {
   const [open, setOpen] = useState(false);
   const sev = SEVERITY_STYLE[finding.severity] ?? SEVERITY_STYLE.info;
+  const confidencePct = Math.round(finding.confidence * 100);
 
   return (
-    <li className="rounded-md border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
+    <div className="glass-card hover-lift overflow-hidden transition-all duration-200">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-zinc-50 dark:hover:bg-zinc-900"
+        className="flex w-full items-center gap-3 px-5 py-4 text-left"
         aria-expanded={open}
       >
-        <span className={`rounded px-2 py-0.5 text-xs font-semibold ${sev.bg} ${sev.text}`}>
+        {/* Severity Badge */}
+        <span
+          className={`rounded-md px-2.5 py-1 text-xs font-bold ${sev.glow}`}
+          style={{
+            backgroundColor: sev.color + "18",
+            color: sev.color,
+            border: `1px solid ${sev.color}44`,
+          }}
+        >
           {sev.label}
         </span>
+
+        {/* PoC Validated Badge */}
         {finding.poc_validated && (
-          <span
-            className="rounded bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
-            title="Foundry PoC подтвердил эксплойт"
-          >
-            PoC ✓
+          <span className="flex items-center gap-1 rounded-md border border-[#4ade80]/30 bg-[#4ade80]/10 px-2 py-0.5 text-xs font-semibold text-[#4ade80] shadow-[0_0_6px_rgba(74,222,128,0.2)]">
+            <svg className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+              <path
+                fillRule="evenodd"
+                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                clipRule="evenodd"
+              />
+            </svg>
+            PoC
           </span>
         )}
-        <span className="flex-1 truncate font-medium">{finding.title}</span>
-        <span className="font-mono text-xs text-zinc-500">
-          {finding.source_engine}
-          {finding.line != null && `:${finding.line}`}
+
+        {/* Title */}
+        <span className="flex-1 truncate font-medium text-[#d4ffd4]">
+          {finding.title}
         </span>
+
+        {/* Source Engine Chip */}
+        <span className="rounded border border-[#547654]/50 bg-[#0a0e0a] px-2 py-0.5 font-mono text-xs text-[#8bb88b]">
+          {finding.source_engine}
+        </span>
+
+        {/* Confidence mini bar */}
+        <span className="flex items-center gap-1.5 text-xs text-[#547654]">
+          <span className="h-1.5 w-8 overflow-hidden rounded-full bg-[#1a2e1a]">
+            <span
+              className="block h-full rounded-full bg-[#4ade80]"
+              style={{ width: `${confidencePct}%` }}
+            />
+          </span>
+          {confidencePct}%
+        </span>
+
+        {/* Chevron */}
         <svg
-          className={`h-4 w-4 text-zinc-400 transition-transform ${open ? "rotate-180" : ""}`}
+          className={`h-4 w-4 text-[#547654] transition-transform duration-200 ${open ? "rotate-180" : ""}`}
           viewBox="0 0 20 20"
           fill="currentColor"
           aria-hidden="true"
@@ -80,69 +136,85 @@ export function FindingRow({ finding }: FindingRowProps) {
       </button>
 
       {open && (
-        <div className="border-t border-zinc-100 px-4 py-3 text-sm dark:border-zinc-800">
-          <p className="whitespace-pre-wrap text-zinc-700 dark:text-zinc-300">
+        <div className="border-t border-[#1a2e1a] px-5 py-4">
+          {/* Description */}
+          <p className="whitespace-pre-wrap text-sm leading-relaxed text-[#8bb88b]">
             {finding.description || "No description provided by analyzer."}
           </p>
-          <dl className="mt-3 grid grid-cols-[120px_1fr] gap-1 text-xs text-zinc-500">
+
+          {/* Metadata grid */}
+          <div className="mt-4 flex flex-wrap gap-4 text-xs">
             {finding.file && (
-              <>
-                <dt>File</dt>
-                <dd className="font-mono">{finding.file}</dd>
-              </>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[#547654]">File:</span>
+                <span className="font-mono text-[#8bb88b]">
+                  {finding.file}
+                  {finding.line != null && `:${finding.line}`}
+                </span>
+              </div>
             )}
-            {finding.line != null && (
-              <>
-                <dt>Line</dt>
-                <dd className="font-mono">{finding.line}</dd>
-              </>
-            )}
-            <dt>Confidence</dt>
-            <dd>{Math.round(finding.confidence * 100)}%</dd>
-            <dt>Engine</dt>
-            <dd>{finding.source_engine}</dd>
-          </dl>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[#547654]">Engine:</span>
+              <span className="font-mono text-[#8bb88b]">{finding.source_engine}</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[#547654]">Confidence:</span>
+              <span className="font-mono text-[#4ade80]">{confidencePct}%</span>
+            </div>
+          </div>
+
+          {/* Similar Incidents */}
           {(finding.metadata?.similar_incidents?.length ?? 0) > 0 && (
             <SimilarIncidents incidents={finding.metadata!.similar_incidents!} />
           )}
         </div>
       )}
-    </li>
+    </div>
   );
 }
 
 function SimilarIncidents({ incidents }: { incidents: SimilarIncident[] }) {
   return (
-    <div className="mt-3 border-t border-zinc-100 pt-3 dark:border-zinc-800">
-      <p className="text-xs uppercase tracking-wide text-zinc-500">
+    <div className="mt-4 border-t border-[#1a2e1a] pt-4">
+      <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-[#8bb88b]">
         Similar past incidents
       </p>
-      <ul className="mt-1 space-y-1">
+      <div className="grid gap-2 sm:grid-cols-2">
         {incidents.map((i) => {
           const lossStr =
             i.loss_usd == null
               ? ""
               : i.loss_usd >= 1_000_000
-                ? ` — $${(i.loss_usd / 1_000_000).toFixed(1)}M`
-                : ` — $${(i.loss_usd / 1_000).toFixed(0)}K`;
+                ? `$${(i.loss_usd / 1_000_000).toFixed(1)}M`
+                : `$${(i.loss_usd / 1_000).toFixed(0)}K`;
           return (
-            <li key={i.incident_id} className="text-xs">
-              <a
-                href={i.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-zinc-700 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-50"
-              >
-                <span className="mr-2 font-mono text-zinc-500">
-                  {Math.round(i.similarity * 100)}%
+            <a
+              key={i.incident_id}
+              href={i.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group flex flex-col rounded-lg border border-[#1a2e1a] bg-[#0a0e0a]/50 p-3 transition-colors hover:border-[#4ade80]/30"
+            >
+              <div className="flex items-center justify-between">
+                <span className="rounded bg-[#4ade80]/10 px-1.5 py-0.5 font-mono text-xs text-[#4ade80]">
+                  {Math.round(i.similarity * 100)}% match
                 </span>
+                {lossStr && (
+                  <span className="text-xs font-semibold text-red-400">
+                    {lossStr}
+                  </span>
+                )}
+              </div>
+              <span className="mt-1.5 text-xs text-[#d4ffd4] group-hover:text-[#4ade80]">
                 {i.title}
-                <span className="text-red-600 dark:text-red-400">{lossStr}</span>
-              </a>
-            </li>
+              </span>
+              <span className="mt-1 text-xs text-[#547654]">
+                {i.source} · {new Date(i.published_at).getFullYear()}
+              </span>
+            </a>
           );
         })}
-      </ul>
+      </div>
     </div>
   );
 }

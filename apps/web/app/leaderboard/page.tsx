@@ -3,7 +3,6 @@ import { TerminalPageShell } from "@/components/terminal-page-shell";
 
 export const metadata = { title: "wr3 — лидерборд" };
 
-// Disable any caching — leaderboard should always show fresh data.
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
@@ -26,12 +25,6 @@ type PublicStats = {
   high_findings: number;
   networks_count: number;
 };
-
-const PRIMARY = "#4ade80";
-const MUTED = "#8bb88b";
-const DIM = "#547654";
-const FG = "#a8e6a8";
-const HI = "#d4ffd4";
 
 async function fetchStats(): Promise<PublicStats | null> {
   const apiUrl = process.env.WR3_API_URL ?? "http://localhost:8001";
@@ -60,82 +53,65 @@ export default async function LeaderboardPage() {
 
   return (
     <TerminalPageShell title="Лидерборд" eyebrow="// scans">
-      <p style={{ color: MUTED, fontSize: 14, lineHeight: 1.6 }}>
+      <p className="text-[#8bb88b] text-sm leading-relaxed">
         Публичные сканы, отсортированные по score. Пользователи с включённой
         анонимностью здесь не показываются.
       </p>
 
       {stats && (
-        <section
-          style={{
-            marginTop: 24,
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
-            gap: 12,
-          }}
-        >
-          <Stat label="Сканов завершено" value={stats.total_scans.toString()} />
-          <Stat
+        <section className="mt-6 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          <StatCard label="Сканов завершено" value={stats.total_scans.toString()} />
+          <StatCard
             label="Средний score"
             value={stats.avg_score != null ? stats.avg_score.toFixed(1) : "—"}
           />
-          <Stat label="Critical" value={stats.critical_findings.toString()} accent />
-          <Stat label="High" value={stats.high_findings.toString()} />
-          <Stat label="Сетей" value={stats.networks_count.toString()} />
+          <StatCard label="Critical" value={stats.critical_findings.toString()} accent />
+          <StatCard label="High" value={stats.high_findings.toString()} />
+          <StatCard label="Сетей" value={stats.networks_count.toString()} />
         </section>
       )}
 
-      <section style={{ marginTop: 32, overflowX: "auto" }}>
+      <section className="mt-8 overflow-x-auto">
         {scans.length === 0 ? (
-          <p
-            style={{
-              color: MUTED,
-              fontSize: 13,
-              textAlign: "center",
-              padding: "40px 0",
-            }}
-          >
-            Ещё нет завершённых сканов. Запустите первый через{" "}
-            <a
-              href="https://t.me/KitronBot"
-              style={{ color: PRIMARY, textDecoration: "underline" }}
-            >
-              @KitronBot
-            </a>
-            .
-          </p>
+          <div className="glass-card p-10 text-center">
+            <p className="text-[#8bb88b] text-[13px]">
+              Ещё нет завершённых сканов. Запустите первый через{" "}
+              <a
+                href="https://t.me/KitronBot"
+                className="text-[#4ade80] underline"
+              >
+                @KitronBot
+              </a>
+              .
+            </p>
+          </div>
         ) : (
-          <table
-            style={{
-              width: "100%",
-              borderCollapse: "collapse",
-              fontSize: 13,
-              fontVariantNumeric: "tabular-nums",
-            }}
-          >
-            <thead>
-              <tr style={{ borderBottom: `1px solid ${DIM}` }}>
-                <Th>#</Th>
-                <Th>Контракт</Th>
-                <Th>Сеть</Th>
-                <Th align="right">Score</Th>
-                <Th align="right">Находок</Th>
-                <Th>Автор</Th>
-                <Th align="right">Когда</Th>
-              </tr>
-            </thead>
-            <tbody>
-              {scans.map((s, i) => (
-                <Row key={s.id} index={i + 1} scan={s} />
-              ))}
-            </tbody>
-          </table>
+          <div className="glass-card overflow-hidden rounded-lg">
+            <table className="w-full border-collapse text-[13px] tabular-nums">
+              <thead>
+                <tr className="border-b border-[#547654]/50">
+                  <Th>#</Th>
+                  <Th>Контракт</Th>
+                  <Th>Сеть</Th>
+                  <Th align="right">Score</Th>
+                  <Th align="right">Находок</Th>
+                  <Th>Автор</Th>
+                  <Th align="right">Когда</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {scans.map((s, i) => (
+                  <Row key={s.id} index={i + 1} scan={s} />
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </section>
 
-      <p style={{ color: MUTED, fontSize: 12, marginTop: 32 }}>
+      <p className="text-[#8bb88b] text-xs mt-8">
         Не хотите попадать в лидерборд? Откройте{" "}
-        <Link href="/tg/owner" style={{ color: PRIMARY, textDecoration: "underline" }}>
+        <Link href="/tg/owner" className="text-[#4ade80] underline">
           настройки в Mini App
         </Link>{" "}
         и включите анонимность в публичном.
@@ -144,36 +120,14 @@ export default async function LeaderboardPage() {
   );
 }
 
-function Stat({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+function StatCard({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
   return (
-    <div
-      style={{
-        background: "#0a0e0a",
-        border: `1px solid ${DIM}`,
-        borderRadius: 4,
-        padding: 12,
-      }}
-    >
-      <p
-        style={{
-          color: MUTED,
-          fontSize: 11,
-          margin: 0,
-          letterSpacing: "0.06em",
-          textTransform: "uppercase",
-        }}
-      >
+    <div className="glass-card p-3 rounded-lg animate-fade-in-up">
+      <p className="text-[#8bb88b] text-[11px] m-0 uppercase tracking-wider">
         {label}
       </p>
       <p
-        style={{
-          color: accent ? "#f87171" : HI,
-          fontSize: 26,
-          fontWeight: 800,
-          margin: "6px 0 0",
-          lineHeight: 1,
-          fontVariantNumeric: "tabular-nums",
-        }}
+        className={`text-[26px] font-extrabold mt-1.5 mb-0 leading-none tabular-nums ${accent ? "text-red-400 drop-shadow-[0_0_8px_rgba(248,113,113,0.4)]" : "text-[#d4ffd4]"}`}
       >
         {value}
       </p>
@@ -184,15 +138,7 @@ function Stat({ label, value, accent }: { label: string; value: string; accent?:
 function Th({ children, align }: { children: React.ReactNode; align?: "left" | "right" }) {
   return (
     <th
-      style={{
-        textAlign: align ?? "left",
-        padding: "8px 6px",
-        color: MUTED,
-        fontWeight: 700,
-        fontSize: 10,
-        letterSpacing: "0.06em",
-        textTransform: "uppercase",
-      }}
+      className={`px-3 py-2.5 text-[#8bb88b] font-bold text-[10px] uppercase tracking-wider ${align === "right" ? "text-right" : "text-left"}`}
     >
       {children}
     </th>
@@ -202,61 +148,59 @@ function Th({ children, align }: { children: React.ReactNode; align?: "left" | "
 function Row({ index, scan }: { index: number; scan: PublicScan }) {
   const tierColor =
     scan.tier === "red"
-      ? "#f87171"
+      ? "text-red-400"
       : scan.tier === "yellow"
-        ? "#fbbf24"
+        ? "text-yellow-400"
         : scan.tier === "green"
-          ? PRIMARY
+          ? "text-[#4ade80]"
           : scan.tier === "blue"
-            ? "#60a5fa"
-            : FG;
+            ? "text-blue-400"
+            : "text-[#a8e6a8]";
+
+  const rankDisplay = index <= 3;
+
   return (
-    <tr style={{ borderBottom: `1px solid ${DIM}` }}>
-      <Td>
-        <span style={{ color: MUTED }}>{String(index).padStart(2, "0")}</span>
-      </Td>
-      <Td>
+    <tr
+      className="border-b border-[#547654]/30 hover:bg-[#4ade80]/5 transition-colors animate-fade-in-up"
+      style={{ animationDelay: `${index * 40}ms`, animationFillMode: "both" }}
+    >
+      <td className="px-3 py-2.5">
+        {rankDisplay ? (
+          <span className="text-gradient font-extrabold text-sm">
+            {String(index).padStart(2, "0")}
+          </span>
+        ) : (
+          <span className="text-[#8bb88b]">{String(index).padStart(2, "0")}</span>
+        )}
+      </td>
+      <td className="px-3 py-2.5">
         <Link
           href={`/scan/${scan.id}`}
-          style={{ color: FG, textDecoration: "none", fontFamily: "inherit" }}
+          className="text-[#a8e6a8] no-underline font-mono hover:text-[#4ade80] transition-colors"
         >
           {shortAddr(scan.address)}
         </Link>
-      </Td>
-      <Td>
-        <span style={{ color: MUTED, fontSize: 11 }}>{scan.network}</span>
-      </Td>
-      <Td align="right">
-        <span style={{ color: tierColor, fontWeight: 700, fontSize: 13 }}>
+      </td>
+      <td className="px-3 py-2.5">
+        <span className="text-[#8bb88b] text-[11px]">{scan.network}</span>
+      </td>
+      <td className="px-3 py-2.5 text-right">
+        <span className={`${tierColor} font-bold text-[13px]`}>
           {scan.score != null ? scan.score.toFixed(0) : "—"}
         </span>
-      </Td>
-      <Td align="right">
-        <span style={{ color: MUTED, fontSize: 11 }}>{scan.findings_total}</span>
-      </Td>
-      <Td>
-        <span style={{ color: scan.author ? MUTED : DIM, fontSize: 11 }}>
+      </td>
+      <td className="px-3 py-2.5 text-right">
+        <span className="text-[#8bb88b] text-[11px]">{scan.findings_total}</span>
+      </td>
+      <td className="px-3 py-2.5">
+        <span className={`text-[11px] ${scan.author ? "text-[#8bb88b]" : "text-[#547654]"}`}>
           {scan.author ? `@${scan.author}` : "аноним"}
         </span>
-      </Td>
-      <Td align="right">
-        <span style={{ color: DIM, fontSize: 10 }}>{relTime(scan.completed_at)}</span>
-      </Td>
+      </td>
+      <td className="px-3 py-2.5 text-right">
+        <span className="text-[#547654] text-[10px]">{relTime(scan.completed_at)}</span>
+      </td>
     </tr>
-  );
-}
-
-function Td({
-  children,
-  align,
-}: {
-  children: React.ReactNode;
-  align?: "left" | "right";
-}) {
-  return (
-    <td style={{ padding: "8px 6px", textAlign: align ?? "left", verticalAlign: "middle" }}>
-      {children}
-    </td>
   );
 }
 

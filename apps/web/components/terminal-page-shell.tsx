@@ -1,27 +1,10 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-const BG = "#0a0e0a";
-const FG = "#a8e6a8";
-const HI = "#d4ffd4";
-const PRIMARY = "#4ade80";
-// MUTED bumped from #5a8a5a → #8bb88b for WCAG AA at small sizes.
-const MUTED = "#8bb88b";
-const DIM = "#547654";
-
 /**
  * Shared shell for non-Mini-App pages (landing, pricing, docs, legal).
  * Keeps the same brand aesthetic as /tg without re-implementing the
  * navigation on each page.
- *
- * Design rules baked in:
- *   - Body / article copy is in a proportional UI font, not monospace.
- *     Monospace stays only on inline `<code>` and `<pre>`. Wall-of-mono
- *     prose was the biggest readability hit in the previous pass.
- *   - One `$ ` accent per page, on the H1. Subsection titles inside
- *     `{children}` should NOT add their own `$ `.
- *   - One `//` line above the H1 if useful — pages can pass `eyebrow`.
- *     Default: omit the comment line entirely.
  */
 export function TerminalPageShell({
   title,
@@ -34,120 +17,59 @@ export function TerminalPageShell({
   children: ReactNode;
 }) {
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        background: BG,
-        color: FG,
-        fontFamily:
-          'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Inter, sans-serif',
-        padding: "32px 24px 64px",
-      }}
-    >
-      <div style={{ margin: "0 auto", maxWidth: 880 }}>
-        <header
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            marginBottom: 48,
-            flexWrap: "wrap",
-            gap: 12,
-          }}
-        >
+    <main className="min-h-screen font-sans px-6 pt-8 pb-16">
+      <div className="mx-auto max-w-[880px]">
+        {/* ─── Sticky Header ─── */}
+        <header className="sticky top-0 z-50 -mx-6 px-6 py-4 mb-12 flex items-center justify-between flex-wrap gap-3 backdrop-blur-xl bg-[var(--color-bg)]/80 border-b border-[var(--color-border)]">
           <Link
             href="/"
-            style={{
-              color: PRIMARY,
-              fontWeight: 700,
-              fontSize: 16,
-              border: `1px solid ${PRIMARY}`,
-              padding: "5px 10px",
-              borderRadius: 4,
-              textDecoration: "none",
-              fontFamily:
-                'ui-monospace, "SF Mono", Menlo, "JetBrains Mono", Consolas, monospace',
-            }}
+            className="text-[var(--color-primary)] font-bold text-base border border-[var(--color-primary)] px-2.5 py-1 rounded font-mono no-underline hover:bg-[var(--color-primary)]/10 transition-colors"
           >
             wr3
           </Link>
-          <nav style={{ display: "flex", gap: 20, fontSize: 13, alignItems: "center" }}>
-            <Link href="/incidents" style={{ color: MUTED, textDecoration: "none" }}>
+          <nav className="flex gap-5 text-[13px] items-center">
+            <Link href="/incidents" className="text-[#8bb88b] no-underline hover:text-[#d4ffd4] transition-colors">
               Инциденты
             </Link>
-            <Link href="/leaderboard" style={{ color: MUTED, textDecoration: "none" }}>
+            <Link href="/leaderboard" className="text-[#8bb88b] no-underline hover:text-[#d4ffd4] transition-colors">
               Лидерборд
             </Link>
-            <Link href="/pricing" style={{ color: MUTED, textDecoration: "none" }}>
+            <Link href="/pricing" className="text-[#8bb88b] no-underline hover:text-[#d4ffd4] transition-colors">
               Тарифы
             </Link>
-            <Link href="/docs" style={{ color: MUTED, textDecoration: "none" }}>
+            <Link href="/docs" className="text-[#8bb88b] no-underline hover:text-[#d4ffd4] transition-colors">
               Документация
             </Link>
             <a
               href="https://t.me/KitronBot"
-              style={{
-                color: BG,
-                background: PRIMARY,
-                padding: "6px 12px",
-                borderRadius: 4,
-                textDecoration: "none",
-                fontSize: 11,
-                fontWeight: 700,
-              }}
+              className="bg-[var(--color-primary)] text-[var(--color-bg)] px-3 py-1.5 rounded text-[11px] font-bold no-underline hover:shadow-[0_0_20px_rgba(74,222,128,0.3)] transition-shadow"
             >
               Открыть бот
             </a>
           </nav>
         </header>
 
+        {/* ─── Eyebrow ─── */}
         {eyebrow && (
-          <p
-            style={{
-              color: DIM,
-              fontSize: 12,
-              margin: "0 0 10px",
-              letterSpacing: "0.1em",
-              textTransform: "uppercase",
-              fontFamily:
-                'ui-monospace, "SF Mono", Menlo, Consolas, monospace',
-            }}
-          >
+          <p className="text-[#547654] text-xs mb-2.5 tracking-widest uppercase font-mono">
             {eyebrow}
           </p>
         )}
-        <h1
-          style={{
-            fontSize: "clamp(28px, 4.5vw, 40px)",
-            fontWeight: 800,
-            lineHeight: 1.15,
-            margin: "0 0 32px",
-            color: HI,
-            letterSpacing: "-0.02em",
-          }}
-        >
+
+        {/* ─── Title ─── */}
+        <h1 className="text-[clamp(28px,4.5vw,40px)] font-extrabold leading-[1.15] mb-8 tracking-tight text-gradient">
           {title}
         </h1>
 
-        <article
-          style={{
-            background: "#0f1a0f",
-            border: `1px solid ${DIM}`,
-            borderRadius: 8,
-            padding: 28,
-            color: FG,
-            fontSize: 14,
-            lineHeight: 1.7,
-          }}
-        >
+        {/* ─── Content ─── */}
+        <article className="glass-card p-7 text-[#a8e6a8] text-sm leading-relaxed animate-fade-in-up">
           {children}
         </article>
 
-        <footer
-          style={{ marginTop: 64, fontSize: 12, color: MUTED, textAlign: "center" }}
-        >
-          <Link href="/" style={{ color: MUTED, textDecoration: "none" }}>
-            ‹ На главную
+        {/* ─── Footer ─── */}
+        <footer className="mt-16 text-xs text-[#8bb88b] text-center">
+          <Link href="/" className="text-[#8bb88b] no-underline hover:text-[var(--color-primary)] transition-colors">
+            &lsaquo; На главную
           </Link>
         </footer>
       </div>

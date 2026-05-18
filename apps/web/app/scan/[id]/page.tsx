@@ -65,6 +65,19 @@ async function fetchScan(id: string): Promise<ScanDetail | null> {
   }
 }
 
+function scoreColor(tier: Tier): string {
+  switch (tier) {
+    case "green":
+      return "#4ade80";
+    case "yellow":
+      return "#facc15";
+    case "red":
+      return "#f87171";
+    default:
+      return "#8bb88b";
+  }
+}
+
 export default async function ScanDetailPage({
   params,
 }: {
@@ -79,125 +92,196 @@ export default async function ScanDetailPage({
 
   const tier = (scan.tier ?? "yellow") as Tier;
   const light = TRAFFIC_LIGHT[tier];
+  const color = scoreColor(tier);
   const active = scan.findings.filter((f) => !f.dismissed);
   const dismissed = scan.findings.filter((f) => f.dismissed);
+  const scoreVal = scan.score ?? 0;
+  const circumference = 2 * Math.PI * 54;
+  const strokeOffset = circumference - (scoreVal / 100) * circumference;
 
   return (
-    <main className="mx-auto max-w-5xl px-6 py-12">
-      <nav className="mb-6 text-sm">
-        <Link href="/" className="text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-50">
-          ← Назад
-        </Link>
-      </nav>
+    <main className="min-h-screen bg-[#0a0e0a] px-6 py-12 text-[#d4ffd4]">
+      <div className="mx-auto max-w-5xl">
+        {/* Navigation */}
+        <nav className="mb-8 text-sm">
+          <Link
+            href="/"
+            className="text-[#8bb88b] transition-colors hover:text-[#4ade80]"
+          >
+            ← Назад
+          </Link>
+        </nav>
 
-      <header className="mb-10 flex flex-col gap-2">
-        <div className="flex items-baseline gap-3">
-          <h1 className="font-mono text-lg">{scan.address}</h1>
-          <span className="rounded-md bg-zinc-100 px-2 py-0.5 text-xs uppercase dark:bg-zinc-800">
-            {scan.network}
-          </span>
-        </div>
-        <p className="text-sm text-zinc-500">
-          Просканировано {new Date(scan.created_at).toLocaleString("ru-RU")}
-          {scan.duration_seconds != null && ` · ${scan.duration_seconds.toFixed(1)}с`}
-        </p>
-        <p className="mt-2">
+        {/* Header */}
+        <header className="mb-10 animate-fade-in-up">
+          <div className="flex items-center gap-4">
+            <h1 className="font-mono text-lg tracking-tight text-[#d4ffd4]">
+              {scan.address}
+            </h1>
+            <span className="rounded-full border border-[#4ade80]/30 bg-[#4ade80]/10 px-3 py-0.5 font-mono text-xs uppercase text-[#4ade80]">
+              {scan.network}
+            </span>
+          </div>
+          <p className="mt-2 text-sm text-[#547654]">
+            Просканировано {new Date(scan.created_at).toLocaleString("ru-RU")}
+            {scan.duration_seconds != null && ` · ${scan.duration_seconds.toFixed(1)}с`}
+          </p>
           <a
             href={`${process.env.NEXT_PUBLIC_API_URL ?? ""}/v1/scan/${scan.id}/report.md`}
-            className="text-xs text-zinc-600 underline hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"
+            className="mt-3 inline-block rounded-full border border-[#4ade80]/30 bg-[#4ade80]/5 px-4 py-1.5 text-xs text-[#4ade80] transition-all hover:border-[#4ade80]/60 hover:bg-[#4ade80]/10 hover:shadow-[0_0_12px_rgba(74,222,128,0.15)]"
             download
           >
-            ↓ скачать отчёт (markdown)
+            ↓ скачать отчёт
           </a>
-        </p>
-      </header>
+        </header>
 
-      {scan.report?.chain_metadata?.executable !== undefined && (
-        <SolanaMeta meta={scan.report.chain_metadata} />
-      )}
+        {/* Solana Metadata */}
+        {scan.report?.chain_metadata?.executable !== undefined && (
+          <SolanaMeta meta={scan.report.chain_metadata} />
+        )}
 
-      <section
-        className="mb-10 grid grid-cols-1 gap-6 rounded-lg border p-6 md:grid-cols-[200px_1fr]"
-        style={{ borderColor: light.color + "33" }}
-      >
-        <div>
-          <p className="text-xs uppercase tracking-wide text-zinc-500">Оценка</p>
-          <p className="mt-1 text-6xl font-bold" style={{ color: light.color }}>
-            {scan.score ?? "—"}
-          </p>
-          <p className="mt-1 text-sm" style={{ color: light.color }}>
-            {light.label}
-          </p>
-        </div>
-        <div>
-          <p className="mb-2 text-xs uppercase tracking-wide text-zinc-500">
-            Разбивка по осям
-          </p>
-          <div className="space-y-2">
-            {(scan.report?.axes ?? []).map((a) => {
-              const pending = a.weight === 0 || a.score === null;
-              return (
-                <div key={a.name} className="grid grid-cols-[180px_60px_1fr] gap-3 text-sm">
-                  <span className={pending ? "text-zinc-400" : "text-zinc-700 dark:text-zinc-300"}>
-                    {a.name}
-                  </span>
-                  <span className="font-mono text-zinc-500">
-                    {a.score === null ? "—" : a.score.toFixed(1)}
-                  </span>
-                  <span className="truncate text-zinc-500">
-                    {a.rationale}{" "}
-                    <span className="text-zinc-400">
-                      {pending
-                        ? "(не считается в общий score)"
-                        : `(вес ${Math.round(a.weight * 100)}%)`}
-                    </span>
-                  </span>
-                </div>
-              );
-            })}
+        {/* Score + Axes Section */}
+        <section className="glass-card mb-10 grid grid-cols-1 gap-8 p-8 md:grid-cols-[220px_1fr]">
+          {/* Radial Gauge */}
+          <div className="flex flex-col items-center justify-center">
+            <div className="relative h-36 w-36">
+              <svg className="h-full w-full -rotate-90" viewBox="0 0 120 120">
+                <circle
+                  cx="60"
+                  cy="60"
+                  r="54"
+                  fill="none"
+                  stroke="#1a2e1a"
+                  strokeWidth="8"
+                />
+                <circle
+                  cx="60"
+                  cy="60"
+                  r="54"
+                  fill="none"
+                  stroke={color}
+                  strokeWidth="8"
+                  strokeLinecap="round"
+                  strokeDasharray={circumference}
+                  strokeDashoffset={strokeOffset}
+                  style={{ transition: "stroke-dashoffset 1s ease-out" }}
+                />
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <span className="text-4xl font-bold" style={{ color }}>
+                  {scan.score ?? "—"}
+                </span>
+                <span className="mt-1 text-xs uppercase tracking-wider" style={{ color }}>
+                  {light.label}
+                </span>
+              </div>
+            </div>
+            <p className="mt-3 text-xs text-[#547654]">из 100</p>
           </div>
-        </div>
-      </section>
 
-      <section className="mb-10">
-        <h2 className="mb-4 text-lg font-semibold">
-          Активные находки <span className="text-zinc-500">({active.length})</span>
-        </h2>
-        {active.length === 0 ? (
-          <p className="text-sm text-zinc-500">
-            Активных находок нет. Либо контракт чист, либо все совпадения отфильтрованы
-            на триаже.
-          </p>
-        ) : (
-          <ul className="space-y-2">
-            {active.map((f) => (
-              <FindingRow key={f.id} finding={f} />
-            ))}
-          </ul>
-        )}
-      </section>
-
-      {dismissed.length > 0 && (
-        <section className="mb-10">
-          <h2 className="mb-4 text-lg font-semibold text-zinc-500">
-            Отфильтровано триажом ({dismissed.length})
-          </h2>
-          <ul className="space-y-2 opacity-60">
-            {dismissed.map((f) => (
-              <FindingRow key={f.id} finding={f} />
-            ))}
-          </ul>
+          {/* Axes Bars */}
+          <div>
+            <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-[#8bb88b]">
+              Разбивка по осям
+            </p>
+            <div className="space-y-3">
+              {(scan.report?.axes ?? []).map((a) => {
+                const pending = a.weight === 0 || a.score === null;
+                const barWidth = a.score != null ? a.score : 0;
+                return (
+                  <div key={a.name} className="group">
+                    <div className="mb-1 flex items-baseline justify-between text-sm">
+                      <span className={pending ? "text-[#547654]" : "text-[#d4ffd4]"}>
+                        {a.name}
+                      </span>
+                      <span className="font-mono text-xs text-[#8bb88b]">
+                        {a.score === null ? "—" : a.score.toFixed(1)}
+                        {!pending && (
+                          <span className="ml-2 text-[#547654]">
+                            ({Math.round(a.weight * 100)}%)
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                    <div className="h-2 overflow-hidden rounded-full bg-[#1a2e1a]">
+                      <div
+                        className="h-full rounded-full transition-all duration-700"
+                        style={{
+                          width: `${barWidth}%`,
+                          backgroundColor: pending ? "#547654" : color,
+                          opacity: pending ? 0.4 : 1,
+                        }}
+                      />
+                    </div>
+                    {a.rationale && (
+                      <p className="mt-0.5 truncate text-xs text-[#547654]">
+                        {a.rationale}
+                        {pending && " (не считается в общий score)"}
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </section>
-      )}
 
-      <footer className="mt-12 border-t pt-6 text-xs text-zinc-500 dark:border-zinc-800">
-        {scan.report?.disclaimer ?? (
-          <p>
-            Результаты AI-аудита — best-effort и не заменяют ручное ревью.
-            wr3 не даёт гарантий.
-          </p>
+        {/* Active Findings */}
+        <section className="mb-10">
+          <h2 className="mb-5 text-lg font-semibold text-[#d4ffd4]">
+            Активные находки{" "}
+            <span className="text-[#547654]">({active.length})</span>
+          </h2>
+          {active.length === 0 ? (
+            <p className="text-sm text-[#547654]">
+              Активных находок нет. Либо контракт чист, либо все совпадения отфильтрованы
+              на триаже.
+            </p>
+          ) : (
+            <ul className="space-y-3">
+              {active.map((f, i) => (
+                <li
+                  key={f.id}
+                  className="animate-fade-in-up"
+                  style={{ animationDelay: `${i * 60}ms` }}
+                >
+                  <FindingRow finding={f} />
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        {/* Dismissed Findings */}
+        {dismissed.length > 0 && (
+          <section className="mb-10">
+            <h2 className="mb-5 text-lg font-semibold text-[#547654]">
+              Отфильтровано триажом ({dismissed.length})
+            </h2>
+            <ul className="space-y-3 opacity-50">
+              {dismissed.map((f, i) => (
+                <li
+                  key={f.id}
+                  className="animate-fade-in-up"
+                  style={{ animationDelay: `${i * 60}ms` }}
+                >
+                  <FindingRow finding={f} />
+                </li>
+              ))}
+            </ul>
+          </section>
         )}
-      </footer>
+
+        {/* Footer */}
+        <footer className="mt-12 border-t border-[#1a2e1a] pt-6 text-xs text-[#547654]">
+          {scan.report?.disclaimer ?? (
+            <p>
+              Результаты AI-аудита — best-effort и не заменяют ручное ревью.
+              wr3 не даёт гарантий.
+            </p>
+          )}
+        </footer>
+      </div>
     </main>
   );
 }
@@ -209,39 +293,43 @@ function SolanaMeta({
 }) {
   if (!meta) return null;
   return (
-    <section className="mb-10 rounded-lg border border-zinc-200 p-6 dark:border-zinc-800">
-      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-zinc-500">
+    <section className="glass-card mb-10 animate-fade-in-up p-6">
+      <h2 className="mb-4 text-xs font-semibold uppercase tracking-widest text-[#8bb88b]">
         Метаданные программы Solana
       </h2>
-      <dl className="grid grid-cols-[200px_1fr] gap-y-2 text-sm">
-        <dt className="text-zinc-500">Исполняемая</dt>
-        <dd>{meta.executable ? "да" : "нет"}</dd>
+      <dl className="grid grid-cols-[200px_1fr] gap-y-3 text-sm">
+        <dt className="text-[#547654]">Исполняемая</dt>
+        <dd className="text-[#d4ffd4]">{meta.executable ? "да" : "нет"}</dd>
         {meta.loader && (
           <>
-            <dt className="text-zinc-500">Loader</dt>
-            <dd className="break-all font-mono text-xs">{meta.loader}</dd>
+            <dt className="text-[#547654]">Loader</dt>
+            <dd className="break-all font-mono text-xs text-[#8bb88b]">{meta.loader}</dd>
           </>
         )}
-        <dt className="text-zinc-500">Обновляемая</dt>
+        <dt className="text-[#547654]">Обновляемая</dt>
         <dd>
           {meta.upgradeable ? (
-            <span className="text-amber-700 dark:text-amber-300">
-              да ⚠ (риск централизации)
+            <span className="text-amber-400">
+              да (риск централизации)
             </span>
           ) : (
-            <span>нет — байткод заморожен</span>
+            <span className="text-[#4ade80]">нет — байткод заморожен</span>
           )}
         </dd>
         {meta.upgradeable && meta.upgrade_authority && (
           <>
-            <dt className="text-zinc-500">Upgrade authority</dt>
-            <dd className="break-all font-mono text-xs">{meta.upgrade_authority}</dd>
+            <dt className="text-[#547654]">Upgrade authority</dt>
+            <dd className="break-all font-mono text-xs text-[#8bb88b]">
+              {meta.upgrade_authority}
+            </dd>
           </>
         )}
         {meta.upgradeable && meta.last_upgrade_slot != null && (
           <>
-            <dt className="text-zinc-500">Последний upgrade slot</dt>
-            <dd className="font-mono">{meta.last_upgrade_slot.toLocaleString("ru-RU")}</dd>
+            <dt className="text-[#547654]">Последний upgrade slot</dt>
+            <dd className="font-mono text-[#d4ffd4]">
+              {meta.last_upgrade_slot.toLocaleString("ru-RU")}
+            </dd>
           </>
         )}
       </dl>

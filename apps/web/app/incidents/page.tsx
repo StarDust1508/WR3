@@ -3,12 +3,6 @@ import { TerminalPageShell } from "@/components/terminal-page-shell";
 export const metadata = { title: "wr3 — инциденты" };
 export const dynamic = "force-dynamic";
 
-const HI = "#d4ffd4";
-const MUTED = "#8bb88b";
-const DIM = "#547654";
-const FG = "#a8e6a8";
-const ERR = "#f87171";
-
 type Incident = {
   id: string;
   title: string;
@@ -29,6 +23,12 @@ const SOURCE_LABEL: Record<string, string> = {
   defillama: "DefiLlama",
 };
 
+const SOURCE_COLOR: Record<string, string> = {
+  rekt: "border-red-500/60 text-red-400",
+  slowmist: "border-blue-500/60 text-blue-400",
+  defillama: "border-purple-500/60 text-purple-400",
+};
+
 async function fetchIncidents(): Promise<Payload | null> {
   const apiUrl = process.env.WR3_API_URL ?? "http://localhost:8001";
   try {
@@ -47,47 +47,30 @@ export default async function IncidentsPage() {
 
   return (
     <TerminalPageShell title="Инциденты" eyebrow="// feed">
-      <p style={{ color: MUTED, fontSize: 14, lineHeight: 1.6 }}>
+      <p className="text-[#8bb88b] text-sm leading-relaxed">
         Лента эксплойтов из Rekt News, SlowMist и DefiLlama. Дубликаты схлопываем
         по семантическому сходству, поэтому один и тот же хак из разных источников
         не дублируется.
       </p>
 
       {data === null ? (
-        <p
-          style={{
-            color: ERR,
-            fontSize: 13,
-            marginTop: 24,
-            padding: "10px 14px",
-            background: "rgba(248,113,113,0.08)",
-            border: "1px solid rgba(248,113,113,0.30)",
-            borderRadius: 4,
-          }}
-        >
-          Лента инцидентов сейчас недоступна. Попробуйте обновить через минуту.
-        </p>
+        <div className="glass-card mt-6 border-red-500/30 bg-red-500/5">
+          <p className="text-red-400 text-[13px] px-4 py-3">
+            Лента инцидентов сейчас недоступна. Попробуйте обновить через минуту.
+          </p>
+        </div>
       ) : data.incidents.length === 0 ? (
-        <p style={{ color: MUTED, fontSize: 13, marginTop: 24 }}>
+        <p className="text-[#8bb88b] text-[13px] mt-6">
           Лента пуста. Следующее обновление — в течение 6 часов.
         </p>
       ) : (
         <>
-          <p style={{ color: DIM, fontSize: 12, marginTop: 8 }}>
+          <p className="text-[#547654] text-xs mt-2">
             Всего в базе: {data.total} · показано {data.incidents.length}
           </p>
-          <ul
-            style={{
-              listStyle: "none",
-              padding: 0,
-              margin: "16px 0 0",
-              display: "flex",
-              flexDirection: "column",
-              gap: 8,
-            }}
-          >
-            {data.incidents.map((i) => (
-              <IncidentRow key={i.id} incident={i} />
+          <ul className="list-none p-0 mt-4 flex flex-col gap-3">
+            {data.incidents.map((incident, idx) => (
+              <IncidentRow key={incident.id} incident={incident} index={idx} />
             ))}
           </ul>
         </>
@@ -96,60 +79,48 @@ export default async function IncidentsPage() {
   );
 }
 
-function IncidentRow({ incident }: { incident: Incident }) {
+function IncidentRow({ incident, index }: { incident: Incident; index: number }) {
   const allSources = [incident.source, ...incident.extra_sources];
+  const isHighLoss = incident.loss_usd != null && incident.loss_usd >= 1_000_000;
+
   return (
     <li
-      style={{
-        background: "#0a0e0a",
-        border: `1px solid ${DIM}`,
-        borderRadius: 6,
-        padding: 14,
-      }}
+      className="glass-card hover-lift animate-fade-in-up p-4 rounded-lg"
+      style={{ animationDelay: `${index * 60}ms`, animationFillMode: "both" }}
     >
-      <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 6 }}>
+      <div className="flex items-center flex-wrap gap-2 mb-2">
         {allSources.map((s) => (
           <span
             key={s}
-            style={{
-              color: MUTED,
-              fontSize: 9,
-              border: `1px solid ${DIM}`,
-              padding: "1px 6px",
-              borderRadius: 3,
-              textTransform: "uppercase",
-              letterSpacing: "0.06em",
-            }}
+            className={`text-[9px] uppercase tracking-wider border px-2 py-0.5 rounded ${SOURCE_COLOR[s] ?? "border-[#547654] text-[#8bb88b]"}`}
           >
             {SOURCE_LABEL[s] ?? s}
           </span>
         ))}
-        <span style={{ color: DIM, fontSize: 10, marginLeft: "auto" }}>
+        <span className="text-[#547654] text-[10px] ml-auto">
           {relTime(incident.published_at)}
         </span>
       </div>
+
       <a
         href={incident.url}
         target="_blank"
         rel="noopener noreferrer"
-        style={{
-          color: HI,
-          fontSize: 13,
-          fontWeight: 700,
-          textDecoration: "none",
-          display: "block",
-          marginBottom: 4,
-        }}
+        className="text-[#d4ffd4] text-[13px] font-bold no-underline block mb-1 hover:text-[#4ade80] transition-colors"
       >
         {incident.title}
       </a>
+
       {incident.loss_usd != null && (
-        <p style={{ color: "#f87171", fontSize: 11, margin: "2px 0 6px" }}>
+        <p
+          className={`text-red-400 text-[11px] my-0.5 mb-1.5 font-semibold ${isHighLoss ? "drop-shadow-[0_0_6px_rgba(248,113,113,0.5)]" : ""}`}
+        >
           ${formatLoss(incident.loss_usd)}
         </p>
       )}
+
       {incident.summary && (
-        <p style={{ color: FG, fontSize: 11, lineHeight: 1.6, margin: 0 }}>
+        <p className="text-[#a8e6a8] text-[11px] leading-relaxed m-0">
           {truncate(incident.summary, 240)}
         </p>
       )}
