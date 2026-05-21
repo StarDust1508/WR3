@@ -48,6 +48,9 @@ ENV PATH="/app/apps/api/.venv/bin:$PATH"
 ENV PYTHONPATH="/app/apps/api/src:/app/packages/audit-engine/src"
 ENV PYTHONUNBUFFERED=1
 
+# Create writable directories for runtime artifacts
+RUN mkdir -p /app/apps/api/poc-output && chown -R wr3:wr3 /app/apps/api/poc-output
+
 # Alembic needs to run as root for DB migrations, then app as wr3
 USER wr3
 WORKDIR /app/apps/api
