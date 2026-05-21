@@ -63,6 +63,8 @@ services:
       TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET:-}
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
       ETHERSCAN_API_KEY: ${ETHERSCAN_API_KEY:-}
+      # Eager mode: run Celery tasks inline (no separate worker needed for MVP)
+      CELERY_TASK_ALWAYS_EAGER: ${CELERY_TASK_ALWAYS_EAGER:-1}
     ports:
       - "127.0.0.1:8002:8000"  # Only localhost — Caddy proxies
     networks:
