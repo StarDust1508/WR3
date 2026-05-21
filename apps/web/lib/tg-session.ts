@@ -10,6 +10,9 @@
 
 const STORAGE_KEY = "wr3.tg.token";
 
+/** In-memory fallback when sessionStorage is blocked (some TG WebView builds). */
+let memoryToken: string | null = null;
+
 type TgThemeParams = {
   bg_color?: string;
   secondary_bg_color?: string;
@@ -54,22 +57,24 @@ export type Wr3User = {
 export function getStoredToken(): string | null {
   if (typeof window === "undefined") return null;
   try {
-    return window.sessionStorage.getItem(STORAGE_KEY);
+    return window.sessionStorage.getItem(STORAGE_KEY) ?? memoryToken;
   } catch {
-    return null;
+    return memoryToken;
   }
 }
 
 export function storeToken(token: string): void {
+  memoryToken = token;
   if (typeof window === "undefined") return;
   try {
     window.sessionStorage.setItem(STORAGE_KEY, token);
   } catch {
-    /* ignore */
+    /* sessionStorage blocked in some TG WebView — memoryToken is the fallback */
   }
 }
 
 export function clearToken(): void {
+  memoryToken = null;
   if (typeof window === "undefined") return;
   try {
     window.sessionStorage.removeItem(STORAGE_KEY);

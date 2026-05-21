@@ -44,11 +44,23 @@ class FuzzingOrchestrator:
         # per-scan namespace.
         self.store = store or PoCArtifactStore()
 
-    async def run(self, *, scan_id: str, source: str) -> FuzzingOutcome:
+    async def run(
+        self,
+        *,
+        scan_id: str,
+        source: str,
+        existing_findings: list[Finding] | None = None,
+    ) -> FuzzingOutcome:
         if not source.strip():
             return _empty("empty source")
 
-        invariants = await self.generator.generate(source=source)
+        # Pass existing findings to guide invariant generation — the LLM
+        # will write invariants specifically targeting known issues.
+        active_findings = [f for f in (existing_findings or []) if not f.dismissed]
+        invariants = await self.generator.generate(
+            source=source,
+            existing_findings=active_findings or None,
+        )
         if not invariants:
             return _empty("no invariants generated")
 

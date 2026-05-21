@@ -79,10 +79,37 @@ def test_active_weights_must_sum_to_one() -> None:
 
 
 def test_medium_findings_only_score_is_not_padded() -> None:
-    """Old scoring: 5 mediums → code_security=65 → padded by 4×80×0.1625 ≈
-    +52 → final 65×0.35 + 80×0.65 ≈ 75. Honest scoring: final IS 65."""
-    findings = [_f(Severity.MEDIUM) for _ in range(5)]
+    """5 DISTINCT medium findings → 5 unique issues × 7 = 35 penalty → score 65.
+    Duplicate findings (same title+severity) are grouped and penalized once."""
+    findings = [
+        Finding(
+            id=f"x-med-{i}",
+            title=f"medium issue {i}",
+            description="",
+            severity=Severity.MEDIUM,
+            source_engine="baseline",
+        )
+        for i in range(5)
+    ]
     report = compute_score(address="0xabc", network="ethereum", findings=findings)
     # 100 - 5*7 = 65
     assert report.score == 65.0
     assert report.tier == "yellow"
+
+
+def test_duplicate_findings_penalized_once() -> None:
+    """10 findings with the same title+severity = 1 unique issue, single penalty."""
+    findings = [
+        Finding(
+            id=f"dup-{i}",
+            title="Zero-address check missing",
+            description="",
+            severity=Severity.LOW,
+            source_engine="baseline",
+        )
+        for i in range(10)
+    ]
+    report = compute_score(address="0xabc", network="ethereum", findings=findings)
+    # 1 unique LOW issue → penalty=2 → score=98
+    assert report.score == 98.0
+    assert report.tier == "blue"

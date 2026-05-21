@@ -44,7 +44,62 @@ Rules for the test file:
   - Conclude with an assertion that proves the exploit (e.g. funds moved,
     state corrupted, access bypassed). Failing assertion === bug NOT proven.
   - Keep it minimal. No external deps beyond forge-std.
+  - For reentrancy: create an Attacker contract implementing receive()/fallback()
+    that calls back into the target.
+  - For access control: use vm.prank(nonOwner) to prove unauthorized access.
+  - For oracle manipulation: use vm.mockCall to simulate stale/manipulated prices.
+  - For overflow: test boundary values (type(uint256).max, 0, 1).
 """
+
+# Bug-category-specific guidance appended to user prompt.
+_BUG_CATEGORY_HINTS: dict[str, str] = {
+    "reentrancy": """
+BUG CATEGORY: Reentrancy
+Strategy: Create an Attacker contract that:
+  1. Calls the vulnerable function (withdraw/claim/transfer).
+  2. In receive()/fallback(), re-enters the same function.
+  3. Assert that attacker extracted more than their fair share.
+Example pattern:
+  contract Attacker { function attack() external { target.withdraw(); }
+    receive() external payable { if(address(target).balance > 0) target.withdraw(); } }
+""",
+    "access-control": """
+BUG CATEGORY: Access Control Bypass
+Strategy:
+  1. vm.prank(address(0xBEEF)) — use a non-privileged address.
+  2. Call the supposedly restricted function.
+  3. Assert it succeeded (state changed, funds moved) — proving anyone can call it.
+""",
+    "oracle": """
+BUG CATEGORY: Oracle Manipulation
+Strategy:
+  1. Use vm.mockCall to make the oracle return a manipulated price.
+  2. Execute the vulnerable function (liquidate, swap, borrow).
+  3. Assert the attacker profited from the stale/manipulated price.
+""",
+    "overflow": """
+BUG CATEGORY: Integer Overflow/Underflow
+Strategy:
+  1. Use boundary values: type(uint256).max, 0, 1.
+  2. Call the function with values that cause wrap-around.
+  3. Assert unexpected state (negative balance, inflated supply).
+""",
+    "delegatecall": """
+BUG CATEGORY: Delegatecall Exploit
+Strategy:
+  1. Deploy a malicious implementation contract.
+  2. Trigger delegatecall to the malicious contract.
+  3. Assert that storage was corrupted (e.g. owner overwritten).
+""",
+    "default": """
+BUG CATEGORY: General Exploit
+Strategy:
+  1. Set up initial state (deploy target, fund accounts).
+  2. Execute the attack steps described in the finding.
+  3. Assert a concrete impact: balance change, state corruption, or access bypass.
+  4. Use console.log for debugging if assertion fails.
+""",
+}
 
 _USER_TEMPLATE = """TARGET CONTRACT (lives at src/Contract.sol):
 ```solidity
@@ -59,7 +114,10 @@ FINDING TO EXPLOIT:
   line:       {line}
   description: {description}
 
-Write a Foundry test that proves this finding is exploitable.
+{category_hint}
+
+Write a Foundry test that proves this finding is exploitable. The test MUST
+have a concrete assertion that fails if the bug doesn't exist.
 """
 
 _RETRY_TEMPLATE = """Your previous PoC ({previous_path}) did not work.
@@ -98,7 +156,7 @@ class PoCGenerator:
         runner: FoundryRunner | None = None,
         store: PoCArtifactStore | None = None,
         max_attempts: int = 3,
-        max_source_chars: int = 24_000,
+        max_source_chars: int = 48_000,
     ) -> None:
         self.llm = llm or LLMRouter()
         self.runner = runner or FoundryRunner()
@@ -106,10 +164,36 @@ class PoCGenerator:
         self.max_attempts = max(1, max_attempts)
         self.max_source_chars = max_source_chars
 
+    @staticmethod
+    def _classify_bug_category(finding: Finding) -> str:
+        """Classify a finding into a bug category for prompt specialization."""
+        title_lower = finding.title.lower()
+        desc_lower = finding.description.lower()
+        combined = title_lower + " " + desc_lower
+
+        if any(kw in combined for kw in ("reentran", "re-entran", "callback", "receive()")):
+            return "reentrancy"
+        if any(kw in combined for kw in ("access control", "authorization", "onlyowner", "permission", "initializ")):
+            return "access-control"
+        if any(kw in combined for kw in ("oracle", "price feed", "stale price", "chainlink", "twap")):
+            return "oracle"
+        if any(kw in combined for kw in ("overflow", "underflow", "wrap", "uint256.max")):
+            return "overflow"
+        if any(kw in combined for kw in ("delegatecall", "proxy", "storage collision")):
+            return "delegatecall"
+        return "default"
+
     def should_attempt(self, finding: Finding) -> bool:
         if finding.dismissed:
             return False
-        return finding.severity in (Severity.HIGH, Severity.CRITICAL)
+        # Attempt PoC for HIGH/CRITICAL always, and for MEDIUM with decent
+        # confidence — these are often the most interesting bugs that need
+        # proof (unchecked returns, precision loss, etc.).
+        if finding.severity in (Severity.HIGH, Severity.CRITICAL):
+            return True
+        if finding.severity == Severity.MEDIUM and finding.confidence >= 0.5:
+            return True
+        return False
 
     async def generate(
         self,
@@ -129,41 +213,29 @@ class PoCGenerator:
 
         workspace = self.store.workspace_for(scan_id=scan_id, finding_id=finding.id)
         source = target_source[: self.max_source_chars]
+        category = self._classify_bug_category(finding)
+        category_hint = _BUG_CATEGORY_HINTS.get(category, _BUG_CATEGORY_HINTS["default"])
 
         previous_source: str | None = None
         previous_diagnostic = ""
 
         for attempt in range(1, self.max_attempts + 1):
             messages = [{"role": "system", "content": _SYSTEM_PROMPT}]
+            user_content = _USER_TEMPLATE.format(
+                source=source,
+                finding_id=finding.id,
+                title=finding.title,
+                severity=finding.severity.value,
+                engine=finding.source_engine,
+                line=finding.line or 0,
+                description=finding.description[:1500],
+                category_hint=category_hint,
+            )
             if attempt == 1:
-                messages.append(
-                    {
-                        "role": "user",
-                        "content": _USER_TEMPLATE.format(
-                            source=source,
-                            finding_id=finding.id,
-                            title=finding.title,
-                            severity=finding.severity.value,
-                            engine=finding.source_engine,
-                            line=finding.line or 0,
-                            description=finding.description[:1500],
-                        ),
-                    }
-                )
+                messages.append({"role": "user", "content": user_content})
             else:
                 messages += [
-                    {
-                        "role": "user",
-                        "content": _USER_TEMPLATE.format(
-                            source=source,
-                            finding_id=finding.id,
-                            title=finding.title,
-                            severity=finding.severity.value,
-                            engine=finding.source_engine,
-                            line=finding.line or 0,
-                            description=finding.description[:1500],
-                        ),
-                    },
+                    {"role": "user", "content": user_content},
                     {"role": "assistant", "content": previous_source or ""},
                     {
                         "role": "user",

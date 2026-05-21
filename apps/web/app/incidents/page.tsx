@@ -47,25 +47,25 @@ export default async function IncidentsPage() {
 
   return (
     <TerminalPageShell title="Инциденты" eyebrow="// feed">
-      <p className="text-[#8bb88b] text-sm leading-relaxed">
+      <p className="text-[#8bb88b] text-base leading-relaxed">
         Лента эксплойтов из Rekt News, SlowMist и DefiLlama. Дубликаты схлопываем
         по семантическому сходству, поэтому один и тот же хак из разных источников
         не дублируется.
       </p>
 
       {data === null ? (
-        <div className="glass-card mt-6 border-red-500/30 bg-red-500/5">
-          <p className="text-red-400 text-[13px] px-4 py-3">
+        <div className="rounded-xl border border-red-500/30 bg-red-500/5 mt-6">
+          <p className="text-red-400 text-base px-5 py-4">
             Лента инцидентов сейчас недоступна. Попробуйте обновить через минуту.
           </p>
         </div>
       ) : data.incidents.length === 0 ? (
-        <p className="text-[#8bb88b] text-[13px] mt-6">
+        <p className="text-[#8bb88b] text-base mt-6">
           Лента пуста. Следующее обновление — в течение 6 часов.
         </p>
       ) : (
         <>
-          <p className="text-[#547654] text-xs mt-2">
+          <p className="text-[#547654] text-sm mt-3">
             Всего в базе: {data.total} · показано {data.incidents.length}
           </p>
           <ul className="list-none p-0 mt-4 flex flex-col gap-3">
@@ -85,19 +85,19 @@ function IncidentRow({ incident, index }: { incident: Incident; index: number })
 
   return (
     <li
-      className="glass-card hover-lift animate-fade-in-up p-4 rounded-lg"
+      className="rounded-xl border border-[#1a2e1a]/60 bg-[#0c120c] animate-fade-in-up p-5 transition-all hover:border-[#1a2e1a]"
       style={{ animationDelay: `${index * 60}ms`, animationFillMode: "both" }}
     >
-      <div className="flex items-center flex-wrap gap-2 mb-2">
+      <div className="flex items-center flex-wrap gap-2.5 mb-3">
         {allSources.map((s) => (
           <span
             key={s}
-            className={`text-[9px] uppercase tracking-wider border px-2 py-0.5 rounded ${SOURCE_COLOR[s] ?? "border-[#547654] text-[#8bb88b]"}`}
+            className={`text-xs uppercase tracking-wider border px-2.5 py-1 rounded-lg font-semibold ${SOURCE_COLOR[s] ?? "border-[#547654] text-[#8bb88b]"}`}
           >
             {SOURCE_LABEL[s] ?? s}
           </span>
         ))}
-        <span className="text-[#547654] text-[10px] ml-auto">
+        <span className="text-[#547654] text-xs ml-auto">
           {relTime(incident.published_at)}
         </span>
       </div>
@@ -106,21 +106,21 @@ function IncidentRow({ incident, index }: { incident: Incident; index: number })
         href={incident.url}
         target="_blank"
         rel="noopener noreferrer"
-        className="text-[#d4ffd4] text-[13px] font-bold no-underline block mb-1 hover:text-[#4ade80] transition-colors"
+        className="text-[#d4ffd4] text-base font-bold no-underline block mb-1.5 hover:text-[#4ade80] transition-colors"
       >
         {incident.title}
       </a>
 
       {incident.loss_usd != null && (
         <p
-          className={`text-red-400 text-[11px] my-0.5 mb-1.5 font-semibold ${isHighLoss ? "drop-shadow-[0_0_6px_rgba(248,113,113,0.5)]" : ""}`}
+          className={`text-red-400 text-sm my-1 mb-2 font-semibold ${isHighLoss ? "drop-shadow-[0_0_6px_rgba(248,113,113,0.5)]" : ""}`}
         >
           ${formatLoss(incident.loss_usd)}
         </p>
       )}
 
       {incident.summary && (
-        <p className="text-[#a8e6a8] text-[11px] leading-relaxed m-0">
+        <p className="text-[#a8e6a8] text-sm leading-relaxed m-0">
           {truncate(incident.summary, 240)}
         </p>
       )}

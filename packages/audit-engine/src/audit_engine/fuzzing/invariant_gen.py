@@ -30,8 +30,9 @@ logger = structlog.get_logger()
 
 
 _SYSTEM = """You are a smart-contract security engineer. Given a Solidity
-contract, you propose a SMALL set (target 3-5) of Foundry-compatible
-invariants that, if broken under random sequencing, would indicate a real bug.
+contract (and optionally existing findings from static analysis), you propose
+a SMALL set (target 3-7) of Foundry-compatible invariants that, if broken
+under random sequencing, would indicate a real bug.
 
 Each invariant is a function with prefix `invariant_`, return type bool or
 void with `assert(...)`, that holds for ALL well-formed states. Examples:
@@ -40,12 +41,26 @@ void with `assert(...)`, that holds for ALL well-formed states. Examples:
         assert(sum == target.totalSupply());
     }
 
+PRIORITY invariant categories (ordered by impact):
+  1. BALANCE CONSERVATION: totalSupply == sum(balances), no ETH/token leak,
+     withdrawal amount <= deposit amount (after fees).
+  2. ACCESS CONTROL: owner/admin state only changeable by authorized roles.
+  3. REENTRANCY GUARDS: state consistency between external calls.
+  4. PRICE/ORACLE: price within sane bounds, no stale reads.
+  5. STATE MACHINE: valid transitions only, no stuck states.
+
+When EXISTING FINDINGS are provided, write invariants that specifically target
+those issues. For example, if there's a "reentrancy" finding, write an invariant
+that checks balance conservation around that function.
+
 Rules:
   - Only output a JSON object. No prose. No fences.
-  - 3 to 5 invariants. Pick the highest-impact ones for THIS contract.
+  - 3 to 7 invariants. Pick the highest-impact ones for THIS contract.
   - Bodies should reference real state visible in the contract source.
   - severity_if_broken: pick the impact if the invariant ever fails.
     Vocabulary: info, low, medium, high, critical.
+  - The body should be COMPLETE Solidity — it will be pasted directly inside
+    `function invariant_xxx() public { <BODY> }`.
 
 Output:
 {
@@ -64,7 +79,9 @@ _USER_TEMPLATE = """TARGET CONTRACT:
 {source}
 ```
 
-Propose 3-5 invariants tailored to this contract. Only the JSON object.
+{findings_section}
+
+Propose 3-7 invariants tailored to this contract. Only the JSON object.
 """
 
 
@@ -78,16 +95,33 @@ class InvariantGenerator:
         self,
         llm: LLMRouter | None = None,
         *,
-        max_source_chars: int = 24_000,
-        max_invariants: int = 5,
+        max_source_chars: int = 48_000,
+        max_invariants: int = 7,
     ) -> None:
         self.llm = llm or LLMRouter()
         self.max_source_chars = max_source_chars
         self.max_invariants = max_invariants
 
-    async def generate(self, *, source: str) -> list[FuzzInvariant]:
+    async def generate(
+        self,
+        *,
+        source: str,
+        existing_findings: list | None = None,
+    ) -> list[FuzzInvariant]:
         if not source.strip():
             return []
+
+        # Build findings section to guide invariant generation.
+        findings_section = ""
+        if existing_findings:
+            lines = ["EXISTING FINDINGS FROM STATIC ANALYSIS (write invariants targeting these):"]
+            for f in existing_findings[:15]:
+                sev = getattr(f, "severity", None)
+                sev_str = sev.value if hasattr(sev, "value") else str(sev)
+                title = getattr(f, "title", str(f))
+                line = getattr(f, "line", None)
+                lines.append(f"  - [{sev_str}] {title} (line {line or '?'})")
+            findings_section = "\n".join(lines)
 
         try:
             raw = await self.llm.complete(
@@ -97,13 +131,14 @@ class InvariantGenerator:
                         {
                             "role": "user",
                             "content": _USER_TEMPLATE.format(
-                                source=source[: self.max_source_chars]
+                                source=source[: self.max_source_chars],
+                                findings_section=findings_section,
                             ),
                         },
                     ],
                     sensitivity=Sensitivity.HIGH,
                     temperature=0.2,
-                    max_tokens=3000,
+                    max_tokens=4000,
                 )
             )
         except Exception as e:

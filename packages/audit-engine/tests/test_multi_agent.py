@@ -9,6 +9,7 @@ from audit_engine.agents.multi_agent import (
     AgentReport,
     MultiAgentTriage,
     ProposedFinding,
+    _auto_dismiss_trivial,
     _consensus_merge,
 )
 from audit_engine.llm import LLMRequest
@@ -350,11 +351,159 @@ async def test_multi_agent_resilient_to_broken_llm() -> None:
 
 
 @pytest.mark.asyncio
-async def test_multi_agent_skips_when_only_info_findings() -> None:
+async def test_multi_agent_triages_info_findings() -> None:
+    """INFO findings now enter triage so FP filter can dismiss them."""
     f = _finding(severity=Severity.INFO)
+    llm = _ScriptedLLM(
+        {
+            "normalize severity": json.dumps(
+                {"decisions": [{"id": f.id, "action": "keep"}]}
+            ),
+            "flag false positives": json.dumps(
+                {"decisions": [{"id": f.id, "action": "dismiss", "rationale": "informational only"}]}
+            ),
+            "business-logic flaws": json.dumps({"decisions": [], "proposed": []}),
+            "cross-contract risks": json.dumps({"decisions": [], "proposed": []}),
+        }
+    )
+    orch = MultiAgentTriage(llm=llm)  # type: ignore[arg-type]
+    out = await orch.run([f], source="contract X {}")
+    # INFO findings now enter triage; FP filter should be able to dismiss.
+    assert len(llm.calls) == 4
+    assert out[0].dismissed is True
+
+
+@pytest.mark.asyncio
+async def test_multi_agent_skips_when_no_findings_and_no_source() -> None:
     llm = _ScriptedLLM({})
     orch = MultiAgentTriage(llm=llm)  # type: ignore[arg-type]
-    out = await orch.run([f], source="")
-    # No source, no triageable findings - returned untouched, no LLM calls.
-    assert out == [f]
+    out = await orch.run([], source="")
+    assert out == []
     assert llm.calls == []
+
+
+# --- Pre-filter: trivial info auto-dismiss -----------------------------------
+
+
+def test_trivial_info_auto_dismissed() -> None:
+    """Info-severity findings matching trivial patterns are auto-dismissed."""
+    f = Finding(
+        id="aderyn:pragma:1",
+        title="Floating Pragma detected",
+        description="Use a locked pragma",
+        severity=Severity.INFO,
+        source_engine="aderyn",
+        line=1,
+        confidence=0.9,
+    )
+    result = _auto_dismiss_trivial([f])
+    assert result[0].dismissed is True
+    assert result[0].dismissed_reason == "trivial code style issue"
+
+
+def test_trivial_non_info_not_dismissed() -> None:
+    """Only info-severity findings are eligible for trivial auto-dismiss."""
+    f = Finding(
+        id="aderyn:pragma:1",
+        title="Floating Pragma detected",
+        description="Use a locked pragma",
+        severity=Severity.LOW,
+        source_engine="aderyn",
+        line=1,
+        confidence=0.9,
+    )
+    result = _auto_dismiss_trivial([f])
+    assert result[0].dismissed is False
+
+
+def test_trivial_already_dismissed_untouched() -> None:
+    """Already-dismissed findings are not re-processed."""
+    f = Finding(
+        id="aderyn:pragma:1",
+        title="Floating Pragma detected",
+        description="Use a locked pragma",
+        severity=Severity.INFO,
+        source_engine="aderyn",
+        line=1,
+        confidence=0.9,
+        dismissed=True,
+        dismissed_reason="manual dismiss",
+    )
+    result = _auto_dismiss_trivial([f])
+    assert result[0].dismissed_reason == "manual dismiss"
+
+
+def test_trivial_non_matching_info_kept() -> None:
+    """Info findings that don't match trivial patterns are kept."""
+    f = Finding(
+        id="baseline:reentrancy:10",
+        title="Reentrancy risk",
+        description="State change after external call",
+        severity=Severity.INFO,
+        source_engine="baseline",
+        line=10,
+        confidence=0.3,
+    )
+    result = _auto_dismiss_trivial([f])
+    assert result[0].dismissed is False
+
+
+# --- Low-confidence FP dismissal ---------------------------------------------
+
+
+def test_consensus_low_confidence_fp_dismisses_without_severity_agreement() -> None:
+    """FP filter can dismiss findings with confidence < 0.5 even without
+    severity-classifier agreement (no reclassify to low/info needed)."""
+    f = _finding(severity=Severity.MEDIUM, confidence=0.3)
+    reports = [
+        AgentReport(
+            agent="severity",
+            decisions=[
+                AgentDecision(finding_id=f.id, action="keep"),
+            ],
+        ),
+        AgentReport(
+            agent="fp",
+            decisions=[
+                AgentDecision(
+                    finding_id=f.id,
+                    action="dismiss",
+                    rationale="false positive: test helper",
+                ),
+            ],
+        ),
+    ]
+    out = _consensus_merge(originals=[f], reports=reports)
+    assert out[0].dismissed is True
+    assert "test helper" in (out[0].dismissed_reason or "")
+
+
+def test_consensus_normal_confidence_needs_severity_or_keep() -> None:
+    """Findings with confidence >= 0.5 still need severity agreement or
+    sev-keep for FP dismissal."""
+    f = _finding(severity=Severity.MEDIUM, confidence=0.7)
+    reports = [
+        AgentReport(
+            agent="severity",
+            decisions=[
+                AgentDecision(
+                    finding_id=f.id,
+                    action="reclassify",
+                    new_severity=Severity.HIGH,
+                ),
+            ],
+        ),
+        AgentReport(
+            agent="fp",
+            decisions=[
+                AgentDecision(
+                    finding_id=f.id,
+                    action="dismiss",
+                    rationale="looks safe",
+                ),
+            ],
+        ),
+    ]
+    out = _consensus_merge(originals=[f], reports=reports)
+    # Severity reclassified UP to HIGH + confidence >= 0.5 → FP cannot dismiss
+    assert out[0].dismissed is False

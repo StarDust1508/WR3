@@ -217,13 +217,23 @@ export function LiveFeed({ onSelectToken }: LiveFeedProps) {
       {/* ─── Token list ─── */}
       <div className="flex-1 overflow-y-auto scrollbar-none">
         {loading ? (
-          <div className="flex flex-col gap-2 p-4">
-            {Array.from({ length: 8 }).map((_, i) => (
+          <div className="flex flex-col gap-1 p-2.5">
+            {Array.from({ length: 5 }).map((_, i) => (
               <div
                 key={i}
-                className="h-[60px] animate-pulse rounded-xl bg-[#0c120c]"
-                style={{ animationDelay: `${i * 80}ms` }}
-              />
+                className="flex items-center gap-3 rounded-xl px-3.5 py-3"
+                style={{ animationDelay: `${i * 100}ms` }}
+              >
+                <div className="h-10 w-10 flex-shrink-0 rounded-xl bg-[#0c120c] animate-shimmer bg-gradient-to-r from-[#0c120c] via-[#1a2e1a]/30 to-[#0c120c]" />
+                <div className="flex flex-1 flex-col gap-1.5">
+                  <div className="h-3.5 w-24 rounded bg-[#0c120c] animate-shimmer bg-gradient-to-r from-[#0c120c] via-[#1a2e1a]/30 to-[#0c120c]" />
+                  <div className="h-2.5 w-32 rounded bg-[#0c120c] animate-shimmer bg-gradient-to-r from-[#0c120c] via-[#1a2e1a]/30 to-[#0c120c]" />
+                </div>
+                <div className="flex flex-col items-end gap-1.5">
+                  <div className="h-3.5 w-16 rounded bg-[#0c120c] animate-shimmer bg-gradient-to-r from-[#0c120c] via-[#1a2e1a]/30 to-[#0c120c]" />
+                  <div className="h-2.5 w-10 rounded bg-[#0c120c] animate-shimmer bg-gradient-to-r from-[#0c120c] via-[#1a2e1a]/30 to-[#0c120c]" />
+                </div>
+              </div>
             ))}
           </div>
         ) : filtered.length === 0 ? (

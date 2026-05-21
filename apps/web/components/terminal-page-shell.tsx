@@ -17,17 +17,17 @@ export function TerminalPageShell({
   children: ReactNode;
 }) {
   return (
-    <main className="min-h-screen font-sans px-6 pt-8 pb-16">
-      <div className="mx-auto max-w-[880px]">
+    <main className="min-h-screen bg-[#060a06] font-sans px-6 pt-8 pb-16">
+      <div className="mx-auto max-w-[960px]">
         {/* ─── Sticky Header ─── */}
-        <header className="sticky top-0 z-50 -mx-6 px-6 py-4 mb-12 flex items-center justify-between flex-wrap gap-3 backdrop-blur-xl bg-[var(--color-bg)]/80 border-b border-[var(--color-border)]">
+        <header className="sticky top-0 z-50 -mx-6 px-6 py-4 mb-12 flex items-center justify-between flex-wrap gap-4 backdrop-blur-xl bg-[#060a06]/80 border-b border-[#1a2e1a]/60">
           <Link
             href="/"
-            className="text-[var(--color-primary)] font-bold text-base border border-[var(--color-primary)] px-2.5 py-1 rounded font-mono no-underline hover:bg-[var(--color-primary)]/10 transition-colors"
+            className="text-[#4ade80] font-bold text-lg border border-[#4ade80] px-3 py-1.5 rounded-lg font-mono no-underline hover:bg-[#4ade80]/10 transition-colors"
           >
             wr3
           </Link>
-          <nav className="flex gap-5 text-[13px] items-center">
+          <nav className="flex gap-6 text-sm items-center">
             <Link href="/incidents" className="text-[#8bb88b] no-underline hover:text-[#d4ffd4] transition-colors">
               Инциденты
             </Link>
@@ -37,12 +37,12 @@ export function TerminalPageShell({
             <Link href="/pricing" className="text-[#8bb88b] no-underline hover:text-[#d4ffd4] transition-colors">
               Тарифы
             </Link>
-            <Link href="/docs" className="text-[#8bb88b] no-underline hover:text-[#d4ffd4] transition-colors">
+            <Link href="/docs" className="text-[#8bb88b] no-underline hover:text-[#d4ffd4] transition-colors hidden sm:block">
               Документация
             </Link>
             <a
               href="https://t.me/KitronBot"
-              className="bg-[var(--color-primary)] text-[var(--color-bg)] px-3 py-1.5 rounded text-[11px] font-bold no-underline hover:shadow-[0_0_20px_rgba(74,222,128,0.3)] transition-shadow"
+              className="bg-[#4ade80] text-[#060a06] px-4 py-2 rounded-lg text-sm font-bold no-underline hover:shadow-[0_0_20px_rgba(74,222,128,0.3)] transition-shadow"
             >
               Открыть бот
             </a>
@@ -51,24 +51,24 @@ export function TerminalPageShell({
 
         {/* ─── Eyebrow ─── */}
         {eyebrow && (
-          <p className="text-[#547654] text-xs mb-2.5 tracking-widest uppercase font-mono">
+          <p className="text-[#547654] text-sm mb-3 tracking-widest uppercase font-mono">
             {eyebrow}
           </p>
         )}
 
         {/* ─── Title ─── */}
-        <h1 className="text-[clamp(28px,4.5vw,40px)] font-extrabold leading-[1.15] mb-8 tracking-tight text-gradient">
+        <h1 className="text-3xl lg:text-4xl font-extrabold leading-[1.15] mb-8 tracking-tight text-[#e2ffe2]">
           {title}
         </h1>
 
         {/* ─── Content ─── */}
-        <article className="glass-card p-7 text-[#a8e6a8] text-sm leading-relaxed animate-fade-in-up">
+        <article className="rounded-2xl border border-[#1a2e1a]/60 bg-[#0c120c] p-8 text-[#a8e6a8] text-base leading-relaxed animate-fade-in-up">
           {children}
         </article>
 
         {/* ─── Footer ─── */}
-        <footer className="mt-16 text-xs text-[#8bb88b] text-center">
-          <Link href="/" className="text-[#8bb88b] no-underline hover:text-[var(--color-primary)] transition-colors">
+        <footer className="mt-16 text-sm text-[#8bb88b] text-center">
+          <Link href="/" className="text-[#8bb88b] no-underline hover:text-[#4ade80] transition-colors">
             &lsaquo; На главную
           </Link>
         </footer>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 
 const NETWORKS = [
   { id: "ethereum", label: "Ethereum" },
@@ -21,26 +21,41 @@ function isLikelyAddress(s: string): boolean {
 }
 
 interface ScanInputProps {
-  initialAddress?: string;
-  initialNetwork?: string;
+  address?: string;
+  network?: string;
+  onAddressChange?: (address: string) => void;
+  onNetworkChange?: (network: string) => void;
+  onScan?: (address: string, network: string) => void;
 }
 
-export function ScanInput({ initialAddress, initialNetwork }: ScanInputProps = {}) {
-  const [address, setAddress] = useState(initialAddress ?? "");
-  const [network, setNetwork] = useState<NetworkId>(
-    (initialNetwork as NetworkId) ?? "ethereum"
+export function ScanInput({
+  address: controlledAddress,
+  network: controlledNetwork,
+  onAddressChange,
+  onNetworkChange,
+  onScan,
+}: ScanInputProps = {}) {
+  const [localAddress, setLocalAddress] = useState(controlledAddress ?? "");
+  const [localNetwork, setLocalNetwork] = useState<NetworkId>(
+    (controlledNetwork as NetworkId) ?? "ethereum"
   );
   const [error, setError] = useState<string | null>(null);
   const [shake, setShake] = useState(false);
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
 
-  useEffect(() => {
-    if (initialAddress) setAddress(initialAddress);
-  }, [initialAddress]);
-  useEffect(() => {
-    if (initialNetwork) setNetwork(initialNetwork as NetworkId);
-  }, [initialNetwork]);
+  const address = controlledAddress ?? localAddress;
+  const network = (controlledNetwork as NetworkId) ?? localNetwork;
+
+  function setAddress(v: string) {
+    setLocalAddress(v);
+    onAddressChange?.(v);
+  }
+
+  function setNetwork(v: NetworkId) {
+    setLocalNetwork(v);
+    onNetworkChange?.(v);
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -53,9 +68,13 @@ export function ScanInput({ initialAddress, initialNetwork }: ScanInputProps = {
       setTimeout(() => setShake(false), 600);
       return;
     }
-    startTransition(() => {
-      router.push(`/scan?address=${encodeURIComponent(trimmed)}&network=${network}`);
-    });
+    if (onScan) {
+      onScan(trimmed, network);
+    } else {
+      startTransition(() => {
+        router.push(`/scan?address=${encodeURIComponent(trimmed)}&network=${network}`);
+      });
+    }
   }
 
   const ready = address.trim().length > 0 && !isPending;
@@ -118,10 +137,7 @@ export function ScanInput({ initialAddress, initialNetwork }: ScanInputProps = {
                     : "border-[#1a2e1a] bg-transparent text-[#6b8f6b] hover:border-[#2a4e2a] hover:text-[#a8e6a8]",
                 ].join(" ")}
               >
-                {active && (
-                  <span className="absolute inset-0 rounded-lg bg-[#4ade80]/20 animate-ping opacity-30" />
-                )}
-                <span className="relative">{n.label}</span>
+                {n.label}
               </button>
             );
           })}

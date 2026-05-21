@@ -10,6 +10,11 @@ SourceBundle carries:
     - contract name
 """
 
-from audit_engine.ingestion.fetcher import SourceBundle, SourceFetcher, fetch_source
+from audit_engine.ingestion.fetcher import (
+    SourceBundle,
+    SourceFetcher,
+    fetch_source,
+    fetch_source_with_implementation,
+)
 
-__all__ = ["SourceBundle", "SourceFetcher", "fetch_source"]
+__all__ = ["SourceBundle", "SourceFetcher", "fetch_source", "fetch_source_with_implementation"]

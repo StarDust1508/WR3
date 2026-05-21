@@ -11,7 +11,7 @@ function tgUpgradeLink(plan: string): string {
 export default function PricingPage() {
   return (
     <TerminalPageShell title="Тарифы" eyebrow="// pricing">
-      <p className="text-[#8bb88b] text-sm leading-relaxed">
+      <p className="text-[#8bb88b] text-base leading-relaxed">
         Платные тарифы — Telegram Stars прямо в боте. Без карт и KYC. Free
         навсегда.
       </p>
@@ -74,11 +74,11 @@ export default function PricingPage() {
       </div>
 
       {/* ─── Payment Section ─── */}
-      <section className="mt-12 glass-card p-6 animate-fade-in-up" style={{ animationDelay: "0.1s" }}>
-        <h2 className="text-[#d4ffd4] text-lg font-bold tracking-tight m-0">
+      <section className="mt-12 rounded-2xl border border-[#1a2e1a]/60 bg-[#0c120c] p-8 animate-fade-in-up" style={{ animationDelay: "0.1s" }}>
+        <h2 className="text-[#e2ffe2] text-xl font-bold tracking-tight m-0">
           Оплата
         </h2>
-        <ul className="text-[#8bb88b] text-sm leading-relaxed mt-3 pl-5 list-disc">
+        <ul className="text-[#8bb88b] text-base leading-relaxed mt-4 pl-5 list-disc">
           <li>
             <span className="text-[#d4ffd4] font-semibold">Telegram Stars.</span>{" "}
             Единственный способ оплаты на старте. Hobby — 2200 ⭐, Team — 7500 ⭐,
@@ -93,17 +93,17 @@ export default function PricingPage() {
       </section>
 
       {/* ─── Enterprise Section ─── */}
-      <section className="mt-10 glass-card p-6 animate-fade-in-up" style={{ animationDelay: "0.2s" }}>
-        <h2 className="text-[#d4ffd4] text-lg font-bold tracking-tight m-0">
+      <section className="mt-10 rounded-2xl border border-[#1a2e1a]/60 bg-[#0c120c] p-8 animate-fade-in-up" style={{ animationDelay: "0.2s" }}>
+        <h2 className="text-[#e2ffe2] text-xl font-bold tracking-tight m-0">
           Enterprise и кастом
         </h2>
-        <p className="text-[#8bb88b] text-sm mt-2.5 leading-relaxed">
+        <p className="text-[#8bb88b] text-base mt-3 leading-relaxed">
           Per-engagement аудит, white-label или объёмные скидки — обсудим
           индивидуально.
         </p>
         <a
           href="https://t.me/KitronBot?start=upgrade_enterprise"
-          className="inline-block mt-3.5 text-[var(--color-primary)] border border-[var(--color-primary)] px-4.5 py-2.5 rounded text-[13px] font-bold no-underline hover:bg-[var(--color-primary)] hover:text-[var(--color-bg)] hover:shadow-[0_0_20px_rgba(74,222,128,0.3)] transition-all"
+          className="inline-block mt-4 text-[#4ade80] border border-[#4ade80] px-5 py-3 rounded-lg text-sm font-bold no-underline hover:bg-[#4ade80] hover:text-[#060a06] hover:shadow-[0_0_20px_rgba(74,222,128,0.3)] transition-all"
         >
           Написать в Telegram
         </a>
@@ -132,15 +132,15 @@ function Plan({
   return (
     <article
       className={`
-        glass-card hover-lift p-5.5 flex flex-col gap-3.5
-        ${highlighted ? "glow-border animate-pulse-glow" : ""}
+        rounded-2xl border border-[#1a2e1a]/60 bg-[#0c120c] p-6 flex flex-col gap-4 transition-all hover:border-[#1a2e1a]
+        ${highlighted ? "border-[#4ade80]/40 shadow-[0_0_24px_rgba(74,222,128,0.1)]" : ""}
       `}
     >
       {/* Plan name + badge */}
       <div className="flex items-center justify-between">
-        <span className="text-[#d4ffd4] font-bold text-base">{name}</span>
+        <span className="text-[#e2ffe2] font-bold text-lg">{name}</span>
         {highlighted && (
-          <span className="bg-[var(--color-primary)] text-[var(--color-bg)] text-[10px] px-2 py-0.5 rounded font-bold tracking-wide uppercase animate-pulse-glow">
+          <span className="bg-[#4ade80] text-[#060a06] text-xs px-2.5 py-1 rounded-lg font-bold tracking-wide uppercase">
             Рекомендуем
           </span>
         )}
@@ -148,21 +148,21 @@ function Plan({
 
       {/* Price */}
       <div>
-        <span className="text-gradient text-[30px] font-extrabold leading-none tabular-nums">
+        <span className="text-[#4ade80] text-4xl font-extrabold leading-none tabular-nums">
           {price}
         </span>
-        <span className="text-[#8bb88b] text-xs ml-1.5">{period}</span>
+        <span className="text-[#8bb88b] text-sm ml-2">{period}</span>
       </div>
 
       {/* Features */}
-      <ul className="list-none p-0 m-0 text-[13px] text-[#8bb88b] leading-snug">
+      <ul className="list-none p-0 m-0 text-sm text-[#8bb88b] leading-relaxed">
         {features.map((f, i) => (
           <li
             key={f}
-            className="py-1 flex gap-2 items-start animate-fade-in-up"
+            className="py-1.5 flex gap-2.5 items-start animate-fade-in-up"
             style={{ animationDelay: `${i * 0.08}s` }}
           >
-            <span className="text-[var(--color-primary)] shrink-0">+</span>
+            <span className="text-[#4ade80] shrink-0 font-bold">+</span>
             <span>{f}</span>
           </li>
         ))}
@@ -172,11 +172,11 @@ function Plan({
       <a
         href={tgUpgradeLink(plan)}
         className={`
-          mt-auto block text-center no-underline px-4 py-2.5 rounded text-[13px] font-bold transition-all
+          mt-auto block text-center no-underline px-5 py-3 rounded-lg text-sm font-bold transition-all
           ${
             highlighted
-              ? "bg-[var(--color-primary)] text-[var(--color-bg)] hover:shadow-[0_0_24px_rgba(74,222,128,0.4)] hover:scale-105"
-              : "bg-transparent text-[var(--color-primary)] border border-[var(--color-primary)] hover:bg-[var(--color-primary)] hover:text-[var(--color-bg)] hover:shadow-[0_0_20px_rgba(74,222,128,0.3)]"
+              ? "bg-[#4ade80] text-[#060a06] hover:shadow-[0_0_24px_rgba(74,222,128,0.4)] hover:scale-105"
+              : "bg-transparent text-[#4ade80] border border-[#4ade80] hover:bg-[#4ade80] hover:text-[#060a06] hover:shadow-[0_0_20px_rgba(74,222,128,0.3)]"
           }
         `}
       >

@@ -79,11 +79,11 @@ export function ScanRunner({ address, network }: { address: string; network: str
   }, [address, network, router]);
 
   return (
-    <div className="glass-card space-y-8 p-6 md:p-8">
+    <div className="rounded-2xl border border-[#1a2e1a]/60 bg-[#0c120c] space-y-10 p-8 md:p-10">
       <ProgressBar progress={state.progress} stage={state.stage} />
       <Stepper stage={state.stage} />
       {state.message && (
-        <p className="animate-[shake_0.5s_ease-in-out] rounded-lg border border-red-500/30 bg-red-500/8 px-4 py-3 text-sm text-red-400">
+        <p className="animate-[shake_0.5s_ease-in-out] rounded-xl border border-red-500/30 bg-red-500/8 px-5 py-4 text-base text-red-400">
           {state.message}
         </p>
       )}
@@ -97,14 +97,14 @@ function ProgressBar({ progress, stage }: { progress: number; stage: Stage }) {
   const pct = Math.min(100, Math.max(0, progress));
 
   return (
-    <div className="relative h-3 w-full overflow-hidden rounded-full bg-[#0a0e0a] border border-[var(--color-border)]">
+    <div className="relative h-5 w-full overflow-hidden rounded-full bg-[#0a0e0a] border border-[#1a2e1a]/60">
       {/* Glow trail background */}
       <div
         className={[
           "absolute inset-y-0 left-0 rounded-full transition-all duration-500 ease-out",
           isError
-            ? "bg-gradient-to-r from-red-600 to-red-400 shadow-[0_0_12px_rgba(248,113,113,0.5)]"
-            : "bg-gradient-to-r from-emerald-600 via-[var(--color-primary)] to-[#d4ffd4] shadow-[0_0_16px_rgba(74,222,128,0.4)]",
+            ? "bg-gradient-to-r from-red-600 to-red-400 shadow-[0_0_16px_rgba(248,113,113,0.5)]"
+            : "bg-gradient-to-r from-emerald-600 via-[#4ade80] to-[#d4ffd4] shadow-[0_0_20px_rgba(74,222,128,0.4)]",
         ].join(" ")}
         style={{ width: `${pct}%` }}
       />
@@ -137,33 +137,33 @@ function Stepper({ stage }: { stage: Stage }) {
         return (
           <div key={s.id} className="flex flex-1 items-center">
             {/* Node */}
-            <div className="flex flex-col items-center gap-1.5">
+            <div className="flex flex-col items-center gap-2">
               <div
                 className={[
-                  "relative flex h-9 w-9 items-center justify-center rounded-full border-2 text-sm transition-all duration-300",
+                  "relative flex h-11 w-11 items-center justify-center rounded-full border-2 text-base transition-all duration-300",
                   isDone
-                    ? "border-[var(--color-primary)] bg-[var(--color-primary)]/20 text-[var(--color-primary)]"
+                    ? "border-[#4ade80] bg-[#4ade80]/20 text-[#4ade80]"
                     : isCurrent
                       ? isError
                         ? "border-red-500 bg-red-500/20 text-red-400"
-                        : "border-[var(--color-primary)] bg-[var(--color-primary)]/10 text-[var(--color-primary)]"
+                        : "border-[#4ade80] bg-[#4ade80]/10 text-[#4ade80]"
                       : "border-[#547654]/50 bg-transparent text-[#547654]",
                 ].join(" ")}
               >
                 {/* Pulsing ring on current */}
                 {isCurrent && !isError && (
-                  <span className="absolute inset-0 rounded-full border-2 border-[var(--color-primary)] animate-ping opacity-30" />
+                  <span className="absolute inset-0 rounded-full border-2 border-[#4ade80] animate-ping opacity-30" />
                 )}
                 {isCurrent && isError && (
                   <span className="absolute inset-0 rounded-full border-2 border-red-500 animate-ping opacity-30" />
                 )}
-                <span className="relative text-xs">{isDone ? "✓" : s.icon}</span>
+                <span className="relative text-sm">{isDone ? "✓" : s.icon}</span>
               </div>
               <span
                 className={[
-                  "text-[10px] font-medium tracking-wide transition-colors duration-300",
+                  "text-xs font-semibold tracking-wide transition-colors duration-300",
                   isDone
-                    ? "text-[var(--color-primary)]"
+                    ? "text-[#4ade80]"
                     : isCurrent
                       ? isError
                         ? "text-red-400"
@@ -265,13 +265,13 @@ function ScoreCard({ score }: { score: number }) {
       {/* Background shimmer */}
       <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.02] to-transparent animate-shimmer" />
 
-      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#8bb88b]">
+      <p className="text-sm font-semibold uppercase tracking-[0.15em] text-[#8bb88b]">
         Security Score
       </p>
-      <p className={`relative mt-3 text-7xl font-black tabular-nums ${c.text}`}>
+      <p className={`relative mt-4 text-[80px] leading-none font-black tabular-nums ${c.text}`}>
         <span ref={ref}>{displayed}</span>
       </p>
-      <p className="mt-3 text-sm text-[#8bb88b]/80">
+      <p className="mt-4 text-base text-[#8bb88b]/80">
         Детальные находки, Foundry PoC и разбивка по осям — на платных тарифах.
       </p>
     </div>

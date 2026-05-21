@@ -234,3 +234,83 @@ def _safe_int(v: object) -> int | None:
 # Convenience module-level function.
 async def fetch_source(address: str, network: Network) -> SourceBundle | None:
     return await SourceFetcher().fetch(address=address, network=network)
+
+
+async def fetch_source_with_implementation(
+    address: str, network: Network
+) -> SourceBundle | None:
+    """Fetch source and, if the contract is a proxy, also fetch the implementation.
+
+    Most DeFi contracts (70%+) are behind proxies (TransparentProxy, UUPS, EIP-1967).
+    The proxy itself is just a `fallback() { delegatecall(impl) }` stub — the real
+    business logic lives in the implementation contract. Without fetching the
+    implementation, we audit a 20-line stub instead of the actual code.
+
+    Strategy:
+      1. Fetch the proxy's source from Etherscan.
+      2. If Etherscan reports `Proxy=1` and `Implementation=0x...`, fetch that too.
+      3. Merge: implementation becomes the primary_source, proxy source is preserved
+         in metadata for storage layout analysis.
+    """
+    fetcher = SourceFetcher()
+    bundle = await fetcher.fetch(address=address, network=network)
+    if bundle is None:
+        return None
+
+    if not bundle.proxy or not bundle.implementation:
+        return bundle
+
+    # Fetch implementation contract source.
+    impl_address = bundle.implementation
+    logger.info(
+        "ingestion.fetching_implementation",
+        proxy=address,
+        implementation=impl_address,
+        network=network,
+    )
+    impl_bundle = await fetcher.fetch(address=impl_address, network=network)
+    if impl_bundle is None:
+        logger.warning(
+            "ingestion.implementation_not_verified",
+            proxy=address,
+            implementation=impl_address,
+        )
+        return bundle
+
+    # Merge: implementation source becomes primary, proxy preserved in metadata.
+    proxy_source = bundle.primary_source
+    impl_source = impl_bundle.primary_source
+
+    # Combine files from both proxy and implementation.
+    merged_files: dict[str, str] = {}
+    if impl_bundle.files:
+        merged_files.update(impl_bundle.files)
+    if bundle.files:
+        for path, content in bundle.files.items():
+            merged_files[f"proxy/{path}"] = content
+
+    # Build merged bundle: address stays as original (proxy), source from impl.
+    merged = SourceBundle(
+        address=address,
+        network=network,
+        contract_name=impl_bundle.contract_name,
+        compiler_version=impl_bundle.compiler_version,
+        optimization_used=impl_bundle.optimization_used,
+        runs=impl_bundle.runs,
+        flattened_source=(
+            f"// === IMPLEMENTATION ({impl_address}) ===\n{impl_source}"
+            + (f"\n\n// === PROXY ({address}) ===\n{proxy_source}" if proxy_source else "")
+        ) if not merged_files else None,
+        files=merged_files,
+        abi=impl_bundle.abi or bundle.abi,
+        proxy=True,
+        implementation=impl_address,
+    )
+    logger.info(
+        "ingestion.proxy_merged",
+        proxy=address,
+        implementation=impl_address,
+        impl_source_len=len(impl_source),
+        proxy_source_len=len(proxy_source),
+    )
+    return merged

@@ -4,14 +4,14 @@ from audit_engine.pipeline import AuditPipeline, PipelineEvent
 
 
 @pytest.mark.asyncio
-async def test_pipeline_emits_error_without_source() -> None:
+async def test_pipeline_enrichment_only_without_source() -> None:
     pipe = AuditPipeline(network="base")
     events: list[PipelineEvent] = []
     async for ev in pipe.run(address="0xnope"):
         events.append(ev)
 
     assert events[0].stage == "queued"
-    assert events[-1].stage == "error"
+    assert events[-1].stage == "done"
 
 
 @pytest.mark.asyncio

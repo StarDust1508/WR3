@@ -53,7 +53,7 @@ export default async function LeaderboardPage() {
 
   return (
     <TerminalPageShell title="Лидерборд" eyebrow="// scans">
-      <p className="text-[#8bb88b] text-sm leading-relaxed">
+      <p className="text-[#8bb88b] text-base leading-relaxed">
         Публичные сканы, отсортированные по score. Пользователи с включённой
         анонимностью здесь не показываются.
       </p>
@@ -74,7 +74,7 @@ export default async function LeaderboardPage() {
       <section className="mt-8 overflow-x-auto">
         {scans.length === 0 ? (
           <div className="glass-card p-10 text-center">
-            <p className="text-[#8bb88b] text-[13px]">
+            <p className="text-[#8bb88b] text-base">
               Ещё нет завершённых сканов. Запустите первый через{" "}
               <a
                 href="https://t.me/KitronBot"
@@ -86,8 +86,8 @@ export default async function LeaderboardPage() {
             </p>
           </div>
         ) : (
-          <div className="glass-card overflow-hidden rounded-lg">
-            <table className="w-full border-collapse text-[13px] tabular-nums">
+          <div className="rounded-2xl border border-[#1a2e1a]/60 bg-[#0c120c] overflow-hidden">
+            <table className="w-full border-collapse text-sm tabular-nums">
               <thead>
                 <tr className="border-b border-[#547654]/50">
                   <Th>#</Th>
@@ -109,7 +109,7 @@ export default async function LeaderboardPage() {
         )}
       </section>
 
-      <p className="text-[#8bb88b] text-xs mt-8">
+      <p className="text-[#6b8f6b] text-sm mt-8">
         Не хотите попадать в лидерборд? Откройте{" "}
         <Link href="/tg/owner" className="text-[#4ade80] underline">
           настройки в Mini App
@@ -122,12 +122,12 @@ export default async function LeaderboardPage() {
 
 function StatCard({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
   return (
-    <div className="glass-card p-3 rounded-lg animate-fade-in-up">
-      <p className="text-[#8bb88b] text-[11px] m-0 uppercase tracking-wider">
+    <div className="rounded-xl border border-[#1a2e1a]/60 bg-[#0c120c] p-4 animate-fade-in-up">
+      <p className="text-[#8bb88b] text-xs m-0 uppercase tracking-wider font-semibold">
         {label}
       </p>
       <p
-        className={`text-[26px] font-extrabold mt-1.5 mb-0 leading-none tabular-nums ${accent ? "text-red-400 drop-shadow-[0_0_8px_rgba(248,113,113,0.4)]" : "text-[#d4ffd4]"}`}
+        className={`text-3xl font-extrabold mt-2 mb-0 leading-none tabular-nums ${accent ? "text-red-400 drop-shadow-[0_0_8px_rgba(248,113,113,0.4)]" : "text-[#d4ffd4]"}`}
       >
         {value}
       </p>
@@ -138,7 +138,7 @@ function StatCard({ label, value, accent }: { label: string; value: string; acce
 function Th({ children, align }: { children: React.ReactNode; align?: "left" | "right" }) {
   return (
     <th
-      className={`px-3 py-2.5 text-[#8bb88b] font-bold text-[10px] uppercase tracking-wider ${align === "right" ? "text-right" : "text-left"}`}
+      className={`px-4 py-3 text-[#8bb88b] font-bold text-xs uppercase tracking-wider ${align === "right" ? "text-right" : "text-left"}`}
     >
       {children}
     </th>
@@ -164,41 +164,41 @@ function Row({ index, scan }: { index: number; scan: PublicScan }) {
       className="border-b border-[#547654]/30 hover:bg-[#4ade80]/5 transition-colors animate-fade-in-up"
       style={{ animationDelay: `${index * 40}ms`, animationFillMode: "both" }}
     >
-      <td className="px-3 py-2.5">
+      <td className="px-4 py-3">
         {rankDisplay ? (
-          <span className="text-gradient font-extrabold text-sm">
+          <span className="text-gradient font-extrabold text-base">
             {String(index).padStart(2, "0")}
           </span>
         ) : (
           <span className="text-[#8bb88b]">{String(index).padStart(2, "0")}</span>
         )}
       </td>
-      <td className="px-3 py-2.5">
+      <td className="px-4 py-3">
         <Link
           href={`/scan/${scan.id}`}
-          className="text-[#a8e6a8] no-underline font-mono hover:text-[#4ade80] transition-colors"
+          className="text-[#a8e6a8] no-underline font-mono text-sm hover:text-[#4ade80] transition-colors"
         >
           {shortAddr(scan.address)}
         </Link>
       </td>
-      <td className="px-3 py-2.5">
-        <span className="text-[#8bb88b] text-[11px]">{scan.network}</span>
+      <td className="px-4 py-3">
+        <span className="text-[#8bb88b] text-sm">{scan.network}</span>
       </td>
-      <td className="px-3 py-2.5 text-right">
-        <span className={`${tierColor} font-bold text-[13px]`}>
+      <td className="px-4 py-3 text-right">
+        <span className={`${tierColor} font-bold text-base`}>
           {scan.score != null ? scan.score.toFixed(0) : "—"}
         </span>
       </td>
-      <td className="px-3 py-2.5 text-right">
-        <span className="text-[#8bb88b] text-[11px]">{scan.findings_total}</span>
+      <td className="px-4 py-3 text-right">
+        <span className="text-[#8bb88b] text-sm">{scan.findings_total}</span>
       </td>
-      <td className="px-3 py-2.5">
-        <span className={`text-[11px] ${scan.author ? "text-[#8bb88b]" : "text-[#547654]"}`}>
+      <td className="px-4 py-3">
+        <span className={`text-sm ${scan.author ? "text-[#8bb88b]" : "text-[#547654]"}`}>
           {scan.author ? `@${scan.author}` : "аноним"}
         </span>
       </td>
-      <td className="px-3 py-2.5 text-right">
-        <span className="text-[#547654] text-[10px]">{relTime(scan.completed_at)}</span>
+      <td className="px-4 py-3 text-right">
+        <span className="text-[#547654] text-xs">{relTime(scan.completed_at)}</span>
       </td>
     </tr>
   );
