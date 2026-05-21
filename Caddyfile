@@ -1,0 +1,31 @@
+# wr3 API — Caddy reverse proxy with auto-HTTPS
+# Uses IP address with self-signed cert, or domain with Let's Encrypt.
+#
+# For IP-only (no domain): Cloudflare Workers can't verify self-signed certs,
+# so we use HTTP on port 80 and rely on Cloudflare's "Full" SSL mode
+# pointing to http://IP:80.
+#
+# When you have a domain: replace :80 with your.domain.com for auto-HTTPS.
+
+:80 {
+    # Reverse proxy to wr3-api container
+    reverse_proxy api:8000
+
+    # CORS headers for Cloudflare Workers frontend
+    header {
+        Access-Control-Allow-Origin *
+        Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+        Access-Control-Allow-Headers "Content-Type, Authorization"
+    }
+
+    # Health check endpoint
+    handle /health {
+        reverse_proxy api:8000
+    }
+
+    # Request logging
+    log {
+        output stdout
+        format console
+    }
+}

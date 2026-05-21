@@ -92,3 +92,4 @@ redis-data/
 /models/
 *.gguf
 *.safetensors
+.env.prod

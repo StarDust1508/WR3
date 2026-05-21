@@ -1,0 +1,114 @@
+# wr3 — Production docker-compose for VPS (Timeweb)
+# Usage:
+#   cd /opt/wr3
+#   cp .env.prod .env
+#   docker compose -f docker-compose.prod.yml up -d
+#   docker compose -f docker-compose.prod.yml exec api alembic upgrade head
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    container_name: wr3-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: wr3
+      POSTGRES_USER: wr3
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-wr3_prod_secret}
+    volumes:
+      - wr3-pgdata:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - wr3-backend
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wr3 -d wr3"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: wr3-redis
+    restart: unless-stopped
+    command: redis-server --save 60 1 --loglevel warning --requirepass ${REDIS_PASSWORD:-wr3_redis_secret}
+    volumes:
+      - wr3-redis-data:/data
+    networks:
+      - wr3-backend
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-wr3_redis_secret}", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: wr3-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      WR3_ENV: production
+      DATABASE_URL: postgresql+asyncpg://wr3:${POSTGRES_PASSWORD:-wr3_prod_secret}@postgres:5432/wr3
+      REDIS_URL: redis://:${REDIS_PASSWORD:-wr3_redis_secret}@redis:6379/0
+      NAVYAI_API_KEY: ${NAVYAI_API_KEY}
+      NAVYAI_BASE_URL: ${NAVYAI_BASE_URL:-https://api.navy/v1}
+      NAVYAI_DEFAULT_MODEL: ${NAVYAI_DEFAULT_MODEL:-claude-sonnet-4.6}
+      NAVYAI_CHEAP_MODEL: ${NAVYAI_CHEAP_MODEL:-gpt-4o-mini}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET:-}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
+      ETHERSCAN_API_KEY: ${ETHERSCAN_API_KEY:-}
+    ports:
+      - "127.0.0.1:8002:8000"  # Only localhost — Caddy proxies
+    networks:
+      - wr3-backend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # Foundry/Anvil for PoC sandbox
+  anvil:
+    image: ghcr.io/foundry-rs/foundry:latest
+    container_name: wr3-anvil
+    restart: unless-stopped
+    entrypoint: ["anvil", "--host", "0.0.0.0", "--port", "8545"]
+    networks:
+      - wr3-backend
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8545 -X POST -H 'Content-Type: application/json' -d '{\"jsonrpc\":\"2.0\",\"method\":\"eth_blockNumber\",\"params\":[],\"id\":1}' || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: wr3-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - wr3-caddy-data:/data
+      - wr3-caddy-config:/config
+    networks:
+      - wr3-backend
+    depends_on:
+      - api
+
+volumes:
+  wr3-pgdata:
+  wr3-redis-data:
+  wr3-caddy-data:
+  wr3-caddy-config:
+
+networks:
+  wr3-backend:
+    driver: bridge
