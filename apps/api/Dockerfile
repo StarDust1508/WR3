@@ -6,7 +6,7 @@ FROM python:3.13-slim AS builder
 
 # System deps for asyncpg, psycopg (C extensions), and tool downloads
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc libpq-dev git curl ca-certificates \
+    gcc libpq-dev git curl ca-certificates xz-utils \
     && rm -rf /var/lib/apt/lists/*
 
 # Install uv for fast dep resolution
@@ -38,10 +38,12 @@ RUN . .venv/bin/activate && \
     solc-select install 0.8.28 && solc-select use 0.8.28 \
     || echo "WARN: slither install failed, continuing without it"
 
-# Download aderyn binary (optional)
-RUN curl -fsSL -L -o /opt/tools/aderyn \
-    "https://github.com/Cyfrin/aderyn/releases/latest/download/aderyn-linux-amd64" \
+# Download aderyn binary (optional — tar.xz archive)
+RUN curl -fsSL -L -o /tmp/aderyn.tar.xz \
+    "https://github.com/Cyfrin/aderyn/releases/latest/download/aderyn-x86_64-unknown-linux-gnu.tar.xz" \
+    && tar -xf /tmp/aderyn.tar.xz -C /opt/tools/ \
     && chmod +x /opt/tools/aderyn \
+    && rm /tmp/aderyn.tar.xz \
     || echo "WARN: aderyn download failed, continuing without it"
 
 # --- Runtime stage ---
