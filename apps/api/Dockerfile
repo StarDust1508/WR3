@@ -29,16 +29,19 @@ COPY scripts/init-db.sql /app/scripts/init-db.sql
 WORKDIR /app/apps/api
 RUN uv sync --frozen --no-dev 2>/dev/null || uv sync --no-dev
 
+# Ensure directories exist for optional tools (so COPY in runtime stage always works)
+RUN mkdir -p /root/.solc-select /opt/tools
+
 # Install slither-analyzer + solc into the venv (optional — build continues if fails)
 RUN . .venv/bin/activate && \
-    pip install --no-cache-dir slither-analyzer solc-select 2>/dev/null && \
+    pip install --no-cache-dir slither-analyzer solc-select && \
     solc-select install 0.8.28 && solc-select use 0.8.28 \
     || echo "WARN: slither install failed, continuing without it"
 
 # Download aderyn binary (optional)
-RUN curl -fsSL -o /usr/local/bin/aderyn \
+RUN curl -fsSL -L -o /opt/tools/aderyn \
     "https://github.com/Cyfrin/aderyn/releases/latest/download/aderyn-linux-amd64" \
-    && chmod +x /usr/local/bin/aderyn \
+    && chmod +x /opt/tools/aderyn \
     || echo "WARN: aderyn download failed, continuing without it"
 
 # --- Runtime stage ---
@@ -57,14 +60,11 @@ COPY --from=builder /app /app
 # Copy the venv from builder (includes slither + solc-select)
 COPY --from=builder /app/apps/api/.venv /app/apps/api/.venv
 
-# Copy solc binaries (may not exist if slither install failed)
-RUN mkdir -p /home/wr3/.solc-select
+# Copy solc binaries (dir always exists even if empty)
 COPY --from=builder /root/.solc-select/ /home/wr3/.solc-select/
 
-# Copy aderyn binary if it was downloaded
-# Use a glob trick: copy from builder, ignore if missing
-RUN true
-COPY --from=builder /usr/local/bin/adery* /usr/local/bin/
+# Copy aderyn binary (dir always exists even if empty)
+COPY --from=builder /opt/tools/ /usr/local/bin/
 
 ENV PATH="/app/apps/api/.venv/bin:/home/wr3/.solc-select/artifacts/solc-0.8.28:/usr/local/bin:$PATH"
 ENV PYTHONPATH="/app/apps/api/src:/app/packages/audit-engine/src"
