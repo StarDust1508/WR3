@@ -1,12 +1,12 @@
 # wr3 API — production Dockerfile
 # Multi-stage build: install deps in builder, copy to slim runtime.
 
-# --- Stage 1: Python deps ---
+# --- Stage 1: Python deps + tools ---
 FROM python:3.13-slim AS builder
 
-# System deps for asyncpg, psycopg (C extensions)
+# System deps for asyncpg, psycopg (C extensions), and tool downloads
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc libpq-dev git \
+    gcc libpq-dev git curl ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 # Install uv for fast dep resolution
@@ -25,22 +25,21 @@ COPY apps/api/alembic /app/apps/api/alembic
 COPY apps/api/alembic.ini /app/apps/api/alembic.ini
 COPY scripts/init-db.sql /app/scripts/init-db.sql
 
-# Install deps
+# Install Python deps
 WORKDIR /app/apps/api
 RUN uv sync --frozen --no-dev 2>/dev/null || uv sync --no-dev
 
-# Install slither-analyzer into the venv
-RUN . .venv/bin/activate && pip install --no-cache-dir slither-analyzer solc-select 2>/dev/null; \
-    . .venv/bin/activate && solc-select install 0.8.28 && solc-select use 0.8.28 2>/dev/null; \
-    true
+# Install slither-analyzer + solc into the venv (optional — build continues if fails)
+RUN . .venv/bin/activate && \
+    pip install --no-cache-dir slither-analyzer solc-select 2>/dev/null && \
+    solc-select install 0.8.28 && solc-select use 0.8.28 \
+    || echo "WARN: slither install failed, continuing without it"
 
-# --- Stage 2: Aderyn binary (Rust) ---
-FROM debian:bookworm-slim AS aderyn-builder
-RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
-# Download pre-built aderyn binary
-RUN curl -fsSL https://github.com/Cyfrin/aderyn/releases/latest/download/aderyn-linux-amd64 \
-    -o /usr/local/bin/aderyn && chmod +x /usr/local/bin/aderyn 2>/dev/null || true
+# Download aderyn binary (optional)
+RUN curl -fsSL -o /usr/local/bin/aderyn \
+    "https://github.com/Cyfrin/aderyn/releases/latest/download/aderyn-linux-amd64" \
+    && chmod +x /usr/local/bin/aderyn \
+    || echo "WARN: aderyn download failed, continuing without it"
 
 # --- Runtime stage ---
 FROM python:3.13-slim AS runtime
@@ -57,11 +56,15 @@ COPY --from=builder /app /app
 
 # Copy the venv from builder (includes slither + solc-select)
 COPY --from=builder /app/apps/api/.venv /app/apps/api/.venv
-# Copy solc binaries
-COPY --from=builder /root/.solc-select /home/wr3/.solc-select
 
-# Copy aderyn binary
-COPY --from=aderyn-builder /usr/local/bin/aderyn /usr/local/bin/aderyn
+# Copy solc binaries (may not exist if slither install failed)
+RUN mkdir -p /home/wr3/.solc-select
+COPY --from=builder /root/.solc-select/ /home/wr3/.solc-select/
+
+# Copy aderyn binary if it was downloaded
+# Use a glob trick: copy from builder, ignore if missing
+RUN true
+COPY --from=builder /usr/local/bin/adery* /usr/local/bin/
 
 ENV PATH="/app/apps/api/.venv/bin:/home/wr3/.solc-select/artifacts/solc-0.8.28:/usr/local/bin:$PATH"
 ENV PYTHONPATH="/app/apps/api/src:/app/packages/audit-engine/src"
