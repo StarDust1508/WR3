@@ -21,7 +21,7 @@ import structlog
 from audit_engine.agents import MultiAgentTriage, TriageOrchestrator
 from audit_engine.analyzers import StaticAnalyzerRegistry
 from audit_engine.fuzzing import FuzzingOrchestrator
-from audit_engine.ingestion import SourceBundle, fetch_source
+from audit_engine.ingestion import SourceBundle, fetch_source_with_implementation
 from audit_engine.llm.router import AllProvidersExhaustedError
 from audit_engine.poc import PoCGenerator
 from audit_engine.scoring import compute_score
@@ -77,47 +77,104 @@ class AuditPipeline:
         """
         log = logger.bind(address=address, network=self.network)
 
-        # Stage 1 — Ingestion
+        # Stage 1 — Ingestion (with proxy implementation fetch)
         yield PipelineEvent(stage="queued", progress=2, message="Preparing")
 
         bundle: SourceBundle | None = None
+        source_code: str | None = None
+        has_source = False
+        source_truncated = False
+        original_source_len = 0
+        # Track which engines actually ran for coverage reporting.
+        engines_ran: list[str] = []
+        pre_dedup_count = 0
+
         if source:
             source_code = source
+            has_source = True
         else:
             yield PipelineEvent(
                 stage="queued", progress=5, message="Pulling verified source from explorer"
             )
-            bundle = await fetch_source(address=address, network=self.network)
-            if bundle is None or not bundle.primary_source:
-                yield PipelineEvent(
-                    stage="error",
-                    progress=0,
-                    message=(
-                        "Could not fetch verified source. Contract may be unverified, "
-                        "or the network is not yet supported. Paste source manually."
-                    ),
-                )
-                return
-            source_code = bundle.primary_source
-            if bundle.proxy and bundle.implementation:
-                logger.info(
-                    "pipeline.proxy_detected",
-                    proxy=address,
-                    implementation=bundle.implementation,
+            # fetch_source_with_implementation: if the contract is a proxy,
+            # automatically fetches implementation source too. This is critical
+            # for 70%+ of DeFi contracts which are behind proxies.
+            bundle = await fetch_source_with_implementation(
+                address=address, network=self.network
+            )
+            if bundle is not None and bundle.primary_source:
+                source_code = bundle.primary_source
+                has_source = True
+                if bundle.proxy and bundle.implementation:
+                    log.info(
+                        "pipeline.proxy_resolved",
+                        proxy=address,
+                        implementation=bundle.implementation,
+                        impl_source_len=len(source_code),
+                    )
+            else:
+                log.info("pipeline.no_source_enrichment_only", network=self.network)
+
+        # Track source size for truncation warnings.
+        if source_code:
+            original_source_len = len(source_code)
+            if original_source_len > 48_000:
+                source_truncated = True
+                log.warning(
+                    "pipeline.source_truncated",
+                    original_len=original_source_len,
+                    truncated_to=48_000,
+                    chars_invisible=original_source_len - 48_000,
                 )
 
         # Stage 2 — Static analysis (parallel)
         yield PipelineEvent(stage="static", progress=15, message="Running static analyzers")
-        static_findings = await StaticAnalyzerRegistry.run_all(
-            source=source_code, network=self.network
-        )
-        self.findings.extend(static_findings)
-        log.info("pipeline.static.done", count=len(static_findings))
+        if has_source:
+            static_findings = await StaticAnalyzerRegistry.run_all(
+                source=source_code, network=self.network
+            )
+            self.findings.extend(static_findings)
+            # Track which engines actually produced results.
+            engines_ran = list({f.source_engine for f in static_findings})
+            log.info("pipeline.static.done", count=len(static_findings), engines=engines_ran)
+
+            # Cross-engine deduplication: merge findings from different engines
+            # that describe the same vulnerability at the same location.
+            from audit_engine.dedup import deduplicate_findings
+            pre_dedup_count = len(self.findings)
+            self.findings = deduplicate_findings(self.findings)
+            if pre_dedup_count != len(self.findings):
+                log.info(
+                    "pipeline.dedup",
+                    before=pre_dedup_count,
+                    after=len(self.findings),
+                    merged=pre_dedup_count - len(self.findings),
+                )
+
+            # Network-aware confidence adjustment
+            from audit_engine.analyzers.network_context import (
+                adjust_confidence_for_network,
+                generate_l2_warnings,
+            )
+
+            self.findings = adjust_confidence_for_network(self.findings, self.network)
+            l2_warnings = generate_l2_warnings(self.network)
+            if l2_warnings:
+                self.findings.extend(l2_warnings)
+                log.info(
+                    "pipeline.l2_warnings_added",
+                    count=len(l2_warnings),
+                    network=self.network,
+                )
+        else:
+            log.info("pipeline.static.skipped_no_source")
 
         # Stage 3 — LLM triage (multi-agent, single-call for cost)
         yield PipelineEvent(stage="triage", progress=40, message="LLM triage filtering FP")
         llm_available = True
-        if self._triage is not None and self.findings:
+        if not has_source:
+            log.info("pipeline.triage.skipped_no_source")
+        elif self._triage is not None and self.findings:
             try:
                 self.findings = await self._triage.run(self.findings, source=source_code)
                 log.info(
@@ -135,7 +192,9 @@ class AuditPipeline:
 
         # Stage 4 — Foundry PoC generation for HIGH/CRITICAL findings.
         yield PipelineEvent(stage="poc", progress=60, message="Generating PoCs for high-severity")
-        if self._poc is not None and llm_available:
+        if not has_source:
+            log.info("pipeline.poc.skipped_no_source")
+        elif self._poc is not None and llm_available:
             try:
                 targets = [
                     f for f in self.findings
@@ -185,11 +244,14 @@ class AuditPipeline:
 
         # Stage 5 — AI-fuzzing with LLM-generated invariants.
         yield PipelineEvent(stage="fuzzing", progress=80, message="AI-fuzzing invariants")
-        if self._fuzzing is not None and llm_available:
+        if not has_source:
+            log.info("pipeline.fuzzing.skipped_no_source")
+        elif self._fuzzing is not None and llm_available:
             try:
                 outcome = await self._fuzzing.run(
                     scan_id=self.scan_id or "ad-hoc",
                     source=source_code,
+                    existing_findings=self.findings,
                 )
                 if outcome.new_findings:
                     self.findings.extend(outcome.new_findings)
@@ -232,6 +294,57 @@ class AuditPipeline:
             findings=self.findings,
         )
 
+        # Coverage metadata: tell the user which engines actually ran and
+        # whether source was truncated. This prevents false confidence when
+        # only baseline regex ran (because Slither/Aderyn/Wake aren't installed).
+        all_expected_engines = (
+            ["baseline", "aderyn", "wake", "slither"]
+            if self.network != "solana"
+            else ["solana-sealevel"]
+        )
+        coverage_info = {
+            "engines_ran": engines_ran,
+            "engines_expected": all_expected_engines,
+            "engines_missing": [e for e in all_expected_engines if e not in engines_ran],
+            "source_chars": original_source_len,
+            "source_truncated": source_truncated,
+            "llm_triage": llm_available and self.triage_enabled,
+            "poc_enabled": self.poc_enabled,
+            "fuzzing_enabled": self.fuzzing_enabled,
+            "proxy_resolved": bundle.proxy if bundle else False,
+            "implementation_address": bundle.implementation if bundle and bundle.proxy else None,
+            "findings_before_dedup": pre_dedup_count if has_source else 0,
+            "findings_after_dedup": len(self.findings) if has_source else 0,
+            "network_aware": self.network != "solana",  # Solana has its own analyzer
+        }
+        self._report.chain_metadata = {
+            **(self._report.chain_metadata or {}),
+            "coverage": coverage_info,
+        }
+
+        # Warn in metadata if coverage is degraded.
+        warnings: list[str] = []
+        if coverage_info["engines_missing"]:
+            missing = ", ".join(coverage_info["engines_missing"])
+            warnings.append(
+                f"Static analyzers not available: {missing}. "
+                "Install them for deeper analysis."
+            )
+        if source_truncated:
+            warnings.append(
+                f"Source code ({original_source_len:,} chars) was truncated to 48,000 chars "
+                f"for LLM analysis. {original_source_len - 48_000:,} chars were not reviewed "
+                "by AI triage."
+            )
+        if not llm_available:
+            warnings.append(
+                "LLM provider unavailable — triage, PoC generation, and fuzzing were skipped. "
+                "Raw static-analysis findings only."
+            )
+        if warnings:
+            self._report.chain_metadata["audit_warnings"] = warnings
+            log.warning("pipeline.coverage_warnings", warnings=warnings)
+
         # Chain-metadata enrichment. For Solana programs we pull
         # executable / upgrade-authority / last-upgrade-slot via public RPC
         # — works even when source code was pasted by the user, because
@@ -239,12 +352,81 @@ class AuditPipeline:
         # never blocks the report.
         if self.network == "solana":
             try:
+                import asyncio
+
+                from audit_engine.enrichment.dexscreener import (
+                    compute_liquidity_score as compute_dex_liquidity_score,
+                )
+                from audit_engine.enrichment.dexscreener import (
+                    fetch_liquidity_signals,
+                )
+                from audit_engine.enrichment.holder_concentration import (
+                    compute_concentration_score,
+                    fetch_holder_signals,
+                )
                 from audit_engine.ingestion.solana_metadata import SolanaMetadataFetcher
-                meta = await SolanaMetadataFetcher().fetch(address)
-                if meta is not None:
-                    self._report.chain_metadata = meta.to_dict()
+                from audit_engine.scoring import AXIS_WEIGHTS_TARGET
+                from audit_engine.types import ScoreAxis
+
+                meta_result, dex_signals, holder_signals = await asyncio.gather(
+                    SolanaMetadataFetcher().fetch(address),
+                    fetch_liquidity_signals(address=address, network=self.network),
+                    fetch_holder_signals(address=address, network=self.network),
+                    return_exceptions=True,
+                )
+
+                if isinstance(meta_result, BaseException):
+                    log.warning("pipeline.solana_metadata_failed", error=str(meta_result))
+                    meta_result = None
+                if isinstance(dex_signals, BaseException):
+                    log.warning("pipeline.dexscreener_failed", error=str(dex_signals))
+                    dex_signals = None
+                if isinstance(holder_signals, BaseException):
+                    log.warning("pipeline.holder_concentration_failed", error=str(holder_signals))
+                    holder_signals = None
+
+                if meta_result is not None:
+                    self._report.chain_metadata = meta_result.to_dict()
+
+                chain_meta_updates: dict = {}
+                if dex_signals is not None:
+                    chain_meta_updates["dex_liquidity"] = dex_signals
+                if holder_signals is not None:
+                    chain_meta_updates["holder_concentration"] = holder_signals
+                if chain_meta_updates:
+                    self._report.chain_metadata = {
+                        **(self._report.chain_metadata or {}),
+                        **chain_meta_updates,
+                    }
+
+                dex_liq = await compute_dex_liquidity_score(dex_signals) if dex_signals else None
+                holder_sc = compute_concentration_score(holder_signals) if holder_signals else None
+
+                def _activate_sol(axis: ScoreAxis, result: tuple[float, str] | None) -> ScoreAxis:
+                    if result is None:
+                        return axis
+                    score, rationale = result
+                    return ScoreAxis(
+                        name=axis.name,
+                        weight=AXIS_WEIGHTS_TARGET[axis.name],
+                        score=score,
+                        rationale=rationale,
+                    )
+
+                new_axes: list[ScoreAxis] = []
+                for axis in self._report.axes:
+                    if axis.name == "Liquidity Risk":
+                        new_axes.append(_activate_sol(axis, dex_liq))
+                    elif axis.name == "Tokenomics / Centralization":
+                        new_axes.append(_activate_sol(axis, holder_sc))
+                    else:
+                        new_axes.append(axis)
+                self._report.axes = new_axes
+
+                if any((dex_liq, holder_sc)):
+                    self._report = _recompute_weighted_score(self._report)
             except Exception as e:
-                log.warning("pipeline.solana_metadata_failed", error=str(e))
+                log.warning("pipeline.solana_enrichment_failed", error=str(e))
         else:
             # EVM Tokenomics axis: enrich via GoPlus Security. Free public
             # API, no key required at our request volume. The scoring

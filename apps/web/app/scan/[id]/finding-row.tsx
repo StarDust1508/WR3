@@ -25,7 +25,13 @@ interface FindingRowProps {
     dismissed: boolean;
     poc_validated?: boolean;
     poc_path?: string | null;
-    metadata?: { similar_incidents?: SimilarIncident[] } | null;
+    metadata?: {
+      similar_incidents?: SimilarIncident[];
+      engines?: string[];
+      dedup_merged_count?: number;
+      confirms?: string[];
+      network_adjustment?: { network: string; original_confidence: number; multiplier: number };
+    } | null;
   };
 }
 
@@ -66,7 +72,7 @@ export function FindingRow({ finding }: FindingRowProps) {
   const confidencePct = Math.round(finding.confidence * 100);
 
   return (
-    <div className="glass-card hover-lift overflow-hidden transition-all duration-200">
+    <div className="glass-card overflow-hidden transition-all duration-200">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -96,6 +102,13 @@ export function FindingRow({ finding }: FindingRowProps) {
               />
             </svg>
             PoC
+          </span>
+        )}
+
+        {/* Multi-engine confirmation badge */}
+        {(finding.metadata?.engines?.length ?? 0) > 1 && (
+          <span className="flex items-center gap-1 rounded-md border border-blue-400/30 bg-blue-400/10 px-2 py-0.5 text-xs font-semibold text-blue-400">
+            {finding.metadata!.engines!.length}x
           </span>
         )}
 
@@ -155,13 +168,36 @@ export function FindingRow({ finding }: FindingRowProps) {
             )}
             <div className="flex items-center gap-1.5">
               <span className="text-[#547654]">Engine:</span>
-              <span className="font-mono text-[#8bb88b]">{finding.source_engine}</span>
+              <span className="font-mono text-[#8bb88b]">
+                {(finding.metadata?.engines?.length ?? 0) > 1
+                  ? finding.metadata!.engines!.join(" + ")
+                  : finding.source_engine}
+              </span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="text-[#547654]">Confidence:</span>
               <span className="font-mono text-[#4ade80]">{confidencePct}%</span>
+              {finding.metadata?.network_adjustment && (
+                <span className="text-blue-400" title={`Network ${finding.metadata.network_adjustment.network}: x${finding.metadata.network_adjustment.multiplier}`}>
+                  (adj.)
+                </span>
+              )}
             </div>
           </div>
+
+          {/* Cross-engine confirmations */}
+          {(finding.metadata?.confirms?.length ?? 0) > 0 && (
+            <div className="mt-3 rounded-lg border border-blue-400/20 bg-blue-400/5 p-3">
+              <p className="mb-2 text-xs font-semibold text-blue-400">
+                Подтверждено другими движками:
+              </p>
+              {finding.metadata!.confirms!.map((c, i) => (
+                <p key={i} className="mb-1 text-xs leading-relaxed text-[#8bb88b]">
+                  {c}
+                </p>
+              ))}
+            </div>
+          )}
 
           {/* Similar Incidents */}
           {(finding.metadata?.similar_incidents?.length ?? 0) > 0 && (

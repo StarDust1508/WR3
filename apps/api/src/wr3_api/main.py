@@ -1,3 +1,4 @@
+import asyncio
 from contextlib import asynccontextmanager
 
 import sentry_sdk
@@ -22,10 +23,21 @@ if _settings.sentry_dsn:
     )
 
 
+async def _startup_refresh_incidents() -> None:
+    """Fire-and-forget incident scraper on startup so the feed is fresh."""
+    try:
+        from wr3_api.workers.incident_worker import _run_refresh
+        stats = await _run_refresh()
+        logger.info("startup.incidents_refreshed", **stats)
+    except Exception as e:
+        logger.warning("startup.incidents_failed", error=str(e))
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings = get_settings()
     logger.info("api.startup", env=settings.wr3_env)
+    asyncio.create_task(_startup_refresh_incidents())
     yield
     logger.info("api.shutdown")
 

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { TRAFFIC_LIGHT, type Tier } from "@wr3/shared";
-import { FindingRow } from "./finding-row";
+import { FindingGroups } from "./finding-group";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +22,22 @@ interface ScanDetail {
       upgradeable?: boolean;
       upgrade_authority?: string | null;
       last_upgrade_slot?: number | null;
+      coverage?: {
+        engines_ran?: string[];
+        engines_expected?: string[];
+        engines_missing?: string[];
+        source_chars?: number;
+        source_truncated?: boolean;
+        llm_triage?: boolean;
+        poc_enabled?: boolean;
+        fuzzing_enabled?: boolean;
+        proxy_resolved?: boolean;
+        implementation_address?: string | null;
+        network_aware?: boolean;
+        findings_before_dedup?: number;
+        findings_after_dedup?: number;
+      };
+      audit_warnings?: string[];
     };
     disclaimer?: string;
   } | null;
@@ -127,13 +143,23 @@ export default async function ScanDetailPage({
             {scan.duration_seconds != null && ` · ${scan.duration_seconds.toFixed(1)}с`}
           </p>
           <a
-            href={`${process.env.NEXT_PUBLIC_API_URL ?? ""}/v1/scan/${scan.id}/report.md`}
+            href={`/api/v1/scan/${scan.id}/report.md`}
             className="mt-3 inline-block rounded-full border border-[#4ade80]/30 bg-[#4ade80]/5 px-4 py-1.5 text-xs text-[#4ade80] transition-all hover:border-[#4ade80]/60 hover:bg-[#4ade80]/10 hover:shadow-[0_0_12px_rgba(74,222,128,0.15)]"
             download
           >
             ↓ скачать отчёт
           </a>
         </header>
+
+        {/* Audit Warnings */}
+        {scan.report?.chain_metadata?.audit_warnings && scan.report.chain_metadata.audit_warnings.length > 0 && (
+          <AuditWarnings warnings={scan.report.chain_metadata.audit_warnings} />
+        )}
+
+        {/* Coverage + Proxy Banner */}
+        <CoverageBanner
+          coverage={scan.report?.chain_metadata?.coverage}
+        />
 
         {/* Solana Metadata */}
         {scan.report?.chain_metadata?.executable !== undefined && (
@@ -238,17 +264,7 @@ export default async function ScanDetailPage({
               на триаже.
             </p>
           ) : (
-            <ul className="space-y-3">
-              {active.map((f, i) => (
-                <li
-                  key={f.id}
-                  className="animate-fade-in-up"
-                  style={{ animationDelay: `${i * 60}ms` }}
-                >
-                  <FindingRow finding={f} />
-                </li>
-              ))}
-            </ul>
+            <FindingGroups findings={active} />
           )}
         </section>
 
@@ -258,17 +274,9 @@ export default async function ScanDetailPage({
             <h2 className="mb-5 text-lg font-semibold text-[#547654]">
               Отфильтровано триажом ({dismissed.length})
             </h2>
-            <ul className="space-y-3 opacity-50">
-              {dismissed.map((f, i) => (
-                <li
-                  key={f.id}
-                  className="animate-fade-in-up"
-                  style={{ animationDelay: `${i * 60}ms` }}
-                >
-                  <FindingRow finding={f} />
-                </li>
-              ))}
-            </ul>
+            <div className="opacity-50">
+              <FindingGroups findings={dismissed} />
+            </div>
           </section>
         )}
 
@@ -283,6 +291,171 @@ export default async function ScanDetailPage({
         </footer>
       </div>
     </main>
+  );
+}
+
+function AuditWarnings({ warnings }: { warnings: string[] }) {
+  return (
+    <section className="mb-6 animate-fade-in-up">
+      <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
+        <div className="mb-2 flex items-center gap-2">
+          <svg className="h-4 w-4 text-amber-400" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.168 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 6a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 6zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+          </svg>
+          <span className="text-xs font-semibold uppercase tracking-widest text-amber-400">
+            Предупреждения аудита
+          </span>
+        </div>
+        <ul className="space-y-1">
+          {warnings.map((w, i) => (
+            <li key={i} className="text-sm text-amber-200/80">
+              {w}
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
+  );
+}
+
+function CoverageBanner({
+  coverage,
+}: {
+  coverage?: {
+    engines_ran?: string[];
+    engines_expected?: string[];
+    engines_missing?: string[];
+    source_chars?: number;
+    source_truncated?: boolean;
+    llm_triage?: boolean;
+    poc_enabled?: boolean;
+    fuzzing_enabled?: boolean;
+    proxy_resolved?: boolean;
+    implementation_address?: string | null;
+    network_aware?: boolean;
+    findings_before_dedup?: number;
+    findings_after_dedup?: number;
+  };
+}) {
+  if (!coverage) return null;
+
+  const enginesRan = coverage.engines_ran ?? [];
+  const enginesExpected = coverage.engines_expected ?? [];
+  const enginesMissing = coverage.engines_missing ?? [];
+  const sourceChars = coverage.source_chars ?? 0;
+  const truncated = coverage.source_truncated ?? false;
+  const proxyResolved = coverage.proxy_resolved ?? false;
+  const implAddress = coverage.implementation_address;
+  const llmTriage = coverage.llm_triage ?? false;
+  const pocEnabled = coverage.poc_enabled ?? false;
+  const fuzzingEnabled = coverage.fuzzing_enabled ?? false;
+  const networkAware = coverage.network_aware ?? false;
+  const beforeDedup = coverage.findings_before_dedup;
+  const afterDedup = coverage.findings_after_dedup;
+  const dedupMerged = beforeDedup != null && afterDedup != null ? beforeDedup - afterDedup : 0;
+
+  return (
+    <section className="mb-6 animate-fade-in-up">
+      <div className="rounded-xl border border-[#1a2e1a] bg-[#0c120c] p-4">
+        <div className="mb-3 flex items-center gap-2">
+          <svg className="h-4 w-4 text-[#4ade80]" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+          </svg>
+          <span className="text-xs font-semibold uppercase tracking-widest text-[#8bb88b]">
+            Покрытие анализа
+          </span>
+        </div>
+
+        {/* Proxy badge */}
+        {proxyResolved && implAddress && (
+          <div className="mb-3 flex items-center gap-2 rounded-lg border border-[#4ade80]/20 bg-[#4ade80]/5 px-3 py-2">
+            <span className="text-xs font-semibold text-[#4ade80]">PROXY</span>
+            <span className="text-xs text-[#8bb88b]">→</span>
+            <span className="font-mono text-xs text-[#d4ffd4]">
+              {implAddress.slice(0, 10)}...{implAddress.slice(-8)}
+            </span>
+            <span className="text-xs text-[#547654]">implementation проанализирован</span>
+          </div>
+        )}
+
+        {/* Engine status grid */}
+        <div className="flex flex-wrap gap-2 mb-3">
+          {enginesExpected.map((engine) => {
+            const ran = enginesRan.includes(engine);
+            return (
+              <div
+                key={engine}
+                className={[
+                  "flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium",
+                  ran
+                    ? "border-[#4ade80]/30 bg-[#4ade80]/10 text-[#4ade80]"
+                    : "border-red-500/30 bg-red-500/10 text-red-400",
+                ].join(" ")}
+              >
+                {ran ? (
+                  <svg className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                ) : (
+                  <svg className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                )}
+                {engine}
+              </div>
+            );
+          })}
+
+          {/* LLM / PoC / Fuzzing badges */}
+          <div className={[
+            "flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium",
+            llmTriage
+              ? "border-[#4ade80]/30 bg-[#4ade80]/10 text-[#4ade80]"
+              : "border-[#547654]/30 bg-[#547654]/10 text-[#547654]",
+          ].join(" ")}>
+            {llmTriage ? "✓" : "✗"} LLM triage
+          </div>
+          <div className={[
+            "flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium",
+            pocEnabled
+              ? "border-[#4ade80]/30 bg-[#4ade80]/10 text-[#4ade80]"
+              : "border-[#547654]/30 bg-[#547654]/10 text-[#547654]",
+          ].join(" ")}>
+            {pocEnabled ? "✓" : "✗"} PoC gen
+          </div>
+          <div className={[
+            "flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium",
+            fuzzingEnabled
+              ? "border-[#4ade80]/30 bg-[#4ade80]/10 text-[#4ade80]"
+              : "border-[#547654]/30 bg-[#547654]/10 text-[#547654]",
+          ].join(" ")}>
+            {fuzzingEnabled ? "✓" : "✗"} Fuzzing
+          </div>
+          {networkAware && (
+            <div className="flex items-center gap-1.5 rounded-lg border border-blue-400/30 bg-blue-400/10 px-3 py-1.5 text-xs font-medium text-blue-400">
+              ✓ Network-aware
+            </div>
+          )}
+        </div>
+
+        {/* Source info + dedup stats */}
+        <div className="flex items-center gap-4 text-xs text-[#547654]">
+          <span>
+            Исходный код: {sourceChars > 0 ? `${(sourceChars / 1000).toFixed(1)}K символов` : "не найден"}
+          </span>
+          {truncated && (
+            <span className="rounded border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-amber-400">
+              обрезан до 48K для LLM
+            </span>
+          )}
+          {dedupMerged > 0 && (
+            <span className="rounded border border-[#4ade80]/20 bg-[#4ade80]/5 px-2 py-0.5 text-[#4ade80]">
+              {dedupMerged} дубликатов объединено
+            </span>
+          )}
+        </div>
+      </div>
+    </section>
   );
 }
 

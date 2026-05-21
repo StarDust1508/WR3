@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 from sse_starlette.sse import EventSourceResponse
 
 from wr3_api.auth import current_user_optional, current_user_required
+from wr3_api.config import get_settings
 from wr3_api.models import User
 from wr3_api.services import quota
 from wr3_api.services import report_markdown as md
@@ -42,38 +43,33 @@ async def create_scan(
     if not req.address.strip():
         raise HTTPException(status_code=400, detail="address required")
 
-    # Tier-based quota gate. For authenticated users, the tier comes off
-    # `user.tier` (kept in sync by the Stars subscription path). For
-    # anonymous calls we apply the strictest free-tier limit keyed by IP.
-    # See services/quota.py for the per-tier numbers.
     tier = user.tier if user else "free"
     client_ip = _real_client_ip(request)
-    check = await quota.check_and_increment_scan(
-        user_id=user.id if user else None,
-        tier=tier,
-        client_ip=client_ip,
-    )
-    if not check.allowed:
-        # 429 with a Retry-After tells well-behaved clients (including
-        # the Mini App) exactly when to back off. The body has structured
-        # detail so the UI can render a useful upgrade prompt instead of
-        # a generic error.
-        raise HTTPException(
-            status_code=429,
-            detail={
-                "error": "tier_quota_exceeded",
-                "tier": check.tier,
-                "used": check.used,
-                "limit": check.limit,
-                "retry_after_seconds": check.retry_after_seconds,
-                "message": (
-                    f"Лимит тарифа {check.tier!r} исчерпан "
-                    f"({check.used}/{check.limit}). "
-                    "Подождите или обновите тариф в Mini App."
-                ),
-            },
-            headers={"Retry-After": str(check.retry_after_seconds or 60)},
+
+    settings = get_settings()
+    if not settings.is_local:
+        check = await quota.check_and_increment_scan(
+            user_id=user.id if user else None,
+            tier=tier,
+            client_ip=client_ip,
         )
+        if not check.allowed:
+            raise HTTPException(
+                status_code=429,
+                detail={
+                    "error": "tier_quota_exceeded",
+                    "tier": check.tier,
+                    "used": check.used,
+                    "limit": check.limit,
+                    "retry_after_seconds": check.retry_after_seconds,
+                    "message": (
+                        f"Лимит тарифа {check.tier!r} исчерпан "
+                        f"({check.used}/{check.limit}). "
+                        "Подождите или обновите тариф в Mini App."
+                    ),
+                },
+                headers={"Retry-After": str(check.retry_after_seconds or 60)},
+            )
 
     job_id = str(uuid4())
     await enqueue_scan(
@@ -90,8 +86,6 @@ async def create_scan(
         address=req.address,
         user_id=str(user.id) if user else None,
         tier=tier,
-        quota_used=check.used,
-        quota_limit=check.limit,
     )
     return ScanResponse(job_id=job_id, status="queued")
 

@@ -73,14 +73,10 @@ def parse_and_verify_initdata(
     if not received_hash:
         raise InitDataError("missing hash field")
 
-    # Newer Telegram WebApp clients (2025+) also send an Ed25519 `signature`
-    # field for forward-compatibility with bot-API third-party access. Per
-    # the spec, BOTH `hash` and `signature` MUST be excluded from the
-    # data-check-string used for HMAC verification — otherwise clients
-    # that send `signature` will fail with a bogus mismatch. We don't
-    # verify Ed25519 here (that's the bot-API third-party path), but we
-    # must not let it corrupt the HMAC input.
-    pairs.pop("signature", None)
+    # Telegram WebApp clients (2025+) also send an Ed25519 `signature`
+    # field. As of 2026, Telegram includes `signature` in the HMAC
+    # data-check-string — only `hash` is excluded. Removing `signature`
+    # causes a mismatch on modern clients. Keep it in `pairs`.
 
     data_check_string = "\n".join(
         f"{k}={pairs[k]}" for k in sorted(pairs.keys())

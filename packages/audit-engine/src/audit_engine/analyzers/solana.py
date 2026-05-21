@@ -217,6 +217,307 @@ _RULES: tuple[_Rule, ...] = (
         ),
         confidence=0.55,
     ),
+
+    # ── P1 RULES — Real Solana hack patterns (2022-2026) ───────────────
+
+    # Mango Markets $114M (2022) — remaining_accounts abuse
+    _Rule(
+        rule_id="remaining-accounts-abuse",
+        title="Unchecked remaining_accounts — injection vector",
+        severity=Severity.HIGH,
+        pattern=re.compile(
+            r"\bctx\.remaining_accounts\b",
+        ),
+        description=(
+            "ctx.remaining_accounts provides untyped, unchecked accounts that bypass "
+            "Anchor's account validation. An attacker can inject arbitrary accounts "
+            "through this vector. The Mango Markets exploit ($114M) used remaining_accounts "
+            "to inject fabricated oracle accounts. Always validate: check owner, check "
+            "discriminator, bound the length, and verify account keys against expected values."
+        ),
+        confidence=0.6,
+    ),
+
+    # Common Anchor footgun — re-initialization
+    _Rule(
+        rule_id="init-if-needed-reinit",
+        title="init_if_needed allows re-initialization",
+        severity=Severity.HIGH,
+        pattern=re.compile(
+            r"#\[account\([^)]*init_if_needed",
+        ),
+        description=(
+            "#[account(init_if_needed)] will skip initialization if the account already "
+            "exists AND has the correct discriminator. But if the account was closed and "
+            "re-funded in the same transaction, the discriminator may be zeroed, allowing "
+            "re-initialization with attacker-controlled data. Use explicit init + check "
+            "for account existence separately."
+        ),
+        confidence=0.65,
+    ),
+
+    # Cetus $223M (May 2025, Sui but same pattern in Rust) — arithmetic overflow
+    _Rule(
+        rule_id="unsafe-arithmetic-cast",
+        title="Unsafe arithmetic cast — potential overflow/truncation",
+        severity=Severity.MEDIUM,
+        pattern=re.compile(
+            r"\bas\s+(?:u8|u16|u32|u64|u128|i8|i16|i32|i64|i128)\b",
+        ),
+        description=(
+            "Rust's `as` keyword performs truncating casts without overflow checks. "
+            "In math-heavy code (AMM formulas, price calculations), this can silently "
+            "truncate large values, leading to incorrect computations. The Cetus exploit "
+            "($223M, 2025) used exactly this: a checked_shl that didn't properly catch "
+            "truncation. Use try_from() or checked_* methods instead of `as`."
+        ),
+        confidence=0.3,
+    ),
+
+    # Account reloading — stale cache after CPI
+    _Rule(
+        rule_id="account-reload-after-cpi",
+        title="Account data may be stale after CPI — reload required",
+        severity=Severity.MEDIUM,
+        pattern=re.compile(
+            r"invoke(?:_signed)?\s*\([^)]+\)[^;]*;[^}]{0,500}\.data\.borrow\(\)",
+            re.DOTALL,
+        ),
+        description=(
+            "After a CPI (invoke/invoke_signed), the called program may have modified "
+            "account data. If this program cached account data before the CPI and reads "
+            "the stale cache afterwards, it operates on outdated state. Reload account "
+            "data after any CPI that modifies accounts you depend on."
+        ),
+        confidence=0.4,
+    ),
+
+    # ── P2 RULES — Extended Solana/Anchor vulnerability patterns ─────────
+
+    # CRITICAL severity rules
+
+    _Rule(
+        rule_id="missing-spl-token-check",
+        title="Raw AccountInfo for token account without SPL Token owner verification",
+        severity=Severity.CRITICAL,
+        pattern=re.compile(
+            r"\bAccountInfo[^;]{0,80}(?:unpack_unchecked|unpack_account|unpack\s*\(|try_from_slice|data\.borrow)",
+            re.DOTALL,
+        ),
+        description=(
+            "Token account accessed via raw AccountInfo and deserialized manually without "
+            "verifying that the account owner is spl_token::ID. An attacker can pass a "
+            "fake token account owned by their own program with fabricated balances and "
+            "authorities. The Cashio exploit ($48M, 2022) exploited missing token account "
+            "validation. Fix: use Anchor's Account<'info, TokenAccount> (which validates "
+            "owner automatically) or assert `account.owner == &spl_token::id()` before "
+            "deserialization."
+        ),
+        confidence=0.55,
+    ),
+    _Rule(
+        rule_id="missing-rent-exempt-check",
+        title="Account created without rent exemption check",
+        severity=Severity.CRITICAL,
+        pattern=re.compile(
+            r"create_account[^;]{0,1000}(?![\s\S]{0,1000}(?:is_rent_exempt|rent::Rent|Rent::get))",
+            re.DOTALL,
+        ),
+        description=(
+            "system_instruction::create_account is called without verifying rent exemption "
+            "via Rent::get() / is_rent_exempt(). If the account is not rent-exempt, the "
+            "Solana runtime will garbage-collect it after ~2 epochs, causing permanent data "
+            "loss and potential denial of service. Fix: calculate minimum lamports with "
+            "Rent::get()?.minimum_balance(data_len) and pass that to create_account, or "
+            "use Anchor's init constraint which handles rent automatically."
+        ),
+        confidence=0.45,
+    ),
+    _Rule(
+        rule_id="pda-off-curve-confusion",
+        title="create_program_address used instead of find_program_address",
+        severity=Severity.CRITICAL,
+        pattern=re.compile(
+            r"\bcreate_program_address\s*\(",
+        ),
+        description=(
+            "create_program_address does NOT search for a valid off-curve point — it tries "
+            "a single bump and fails if the result is on the ed25519 curve. If user-supplied "
+            "seeds are used, an attacker can craft seeds that produce an on-curve address, "
+            "causing the instruction to fail (DoS) or — worse — producing an address with a "
+            "known private key. The Wormhole exploit ($320M, 2022) involved PDA derivation "
+            "issues. Fix: always use find_program_address which iterates bumps to guarantee "
+            "an off-curve result, and store/verify the canonical bump."
+        ),
+        confidence=0.6,
+    ),
+
+    # HIGH severity rules
+
+    _Rule(
+        rule_id="token-2022-hook-reentrancy",
+        title="Token-2022 transfer hooks can re-enter the program",
+        severity=Severity.HIGH,
+        pattern=re.compile(
+            r"\b(?:spl_token_2022|token_2022|Token2022)\b",
+        ),
+        description=(
+            "This program uses Token-2022 (SPL Token Extensions). Token-2022 transfer hooks "
+            "execute arbitrary code during transfers, creating a reentrancy vector similar to "
+            "EVM's ERC-777 callbacks. If program state is modified before issuing a Token-2022 "
+            "transfer, the hook can re-enter and observe intermediate state. Fix: follow "
+            "checks-effects-interactions pattern — update all state BEFORE issuing the transfer "
+            "CPI. Consider using reentrancy guards (mutex flags in account data) for critical "
+            "sections."
+        ),
+        confidence=0.35,
+    ),
+    _Rule(
+        rule_id="missing-freeze-authority-check",
+        title="Mint account freeze_authority not verified",
+        severity=Severity.HIGH,
+        pattern=re.compile(
+            r"\bMint<'info>",
+        ),
+        description=(
+            "Mint<'info> is used without verifying freeze_authority. If a protocol accepts "
+            "arbitrary mints (e.g., as collateral or LP tokens), an attacker can create a mint "
+            "where they control freeze_authority, deposit tokens, then freeze the protocol's "
+            "token account — permanently locking funds. This was seen in multiple DeFi rug-pull "
+            "patterns. Fix: assert freeze_authority is None or matches a trusted value, or "
+            "maintain an allowlist of accepted mints."
+        ),
+        confidence=0.3,
+    ),
+    _Rule(
+        rule_id="cpi-missing-signer-seeds",
+        title="CPI invoke() used where invoke_signed() may be needed for PDA",
+        severity=Severity.HIGH,
+        pattern=re.compile(
+            r"\binvoke\s*\(\s*&(?!.*invoke_signed)",
+        ),
+        description=(
+            "invoke() is called (not invoke_signed) in a context where the program likely "
+            "needs to sign as a PDA. If the CPI target expects a PDA-derived signer, invoke() "
+            "will fail or — worse — the instruction might succeed with an unintended signer, "
+            "leading to unauthorized actions. The Crema Finance exploit ($8.7M, 2022) involved "
+            "CPI authority confusion. Fix: use invoke_signed() with the correct PDA seeds "
+            "when the program must act as a signer in the CPI call."
+        ),
+        confidence=0.4,
+    ),
+    _Rule(
+        rule_id="account-data-not-validated-after-deser",
+        title="Account deserialized without subsequent data validation",
+        severity=Severity.HIGH,
+        pattern=re.compile(
+            r"(?:try_from_slice|try_deserialize|AnchorDeserialize::deserialize)\s*\([^)]*\)[^;]{0,500}(?!(?:require!|assert!|if\s+.*return\s+Err))",
+            re.DOTALL,
+        ),
+        description=(
+            "Account data is deserialized but not validated afterwards. Deserializing raw "
+            "bytes only proves the data fits the struct layout — it does NOT prove the data "
+            "is semantically valid (e.g., amounts are within range, pubkeys match expected "
+            "values, timestamps are not in the past). An attacker can craft accounts with "
+            "valid structure but malicious field values. Fix: immediately after deserialization, "
+            "use require!() or assert!() to validate all fields that affect program logic."
+        ),
+        confidence=0.35,
+    ),
+    _Rule(
+        rule_id="missing-close-constraint",
+        title="Manual account close without Anchor close constraint",
+        severity=Severity.HIGH,
+        pattern=re.compile(
+            r"\*\*dest\.lamports\.borrow_mut\(\).*\+=.*\*\*source\.lamports\.borrow_mut\(\)",
+            re.DOTALL,
+        ),
+        description=(
+            "Account is closed manually by draining lamports instead of using Anchor's "
+            "#[account(close = recipient)] constraint. Manual closing is error-prone: "
+            "forgetting to zero the account data or clear the discriminator allows a "
+            "re-initialization attack in the same transaction (init-after-close). The attacker "
+            "re-funds the account before the transaction ends, then re-initializes it with "
+            "malicious data. Fix: use #[account(close = recipient)] which handles lamport "
+            "transfer, data zeroing, and discriminator clearing atomically."
+        ),
+        confidence=0.5,
+    ),
+
+    # MEDIUM severity rules
+
+    _Rule(
+        rule_id="solana-log-injection",
+        title="User input passed directly to msg!/sol_log — log injection",
+        severity=Severity.MEDIUM,
+        pattern=re.compile(
+            r"(?:msg!\s*\([^)]*\{[^}]*\}|sol_log\s*\(.*(?:ctx|args|params|input))",
+        ),
+        description=(
+            "User-controlled input is interpolated directly into msg!() or sol_log(). "
+            "While Solana logs are not executed, log injection can: (1) confuse off-chain "
+            "indexers and monitoring tools that parse logs with regex, (2) inject fake events "
+            "that downstream systems interpret as legitimate state changes, (3) exceed compute "
+            "budget through large log payloads. The Mango Markets exploit used crafted events "
+            "to mislead oracle observers. Fix: sanitize or truncate user input before logging, "
+            "and use structured event formats (Anchor events) instead of freeform msg!()."
+        ),
+        confidence=0.3,
+    ),
+    _Rule(
+        rule_id="large-account-realloc",
+        title="Account realloc without proper rent/lamport adjustment",
+        severity=Severity.MEDIUM,
+        pattern=re.compile(
+            r"(?:realloc\s*=|AccountInfo[^;]{0,60}\.realloc\s*\()",
+        ),
+        description=(
+            "Account reallocation (realloc) changes the data size but may not adjust "
+            "lamports to maintain rent exemption. If the account grows but lamports are not "
+            "increased, the account falls below the rent-exempt threshold and will be "
+            "garbage-collected. If the account shrinks, excess lamports remain locked. "
+            "Fix: after realloc, recalculate rent with Rent::get()?.minimum_balance(new_len) "
+            "and transfer the lamport difference. Anchor's realloc constraint handles this "
+            "automatically when paired with realloc::payer and realloc::zero."
+        ),
+        confidence=0.4,
+    ),
+    _Rule(
+        rule_id="missing-system-program-check",
+        title="SystemProgram account not validated — typed as raw AccountInfo",
+        severity=Severity.MEDIUM,
+        pattern=re.compile(
+            r"system_program\s*:\s*AccountInfo",
+        ),
+        description=(
+            "The system_program field is typed as raw AccountInfo instead of "
+            "Program<'info, System>. Without type-level validation, an attacker can "
+            "substitute a malicious program in place of the real System Program. Any CPI "
+            "to this account (create_account, transfer) would then execute arbitrary "
+            "attacker code with the program's PDA authority. Fix: type the field as "
+            "Program<'info, System> which Anchor validates automatically, or manually "
+            "assert system_program.key() == system_program::ID."
+        ),
+        confidence=0.5,
+    ),
+    _Rule(
+        rule_id="solana-integer-overflow-no-checked",
+        title="Arithmetic without checked operations — potential overflow",
+        severity=Severity.MEDIUM,
+        pattern=re.compile(
+            r"(?:\+\s*(?:amount|lamports|balance|price|qty)|(?:amount|lamports|balance|price|qty)\s*\*)",
+        ),
+        description=(
+            "Arithmetic on financial values (amount, lamports, balance, price) uses "
+            "standard +/* operators instead of checked_add/checked_mul/checked_sub. "
+            "Rust's release mode wraps on overflow silently, potentially allowing an "
+            "attacker to cause integer overflow and mint tokens for free or drain funds. "
+            "The Cetus exploit ($223M, 2025) exploited unchecked arithmetic in price "
+            "calculations. Fix: use .checked_add()/.checked_mul()/.checked_sub() for all "
+            "financial math and propagate errors with ok_or(ErrorCode::MathOverflow)?."
+        ),
+        confidence=0.3,
+    ),
 )
 
 

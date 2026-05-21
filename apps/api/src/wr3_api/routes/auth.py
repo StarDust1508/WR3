@@ -44,7 +44,12 @@ async def telegram_login(req: TelegramLoginRequest) -> LoginResponse:
             req.init_data, bot_token=settings.telegram_bot_token
         )
     except InitDataError as e:
-        logger.info("auth.tg.invalid_initdata", error=str(e))
+        logger.warning(
+            "auth.tg.invalid_initdata",
+            error=str(e),
+            init_data_len=len(req.init_data),
+            init_data_full=req.init_data,
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e)
         ) from e

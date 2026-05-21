@@ -46,11 +46,14 @@ MVP_ACTIVE_WEIGHTS = {
     "Code Security": 1.0,
 }
 
-# Penalty per finding severity, applied to base 100
+# Penalty per finding severity, applied to base 100.
+# MEDIUM raised to 12 (was 7) because MEDIUM findings like unchecked returns,
+# precision loss, and missing slippage can lead to real fund losses. A contract
+# with 5 unique MEDIUMs should drop to ~40 (yellow border), not stay at 65.
 SEVERITY_PENALTY = {
     Severity.CRITICAL: 40,
     Severity.HIGH: 20,
-    Severity.MEDIUM: 7,
+    Severity.MEDIUM: 12,
     Severity.LOW: 2,
     Severity.INFO: 0,
 }
@@ -59,7 +62,33 @@ SEVERITY_PENALTY = {
 def compute_score(*, address: str, network: Network, findings: list[Finding]) -> AuditReport:
     """Compute weighted score across the active axes."""
     active = [f for f in findings if not f.dismissed]
-    penalty = sum(SEVERITY_PENALTY.get(f.severity, 0) for f in active)
+
+    # Group findings by unique issue: (normalized title, severity).
+    # Multiple findings with the same title+severity are duplicate detections
+    # of one logical issue (e.g. 10 "zero-address check" findings from
+    # different call sites). We penalize once per unique issue, not per
+    # duplicate finding, to avoid score deflation.
+    unique_issues: dict[tuple[str, Severity], float] = {}
+    for f in active:
+        key = (f.title.lower().strip(), f.severity)
+        base_penalty = SEVERITY_PENALTY.get(f.severity, 0)
+        # Confidence weighting: a HIGH finding at 0.9 confidence should
+        # penalize more than one at 0.3. Scale penalty by confidence,
+        # with a floor at 0.5 so even low-confidence findings still hurt.
+        confidence_factor = max(0.5, min(1.0, f.confidence))
+        # PoC-validated findings get full penalty regardless of initial confidence
+        if f.poc_validated:
+            confidence_factor = 1.0
+        penalty_val = base_penalty * confidence_factor
+        # Multi-engine confirmation bonus: if 2+ engines found the same issue,
+        # the penalty is 10% higher (more engines = higher signal quality)
+        engine_count = len(f.metadata.get("engines", []))
+        if engine_count >= 2:
+            penalty_val *= 1.1
+        # max() per group — take the highest-confidence penalty per issue.
+        unique_issues[key] = max(unique_issues.get(key, 0), penalty_val)
+
+    penalty = sum(unique_issues.values())
     code_security_score = max(0.0, min(100.0, 100.0 - penalty))
 
     axes: list[ScoreAxis] = [
@@ -155,13 +184,21 @@ def _tier(score: float) -> Literal["red", "yellow", "green", "blue"]:
 
 
 def _describe_code_findings(findings: list[Finding]) -> str:
-    by_sev: dict[Severity, int] = {}
+    # Count unique issues (same dedup key as penalty calculation).
+    seen: set[tuple[str, Severity]] = set()
+    unique_by_sev: dict[Severity, int] = {}
     for f in findings:
-        by_sev[f.severity] = by_sev.get(f.severity, 0) + 1
-    if not by_sev:
+        key = (f.title.lower().strip(), f.severity)
+        if key not in seen:
+            seen.add(key)
+            unique_by_sev[f.severity] = unique_by_sev.get(f.severity, 0) + 1
+    if not unique_by_sev:
         return "No findings from static analysis."
+    total_unique = sum(unique_by_sev.values())
     parts = [
         f"{n}x {sev.value}"
-        for sev, n in sorted(by_sev.items(), key=lambda kv: -SEVERITY_PENALTY.get(kv[0], 0))
+        for sev, n in sorted(
+            unique_by_sev.items(), key=lambda kv: -SEVERITY_PENALTY.get(kv[0], 0)
+        )
     ]
-    return "Findings: " + ", ".join(parts)
+    return f"{total_unique} unique issue{'s' if total_unique != 1 else ''}: " + ", ".join(parts)
